@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -64,11 +64,13 @@ import { formatDistanceToNow, format } from 'date-fns';
 import axiosInstance from '../../utils/axios';
 import { useAuth } from '../../context/AuthContext';
 import StudentProgressBar from '../../components/counselor/StudentProgressBar';
+import useWebSocket from '../../hooks/useWebSocket';
 
 function MarketingCommunication() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isConnected, onEvent, joinRoom } = useWebSocket();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -114,7 +116,7 @@ function MarketingCommunication() {
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -144,11 +146,86 @@ function MarketingCommunication() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // WebSocket setup for real-time updates
+  useEffect(() => {
+    if (!isConnected || !user) return;
+
+    // Join user-specific room for receiving messages
+    joinRoom(`user:${user.id}`);
+    
+    // Join role-based room for marketing users
+    if (user.role === 'marketing' || user.role === 'b2b_marketing') {
+      joinRoom(`role:${user.role}`);
+    }
+
+    // Listen for new messages
+    const cleanupMessage = onEvent('new_message', (data) => {
+      console.log('New message received via WebSocket:', data);
+      
+      // Update recent messages if this is a reply from counselor
+      if (data.message && data.studentId) {
+        setRecentMessages(prev => {
+          const existing = prev.find(msg => msg.studentId === data.studentId);
+          if (existing) {
+            // Update existing message
+            return prev.map(msg => 
+              msg.studentId === data.studentId 
+                ? { ...msg, ...data.message, createdAt: data.message.createdAt }
+                : msg
+            );
+          } else {
+            // Add new message
+            return [{ ...data.message, studentId: data.studentId }, ...prev];
+          }
+        });
+
+        // If the dialog is open for this lead, refresh the lead details
+        if (selectedLead && selectedLead.id === data.studentId) {
+          loadLeadDetails(data.studentId);
+        }
+      }
+
+      // Reload data to get updated leads list
+      loadData();
+    });
+
+    // Listen for application updates
+    const cleanupApplication = onEvent('application_update', (data) => {
+      console.log('Application update received via WebSocket:', data);
+      // Reload leads to get updated application progress
+      loadData();
+    });
+
+    // Listen for application progress updates
+    const cleanupProgress = onEvent('application_progress', (data) => {
+      console.log('Application progress update received via WebSocket:', data);
+      // Reload leads to get updated progress
+      loadData();
+    });
+
+    // Listen for notifications (which include application updates)
+    const cleanupNotification = onEvent('notification', (notification) => {
+      console.log('Notification received via WebSocket:', notification);
+      // If it's an application update notification, reload data
+      if (notification.type === 'application_update' || notification.type === 'application_progress') {
+        loadData();
+      }
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      cleanupMessage?.();
+      cleanupApplication?.();
+      cleanupProgress?.();
+      cleanupNotification?.();
+    };
+  }, [isConnected, user, onEvent, joinRoom, selectedLead, loadData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

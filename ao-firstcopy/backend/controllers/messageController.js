@@ -147,7 +147,14 @@ exports.sendMessage = async (req, res) => {
     try {
       const websocketService = require('../services/websocketService');
       if (websocketService.io) {
-        websocketService.io.to(`user_${actualReceiverId}`).emit('new_message', {
+        // Use the correct room format (user:userId)
+        websocketService.broadcastToUser(actualReceiverId, 'new_message', {
+          message: messageWithDetails,
+          studentId,
+          senderId
+        });
+        // Also emit to the sender so they see their own message immediately
+        websocketService.broadcastToUser(senderId, 'new_message', {
           message: messageWithDetails,
           studentId,
           senderId
