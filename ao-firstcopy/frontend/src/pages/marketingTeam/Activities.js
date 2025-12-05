@@ -239,7 +239,7 @@ function MarketingActivities() {
                                     ? student.countries.split(',').filter(Boolean)
                                     : []),
                                 universityName: student.universityName || data.universityName || '',
-                                mobile: data.mobile || '',
+                                mobile: student.phone || data.mobile || '',
                                 email: data.email || '',
                                 parentsAnnualIncome: student.parentsAnnualIncome || data.parentsAnnualIncome || ''
                               });
@@ -368,16 +368,15 @@ function MarketingActivities() {
               helperText={editErrors.universityName}
             />
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              {!isB2B && (
-                <TextField
-                  label="Mobile Number"
-                  fullWidth
-                  value={editForm.mobile}
-                  onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
-                  error={!!editErrors.mobile}
-                  helperText={editErrors.mobile}
-                />
-              )}
+              <TextField
+                label="Mobile Number"
+                fullWidth
+                required
+                value={editForm.mobile}
+                onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
+                error={!!editErrors.mobile}
+                helperText={editErrors.mobile}
+              />
               <TextField
                 label="Email"
                 fullWidth
@@ -392,7 +391,7 @@ function MarketingActivities() {
                 label="Parents Annual Income"
                 type="number"
                 fullWidth
-                required
+                placeholder="Optional"
                 value={editForm.parentsAnnualIncome}
                 onChange={(e) => setEditForm({ ...editForm, parentsAnnualIncome: e.target.value })}
                 error={!!editErrors.parentsAnnualIncome}
@@ -421,7 +420,7 @@ function MarketingActivities() {
               if (!editForm.completionYear) errors.completionYear = 'Completion year is required';
               if (!editForm.countries.length) errors.countries = 'Select at least one country';
               if (!editForm.universityName.trim()) errors.universityName = 'University name is required';
-              if (!isB2B && !editForm.parentsAnnualIncome) errors.parentsAnnualIncome = 'Parents annual income is required';
+              if (!editForm.mobile || !editForm.mobile.trim()) errors.mobile = 'Mobile number is required';
 
               const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
               if (editForm.email && !emailRegex.test(editForm.email)) {

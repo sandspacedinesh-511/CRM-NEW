@@ -200,13 +200,14 @@ exports.createLead = async (req, res) => {
       !Array.isArray(countries) ||
       countries.length === 0 ||
       !universityName ||
-      (!isB2B && !parentsAnnualIncome)
+      !mobile ||
+      !mobile.trim()
     ) {
       return res.status(400).json({
         success: false,
         message: isB2B
-          ? 'All fields are required: studentName, consultancyName, yearOfStudy, completionYear, countries, universityName'
-          : 'All fields are required: studentName, branch, yearOfStudy, completionYear, countries, universityName, parentsAnnualIncome'
+          ? 'All fields are required: studentName, consultancyName, yearOfStudy, completionYear, countries, universityName, mobile'
+          : 'All fields are required: studentName, branch, yearOfStudy, completionYear, countries, universityName, mobile'
       });
     }
 
@@ -333,6 +334,14 @@ exports.updateLead = async (req, res) => {
 
     const isB2B = req.user?.role === 'b2b_marketing';
 
+    // Validate required fields
+    if (!mobile || !mobile.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number is required'
+      });
+    }
+
     // Normalise numeric fields, falling back to existing values when empty
     const normalizedYearOfStudy =
       yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === ''
@@ -372,7 +381,7 @@ exports.updateLead = async (req, res) => {
       firstName,
       lastName,
       email: effectiveEmail,
-      phone: isB2B ? student.phone : (mobile ?? student.phone),
+      phone: mobile || student.phone,
       preferredUniversity: universityName ?? student.preferredUniversity,
       preferredCourse: isB2B ? student.preferredCourse : (branch ?? student.preferredCourse),
       yearOfStudy: normalizedYearOfStudy,
