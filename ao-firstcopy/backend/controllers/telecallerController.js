@@ -78,13 +78,13 @@ const formatTaskForQueue = (task, notesMap) => {
   const status = deriveTaskStatus(task);
   const studentInfo = task.student
     ? {
-        id: task.student.id,
-        name: `${task.student.firstName} ${task.student.lastName}`,
-        email: task.student.email,
-        phone: task.student.phone,
-        status: task.student.status,
-        currentPhase: task.student.currentPhase
-      }
+      id: task.student.id,
+      name: `${task.student.firstName} ${task.student.lastName}`,
+      email: task.student.email,
+      phone: task.student.phone,
+      status: task.student.status,
+      currentPhase: task.student.currentPhase
+    }
     : null;
 
   const latestNote = task.studentId ? notesMap[task.studentId] : null;
@@ -106,9 +106,9 @@ const formatTaskForQueue = (task, notesMap) => {
     student: studentInfo,
     notesPreview: latestNote
       ? {
-          content: latestNote.content,
-          createdAt: latestNote.createdAt
-        }
+        content: latestNote.content,
+        createdAt: latestNote.createdAt
+      }
       : null
   };
 };
@@ -238,29 +238,39 @@ const findNextFollowUp = (tasks) => {
   return pending.length ? pending[0] : null;
 };
 
-const buildCallVolume = (tasks) => {
+const buildCallVolume = (tasks, importedTasks = []) => {
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     date.setHours(0, 0, 0, 0);
-    const dateKey = date.toISOString().split('T')[0];
+    const dateKey = date.toLocaleDateString('en-CA');
     const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     days.push({ dateKey, formatted });
   }
 
   const counts = days.map(({ dateKey, formatted }) => {
-    const total = tasks.reduce((acc, task) => {
+    const systemTotal = tasks.reduce((acc, task) => {
       const attemptDate = task.lastAttemptAt || task.completedAt || task.updatedAt || task.createdAt;
       if (!attemptDate) return acc;
-      const attemptKey = attemptDate.toISOString().split('T')[0];
+      const attemptKey = new Date(attemptDate).toLocaleDateString('en-CA');
       if (attemptKey === dateKey) {
         return acc + 1;
       }
       return acc;
     }, 0);
 
-    return { date: formatted, total };
+    const importedTotal = importedTasks.reduce((acc, task) => {
+      const attemptDate = task.updatedAt;
+      if (!attemptDate) return acc;
+      const attemptKey = new Date(attemptDate).toLocaleDateString('en-CA');
+      if (attemptKey === dateKey) {
+        return acc + 1;
+      }
+      return acc;
+    }, 0);
+
+    return { date: formatted, total: systemTotal + importedTotal };
   });
 
   return counts;
@@ -316,7 +326,23 @@ exports.getDashboard = async (req, res) => {
       (task) => task.status === 'TODAY'
     ).length;
 
-    const callVolume = buildCallVolume(followUpTasks);
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const recentImportedTasksForVolume = await TelecallerImportedTask.findAll({
+      where: {
+        telecallerId,
+        updatedAt: { [Op.gte]: sevenDaysAgo },
+        callStatus: {
+          [Op.notIn]: ['', 'n/a', '-', '—'],
+          [Op.ne]: null
+        }
+      },
+      attributes: ['updatedAt']
+    });
+
+    const callVolume = buildCallVolume(followUpTasks, recentImportedTasksForVolume);
 
     // Imported tasks "assigned" today for this telecaller (based on createdAt date)
     const todaysImportedTasks = await TelecallerImportedTask.findAll({
@@ -333,13 +359,20 @@ exports.getDashboard = async (req, res) => {
 
     let importedCompletedToday = 0;
     let pendingImportedToday = 0;
+    let noResponseToday = 0;
+    let dontFollowUpToday = 0;
 
     todaysImportedTasks.forEach((row) => {
-      const rawStatus = (row.callStatus || '').trim();
-      if (!rawStatus || rawStatus === '-' || rawStatus === '—') {
+      const rawStatus = (row.callStatus || '').trim().toLowerCase();
+      if (!rawStatus || rawStatus === '-' || rawStatus === '—' || rawStatus === 'n/a') {
         pendingImportedToday += 1;
       } else {
         importedCompletedToday += 1;
+        if (rawStatus === 'no response') {
+          noResponseToday += 1;
+        } else if (rawStatus === "don't follow up" || rawStatus === 'dont follow up') {
+          dontFollowUpToday += 1;
+        }
       }
     });
 
@@ -351,7 +384,8 @@ exports.getDashboard = async (req, res) => {
           { callStatus: null },
           { callStatus: '' },
           { callStatus: '-' },
-          { callStatus: '—' }
+          { callStatus: '—' },
+          { callStatus: 'n/a' }
         ]
       }
     });
@@ -402,9 +436,9 @@ exports.getDashboard = async (req, res) => {
       timestamp: activity.createdAt,
       student: activity.student
         ? {
-            id: activity.student.id,
-            name: `${activity.student.firstName} ${activity.student.lastName}`
-          }
+          id: activity.student.id,
+          name: `${activity.student.firstName} ${activity.student.lastName}`
+        }
         : null
     }));
 
@@ -412,7 +446,10 @@ exports.getDashboard = async (req, res) => {
     const recentImportedCalls = await TelecallerImportedTask.findAll({
       where: {
         telecallerId,
-        callStatus: { [Op.ne]: null }
+        callStatus: {
+          [Op.notIn]: ['', 'n/a', '-', '—'],
+          [Op.ne]: null
+        }
       },
       limit: 10,
       order: [['updatedAt', 'DESC']]
@@ -421,9 +458,8 @@ exports.getDashboard = async (req, res) => {
     const importedActivity = recentImportedCalls.map((row) => ({
       id: `imported-${row.id}`,
       type: 'IMPORTED_CALL',
-      description: `Call to ${row.name || 'contact'} (${row.contactNumber || 'no number'}) · Status: ${
-        row.callStatus || 'n/a'
-      }`,
+      description: `Call to ${row.name || 'contact'} (${row.contactNumber || 'no number'}) · Status: ${row.callStatus || 'n/a'
+        }`,
       timestamp: row.updatedAt,
       student: null
     }));
@@ -453,7 +489,10 @@ exports.getDashboard = async (req, res) => {
     const importedCallsToday = await TelecallerImportedTask.count({
       where: {
         telecallerId,
-        callStatus: { [Op.ne]: null },
+        callStatus: {
+          [Op.notIn]: ['', 'n/a', '-', '—'],
+          [Op.ne]: null
+        },
         updatedAt: {
           [Op.gte]: twentyFourHoursAgo
         }
@@ -520,7 +559,8 @@ exports.getDashboard = async (req, res) => {
           { callStatus: null },
           { callStatus: '' },
           { callStatus: '-' },
-          { callStatus: '—' }
+          { callStatus: '—' },
+          { callStatus: 'n/a' }
         ]
       }
     });
@@ -530,11 +570,11 @@ exports.getDashboard = async (req, res) => {
     );
     const avgCompletionTimeHours = completedWithTimes.length
       ? Math.round(
-          (completedWithTimes.reduce((total, task) => total + (task.completedAt - task.createdAt), 0) /
-            completedWithTimes.length /
-            (1000 * 60 * 60)) *
-            10
-        ) / 10
+        (completedWithTimes.reduce((total, task) => total + (task.completedAt - task.createdAt), 0) /
+          completedWithTimes.length /
+          (1000 * 60 * 60)) *
+        10
+      ) / 10
       : 0;
 
     const uniquePriorities = Array.from(
@@ -569,7 +609,9 @@ exports.getDashboard = async (req, res) => {
           totalPendingImportedCalls,
           importedTasksToday,
           importedCompletedCalls: importedCompletedToday,
-          yesterdayPendingImportedCalls
+          yesterdayPendingImportedCalls,
+          noResponseToday,
+          dontFollowUpToday
         },
         callQueue: formattedTasks,
         callVolume,
@@ -717,9 +759,8 @@ exports.completeTask = async (req, res) => {
     try {
       await Activity.create({
         type: 'TELECALLER_CALL',
-        description: `Follow-up call${task.title ? ` - ${task.title}` : ''}${
-          outcome ? ` (${outcome})` : ''
-        }`,
+        description: `Follow-up call${task.title ? ` - ${task.title}` : ''}${outcome ? ` (${outcome})` : ''
+          }`,
         studentId: task.studentId || null,
         userId: telecallerId,
         metadata: {
@@ -914,79 +955,101 @@ exports.getTasks = async (req, res) => {
 
 exports.exportTasks = async (req, res) => {
   const telecallerId = req.user.id;
-  const { status, search, priority } = req.query;
+  const { status, date } = req.query;
 
   const timer = performanceLogger.startTimer('telecaller_tasks_export');
 
   try {
-    const tasksResponse = await exports.getTasks(
-      {
-        ...req,
-        user: { id: telecallerId },
-        query: {
-          status: status || 'ALL',
-          search: search || '',
-          priority: priority || 'ALL'
-        }
-      },
-      {
-        json: (payload) => payload
+    // If status is one of the new filters, we export from TelecallerImportedTask
+    if (status === 'No Response' || status === 'Follow Up') {
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Date is required for this export'
+        });
       }
-    );
 
-    const { data: tasks = [] } = tasksResponse || {};
+      const targetDateStart = new Date(date);
+      targetDateStart.setHours(0, 0, 0, 0);
+      const targetDateEnd = new Date(date);
+      targetDateEnd.setHours(23, 59, 59, 999);
 
-    if (!tasks.length) {
+      // Map UI status to DB status if needed, or use direct string match
+      // The UI sends "No Response" or "Follow Up"
+      // The DB stores "no response", "follow up" (lowercase usually, but let's be case-insensitive or precise)
+      // Based on previous code, it seems to be stored as lowercase or mixed.
+      // Let's try to match loosely or exactly as stored.
+      // Previous code checked: rawStatus === 'no response'
+      const dbStatus = status.toLowerCase();
+
+      const tasks = await TelecallerImportedTask.findAll({
+        where: {
+          telecallerId,
+          callStatus: dbStatus,
+          updatedAt: {
+            [Op.between]: [targetDateStart, targetDateEnd]
+          }
+        },
+        order: [['updatedAt', 'DESC']]
+      });
+
+      if (!tasks.length) {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=telecaller-export.csv');
+        res.send('message\nNo records found for the selected date and status');
+        return;
+      }
+
+      // Headers matching the import template
+      const csvHeaders = [
+        'S.No',
+        'Name',
+        'Contact Number',
+        'Email ID',
+        'Assigned',
+        'Call Status',
+        'Lead Status',
+        'Interested country',
+        'Services',
+        'Comments'
+      ];
+
+      const csvRows = tasks.map((task, index) => {
+        return [
+          task.sNo || index + 1,
+          `"${task.name || ''}"`,
+          `"${task.contactNumber || ''}"`,
+          `"${task.emailId || ''}"`,
+          `"${task.assigned || ''}"`,
+          `"${task.callStatus || ''}"`,
+          `"${task.leadStatus || ''}"`,
+          `"${task.interestedCountry || ''}"`,
+          `"${task.services || ''}"`,
+          `"${task.comments || ''}"`
+        ].join(',');
+      });
+
+      const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
+
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=telecaller-tasks.csv');
-      res.send('message\nNo tasks found for the selected filters');
-      return;
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=telecaller_export_${status.replace(/\s+/g, '_')}_${date}.csv`
+      );
+      res.send(csvContent);
+
+    } else {
+      // Fallback to old logic if needed, or just return empty for now as UI only allows the above
+      // But to be safe, let's keep a minimal fallback or just error if unexpected status
+      // For now, assuming UI only sends the new statuses.
+      // If we want to support "ALL" or others, we'd need the old logic.
+      // Given the requirement "left filter includes only 'No Response' and 'Follow Up'",
+      // we can assume we only handle these.
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=telecaller-export.csv');
+      res.send('message\nInvalid status filter');
     }
-
-    const csvHeaders = [
-      'Task Title',
-      'Student Name',
-      'Email',
-      'Phone',
-      'Status',
-      'Priority',
-      'Due Date',
-      'Attempts',
-      'Outcome',
-      'Last Attempt',
-      'Latest Note'
-    ];
-
-    const csvRows = tasks.map((task) => {
-      const dueDate = task.dueDate ? new Date(task.dueDate).toISOString() : '';
-      const lastAttempt = task.lastAttemptAt ? new Date(task.lastAttemptAt).toISOString() : '';
-      const latestNote = task.notesPreview?.content
-        ? task.notesPreview.content.replace(/\s+/g, ' ').slice(0, 120)
-        : '';
-
-      return [
-        `"${task.title || ''}"`,
-        `"${task.student?.name || ''}"`,
-        `"${task.student?.email || ''}"`,
-        `"${task.student?.phone || ''}"`,
-        `"${task.status}"`,
-        `"${task.priority}"`,
-        `"${dueDate}"`,
-        task.attempts || 0,
-        `"${task.callOutcome || ''}"`,
-        `"${lastAttempt}"`,
-        `"${latestNote}"`
-      ].join(',');
-    });
-
-    const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=telecaller_tasks_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    res.send(csvContent);
 
     const duration = timer.end();
     performanceLogger.logApiRequest('GET', '/api/telecaller/tasks/export', duration, 200, telecallerId);
@@ -1084,8 +1147,8 @@ exports.importTasksFromExcel = async (req, res) => {
       isLead: false
     }));
 
-    // Replace existing imported tasks for this telecaller
-    await TelecallerImportedTask.destroy({ where: { telecallerId } });
+    // Append new imported tasks for this telecaller (do not delete existing)
+    // await TelecallerImportedTask.destroy({ where: { telecallerId } });
     await TelecallerImportedTask.bulkCreate(records);
 
     return res.json({

@@ -19,9 +19,8 @@ import {
 import { exportTelecallerTasks } from '../../services/telecallerService';
 
 const Exports = () => {
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [outcomeFilter, setOutcomeFilter] = useState('ALL');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('No Response');
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().slice(0, 10));
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -31,15 +30,14 @@ const Exports = () => {
     try {
       const params = {
         status: statusFilter,
-        outcome: outcomeFilter === 'ALL' ? undefined : outcomeFilter,
-        search: searchTerm || undefined
+        date: dateFilter
       };
       const data = await exportTelecallerTasks(params);
       const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `telecaller_followups_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `telecaller_export_${statusFilter.replace(/\s+/g, '_')}_${dateFilter}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -49,17 +47,16 @@ const Exports = () => {
       console.error('Export failed:', apiError);
       setMessage({
         type: 'error',
-        text: apiError.response?.data?.message || 'Failed to export follow-ups.'
+        text: apiError.response?.data?.message || 'Failed to export data.'
       });
     } finally {
       setExporting(false);
     }
-  }, [statusFilter, outcomeFilter, searchTerm]);
+  }, [statusFilter, dateFilter]);
 
   const resetFilters = () => {
-    setStatusFilter('ALL');
-    setOutcomeFilter('ALL');
-    setSearchTerm('');
+    setStatusFilter('No Response');
+    setDateFilter(new Date().toISOString().slice(0, 10));
   };
 
   return (
@@ -81,40 +78,30 @@ const Exports = () => {
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               select
-              helperText="Filter follow-ups by status"
+              helperText="Filter by status"
               sx={{ minWidth: 220 }}
             >
-              {['ALL', 'OVERDUE', 'TODAY', 'UPCOMING', 'COMPLETED'].map((status) => (
+              {['No Response', 'Follow Up'].map((status) => (
                 <MenuItem key={status} value={status}>
                   {status}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
-              label="Outcome filter"
-              value={outcomeFilter}
-              onChange={(event) => setOutcomeFilter(event.target.value)}
-              select
-              helperText="Filter by last recorded outcome"
+              label="Date filter"
+              type="date"
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                max: new Date().toISOString().split('T')[0]
+              }}
+              helperText="Filter by date"
               sx={{ minWidth: 220 }}
-            >
-              {['ALL', 'Connected', 'Left Voicemail', 'No Answer', 'Callback Requested', 'Wrong Number', 'Other'].map(
-                (outcome) => (
-                  <MenuItem key={outcome} value={outcome}>
-                    {outcome}
-                  </MenuItem>
-                )
-              )}
-            </TextField>
+            />
           </Stack>
-
-          <TextField
-            label="Search keywords"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            helperText="Filter by student name, email, or phone"
-            fullWidth
-          />
 
           <Stack direction="row" spacing={2}>
             <Button

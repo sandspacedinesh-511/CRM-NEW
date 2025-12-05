@@ -49,7 +49,9 @@ import {
   EditCalendar as EditCalendarIcon,
   DoneAll as DoneAllIcon,
   NotificationImportant as NotificationImportantIcon,
-  Flag as FlagIcon
+  Flag as FlagIcon,
+  PhoneMissed as PhoneMissedIcon,
+  Block as BlockIcon
 } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -175,7 +177,7 @@ function TelecallerDashboard() {
 
   useEffect(() => {
     if (!autoRefresh) {
-      return () => {};
+      return () => { };
     }
     const interval = setInterval(() => {
       loadData(false);
@@ -338,6 +340,8 @@ function TelecallerDashboard() {
       : stats.completedFollowUps ?? 0;
   const totalPendingCalls =
     typeof stats.totalPendingImportedCalls === 'number' ? stats.totalPendingImportedCalls : pendingCalls;
+  const noResponseCount = stats.noResponseToday ?? 0;
+  const dontFollowUpCount = stats.dontFollowUpToday ?? 0;
 
   const filteredQueue = useMemo(() => {
     return callQueue
@@ -539,6 +543,24 @@ function TelecallerDashboard() {
             color={theme.palette.error.main}
           />
         </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            icon={<PhoneMissedIcon />}
+            title="No Response"
+            value={noResponseCount}
+            subtitle="Calls marked as no response today"
+            color={theme.palette.warning.dark}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            icon={<BlockIcon />}
+            title="Don't Follow Up"
+            value={dontFollowUpCount}
+            subtitle="Calls marked as don't follow up today"
+            color={theme.palette.error.dark}
+          />
+        </Grid>
       </Grid>
 
       <Grid container spacing={3}>
@@ -697,9 +719,8 @@ function TelecallerDashboard() {
                         PRIORITY_CHIP_COLOR_MAP[item.priority] === 'success'
                           ? 'success'
                           : PRIORITY_CHIP_COLOR_MAP[item.priority];
-                      const label = `${item.priority.charAt(0)}${item.priority.slice(1).toLowerCase()}: ${
-                        item.total
-                      } • ${item.percentage}%`;
+                      const label = `${item.priority.charAt(0)}${item.priority.slice(1).toLowerCase()}: ${item.total
+                        } • ${item.percentage}%`;
                       return (
                         <Chip
                           key={item.priority}
@@ -1023,10 +1044,10 @@ function TelecallerDashboard() {
                           nextFollowUp.status === 'OVERDUE'
                             ? 'error'
                             : nextFollowUp.status === 'TODAY'
-                            ? 'info'
-                            : nextFollowUp.status === 'COMPLETED'
-                            ? 'success'
-                            : 'default'
+                              ? 'info'
+                              : nextFollowUp.status === 'COMPLETED'
+                                ? 'success'
+                                : 'default'
                         }
                         size="small"
                       />
