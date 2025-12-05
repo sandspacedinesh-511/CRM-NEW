@@ -9,7 +9,8 @@ const {
   Note,
   DeletedRecord,
   sequelize,
-  TelecallerImportedTask
+  TelecallerImportedTask,
+  Notification
 } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 const telecallerController = require('./telecallerController');
@@ -1272,23 +1273,28 @@ exports.assignTelecallerImportedLeadToCounselorAdmin = async (req, res) => {
     });
 
     // Push a lead assignment notification to the selected counselor (same pattern as marketing leads)
-    const notification = {
-      id: Date.now(),
+    
+    // Create persistent notification in database
+    const notificationData = {
+      userId: counselor.id,
       type: 'lead_assignment',
       title: 'New Lead Assigned',
       message: `You have a new lead assignment request: ${student.firstName} ${student.lastName}`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
       priority: 'high',
-      leadId: student.id
+      leadId: student.id,
+      isRead: false
     };
 
     try {
+      // Save notification to database
+      const savedNotification = await Notification.create(notificationData);
+      
+      // Also push to Redis/WebSocket for real-time update
       const key = `notifications:${counselor.id}`;
       const existing = (await cacheUtils.get(key)) || [];
-      existing.unshift(notification);
+      existing.unshift(savedNotification.toJSON());
       await cacheUtils.set(key, existing, 3600);
-      await webSocketService.sendNotification(counselor.id, notification);
+      await webSocketService.sendNotification(counselor.id, savedNotification.toJSON());
     } catch (notifyError) {
       console.error('Failed to push telecaller lead assignment notification:', notifyError);
     }
@@ -1417,6 +1423,26 @@ exports.getMarketingMemberLeadsAdmin = async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // Get document counts for each lead
+    const leadIds = leads.map(l => l.id);
+    const documentCounts = await Document.findAll({
+      where: {
+        studentId: { [Op.in]: leadIds },
+        type: { [Op.in]: ['ID_CARD', 'ENROLLMENT_LETTER', 'OTHER'] }
+      },
+      attributes: [
+        'studentId',
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+      ],
+      group: ['studentId'],
+      raw: true
+    });
+
+    const documentCountMap = {};
+    documentCounts.forEach(doc => {
+      documentCountMap[doc.studentId] = parseInt(doc.count, 10);
+    });
+
     const data = leads.map((s) => ({
       id: s.id,
       name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unnamed Lead',
@@ -1426,6 +1452,7 @@ exports.getMarketingMemberLeadsAdmin = async (req, res) => {
       status: s.status,
       currentPhase: s.currentPhase,
       assigned: Boolean(s.counselorId),
+      documentCount: documentCountMap[s.id] || 0,
       createdAt: s.createdAt
     }));
 
@@ -1540,6 +1567,26 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // Get document counts for each lead
+    const leadIds = leads.map(l => l.id);
+    const documentCounts = await Document.findAll({
+      where: {
+        studentId: { [Op.in]: leadIds },
+        type: { [Op.in]: ['ID_CARD', 'ENROLLMENT_LETTER', 'OTHER'] }
+      },
+      attributes: [
+        'studentId',
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+      ],
+      group: ['studentId'],
+      raw: true
+    });
+
+    const documentCountMap = {};
+    documentCounts.forEach(doc => {
+      documentCountMap[doc.studentId] = parseInt(doc.count, 10);
+    });
+
     const data = leads.map((s) => ({
       id: s.id,
       name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unnamed Lead',
@@ -1548,6 +1595,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       status: s.status,
       currentPhase: s.currentPhase,
       assigned: Boolean(s.counselorId),
+      documentCount: documentCountMap[s.id] || 0,
       createdAt: s.createdAt
     }));
 
@@ -1566,6 +1614,147 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       message: 'Failed to fetch leads for this B2B marketing member',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+};
+
+// Download documents as zip for a specific lead
+exports.downloadLeadDocuments = async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    
+    // Verify lead exists
+    const lead = await Student.findOne({
+      where: { id: leadId }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    // Get documents for this lead (ID_CARD, ENROLLMENT_LETTER, OTHER)
+    const documents = await Document.findAll({
+      where: {
+        studentId: leadId,
+        type: { [Op.in]: ['ID_CARD', 'ENROLLMENT_LETTER', 'OTHER'] }
+      },
+      order: [['type', 'ASC'], ['createdAt', 'DESC']]
+    });
+
+    if (documents.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No documents found for this lead'
+      });
+    }
+
+    // Check if archiver is available
+    let archiver;
+    try {
+      archiver = require('archiver');
+    } catch (archiverError) {
+      console.error('Archiver package not found. Please install it: npm install archiver');
+      return res.status(500).json({
+        success: false,
+        message: 'Archiver package not installed. Please install it: npm install archiver'
+      });
+    }
+
+    const DigitalOceanStorageService = require('../services/digitalOceanStorage');
+    const fs = require('fs');
+    const path = require('path');
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="lead-${leadId}-documents.zip"`);
+
+    const archive = archiver('zip', {
+      zlib: { level: 9 }
+    });
+
+    archive.on('error', (err) => {
+      console.error('Archive error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Error creating zip file'
+        });
+      }
+    });
+
+    archive.pipe(res);
+
+    // Download each document and add to zip
+    for (const doc of documents) {
+      try {
+        let fileBuffer;
+        
+        // Try to get file from DigitalOcean Spaces first
+        try {
+          const storageService = new DigitalOceanStorageService();
+          fileBuffer = await storageService.downloadFile(doc.path);
+        } catch (storageError) {
+          console.log(`DigitalOcean download failed for ${doc.path}, trying local storage:`, storageError.message);
+          
+          // Fallback to local file system
+          const possiblePaths = [
+            doc.path,
+            path.join(__dirname, '..', 'uploads', doc.path),
+            path.join(__dirname, '..', 'uploads', 'marketing-documents', path.basename(doc.path)),
+            path.join(process.cwd(), 'uploads', doc.path),
+            path.join(process.cwd(), 'uploads', 'marketing-documents', path.basename(doc.path))
+          ];
+          
+          let fileFound = false;
+          for (const filePath of possiblePaths) {
+            if (fs.existsSync(filePath)) {
+              fileBuffer = fs.readFileSync(filePath);
+              fileFound = true;
+              break;
+            }
+          }
+          
+          if (!fileFound) {
+            console.error(`File not found for document ${doc.id} at path: ${doc.path}`);
+            // Skip this document but continue with others
+            continue;
+          }
+        }
+        
+        // Determine file extension from mimeType or name
+        let extension = '';
+        if (doc.mimeType) {
+          if (doc.mimeType.includes('pdf')) extension = '.pdf';
+          else if (doc.mimeType.includes('jpeg') || doc.mimeType.includes('jpg')) extension = '.jpg';
+          else if (doc.mimeType.includes('png')) extension = '.png';
+          else if (doc.mimeType.includes('word')) extension = '.docx';
+          else if (doc.mimeType.includes('excel')) extension = '.xlsx';
+        } else if (doc.name) {
+          const extMatch = doc.name.match(/\.([^.]+)$/);
+          if (extMatch) extension = extMatch[0];
+        }
+        
+        // Use document name or generate one
+        const fileName = doc.name || `${doc.type}${extension}`;
+        
+        archive.append(fileBuffer, { name: fileName });
+      } catch (err) {
+        console.error(`Error adding document ${doc.id} to zip:`, err);
+        // Continue with other documents even if one fails
+      }
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    console.error('Error downloading lead documents:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to download documents',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   }
 };
 
@@ -1906,23 +2095,28 @@ exports.assignLeadToCounselorAdmin = async (req, res) => {
 
     // Do NOT assign immediately; wait for counselor acceptance.
     // Just notify the counselor about the pending assignment.
-    const notification = {
-      id: Date.now(),
+    
+    // Create persistent notification in database
+    const notificationData = {
+      userId: counselor.id,
       type: 'lead_assignment',
       title: 'New Lead Assigned',
       message: `You have a new lead assignment request: ${student.firstName} ${student.lastName}`,
-      timestamp: new Date().toISOString(),
-      isRead: false,
       priority: 'high',
-      leadId: student.id
+      leadId: student.id,
+      isRead: false
     };
 
     try {
+      // Save notification to database
+      const savedNotification = await Notification.create(notificationData);
+      
+      // Also push to Redis/WebSocket for real-time update
       const key = `notifications:${counselor.id}`;
       const existing = (await cacheUtils.get(key)) || [];
-      existing.unshift(notification);
+      existing.unshift(savedNotification.toJSON());
       await cacheUtils.set(key, existing, 3600);
-      await webSocketService.sendNotification(counselor.id, notification);
+      await webSocketService.sendNotification(counselor.id, savedNotification.toJSON());
     } catch (notifyError) {
       console.error('Failed to push assignment notification:', notifyError);
     }

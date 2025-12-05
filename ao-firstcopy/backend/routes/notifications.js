@@ -119,6 +119,49 @@ router.patch('/mark-all-read', auth, async (req, res) => {
   }
 });
 
+// Delete notification
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notificationId = req.params.id;
+
+    // Delete from database (only if it belongs to the user)
+    const deleted = await Notification.destroy({
+      where: { id: notificationId, userId }
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found or access denied'
+      });
+    }
+
+    // Update cache if exists
+    try {
+      const key = `notifications:${userId}`;
+      const cached = await cacheUtils.get(key);
+      if (cached) {
+        const updatedCached = cached.filter(n => n.id != notificationId);
+        await cacheUtils.set(key, updatedCached, 3600);
+      }
+    } catch (cacheError) {
+      // Ignore cache errors
+    }
+
+    res.json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Error deleting notification:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete notification'
+    });
+  }
+});
+
 // Create notification (admin only)
 router.post('/create', auth, checkRole(['admin']), async (req, res) => {
   try {

@@ -29,7 +29,7 @@ import {
   Typography
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
-import { ArrowBack as ArrowBackIcon, People as PeopleIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, People as PeopleIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 
 import axiosInstance from '../../utils/axios';
@@ -378,6 +378,7 @@ function B2BMarketingMemberLeadsAdmin() {
                     <TableCell>Email</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Current Phase</TableCell>
+                    <TableCell>Documents</TableCell>
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
@@ -390,6 +391,37 @@ function B2BMarketingMemberLeadsAdmin() {
                         <Chip size="small" label={lead.status || '-'} />
                       </TableCell>
                       <TableCell>{lead.currentPhase || '-'}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<DownloadIcon />}
+                          disabled={!lead.documentCount || lead.documentCount === 0}
+                          onClick={async () => {
+                            if (lead.documentCount > 0) {
+                              try {
+                                const response = await axiosInstance.get(`/admin/leads/${lead.id}/documents/download`, {
+                                  responseType: 'blob'
+                                });
+                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.setAttribute('download', `lead-${lead.id}-documents.zip`);
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                window.URL.revokeObjectURL(url);
+                              } catch (err) {
+                                console.error('Error downloading documents:', err);
+                                alert('Failed to download documents. Please try again.');
+                              }
+                            }
+                          }}
+                          sx={{ textTransform: 'none', borderRadius: 2 }}
+                        >
+                          Download ({lead.documentCount || 0})
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         {(() => {
                           const isAssigned = lead.assigned;

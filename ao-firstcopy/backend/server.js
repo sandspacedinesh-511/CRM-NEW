@@ -54,6 +54,7 @@ const countryProcessRoutes = require('./routes/countryProcesses');
 const countryRoutes = require('./routes/countryRoutes');
 const telecallerRoutes = require('./routes/telecaller');
 const marketingRoutes = require('./routes/marketing');
+const messageRoutes = require('./routes/messages');
 
 // Swagger documentation
 const swaggerUi = require('swagger-ui-express');
@@ -264,6 +265,7 @@ function startServer() {
     app.use('/api/alerts-reminders', require('./routes/alertsReminders'));
     app.use('/api/counselor-activity-tracking', require('./routes/counselorActivityTracking'));
     app.use('/api/performance-analytics', require('./routes/performanceAnalytics'));
+    app.use('/api/messages', messageRoutes);
 
     // Static file serving for uploads (development only)
     if (process.env.NODE_ENV !== 'production') {

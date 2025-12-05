@@ -29,6 +29,8 @@ const Document = sequelize.define('Document', {
       'POLICE_CLEARANCE',
       'BANK_STATEMENT',
       'SPONSOR_LETTER',
+      'ID_CARD',
+      'ENROLLMENT_LETTER',
       'OTHER'
     ),
     allowNull: false

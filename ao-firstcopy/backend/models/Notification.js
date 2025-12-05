@@ -46,6 +46,16 @@ const Notification = sequelize.define('Notification', {
     metadata: {
         type: DataTypes.JSON,
         allowNull: true
+    },
+    scheduledTime: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Scheduled time for reminder notifications'
+    },
+    reminderText: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Reminder message text'
     }
 }, {
     tableName: 'Notifications',

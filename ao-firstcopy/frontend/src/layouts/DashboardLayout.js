@@ -241,10 +241,14 @@ function DashboardLayout() {
     if (path.includes('/b2b-marketing/leads')) return 'B2B Marketing Leads';
     if (path.includes('/b2b-marketing/activities')) return 'B2B Marketing Activities';
     if (path.includes('/b2b-marketing/reports')) return 'B2B Marketing Reports';
+    if (path.includes('/b2b-marketing/communication')) return 'B2B Marketing Communication';
+    if (path.includes('/b2b-marketing/notifications')) return 'B2B Marketing Notifications';
     if (path.includes('/b2b-marketing/dashboard')) return 'B2B Marketing Dashboard';
     if (path.includes('/marketing/leads')) return 'Marketing Leads';
     if (path.includes('/marketing/activities')) return 'Marketing Activities';
     if (path.includes('/marketing/reports')) return 'Marketing Reports';
+    if (path.includes('/marketing/communication')) return 'Marketing Communication';
+    if (path.includes('/marketing/notifications')) return 'Marketing Notifications';
     if (path.includes('/marketing/dashboard')) return 'Marketing Dashboard';
     return 'Dashboard';
   };
@@ -286,14 +290,18 @@ function DashboardLayout() {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/marketing/dashboard' },
     { text: 'Leads', icon: <PeopleIcon />, path: '/marketing/leads' },
     { text: 'Activities', icon: <TimelineIcon />, path: '/marketing/activities' },
-    { text: 'Reports', icon: <AnalyticsIcon />, path: '/marketing/reports' }
+    { text: 'Reports', icon: <AnalyticsIcon />, path: '/marketing/reports' },
+    { text: 'Communication', icon: <PhoneInTalkIcon />, path: '/marketing/communication' },
+    { text: 'Notifications', icon: <NotificationsIcon />, path: '/marketing/notifications' }
   ];
 
   const b2bMarketingMenuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/b2b-marketing/dashboard' },
     { text: 'Leads', icon: <PeopleIcon />, path: '/b2b-marketing/leads' },
     { text: 'Activities', icon: <TimelineIcon />, path: '/b2b-marketing/activities' },
-    { text: 'Reports', icon: <AnalyticsIcon />, path: '/b2b-marketing/reports' }
+    { text: 'Reports', icon: <AnalyticsIcon />, path: '/b2b-marketing/reports' },
+    { text: 'Communication', icon: <PhoneInTalkIcon />, path: '/b2b-marketing/communication' },
+    { text: 'Notifications', icon: <NotificationsIcon />, path: '/b2b-marketing/notifications' }
   ];
 
   const userRole = user?.role?.toLowerCase?.() || user?.role || '';

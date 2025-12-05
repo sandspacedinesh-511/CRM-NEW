@@ -54,6 +54,9 @@ router.delete('/b2b-marketing-team/:id', cacheInvalidation(['api:admin/dashboard
 router.get('/b2b-marketing-team/leads/:id', adminController.getB2BMarketingMemberLeadsAdmin);
 router.get('/b2b-marketing-team/:id/leads', adminController.getB2BMarketingMemberLeadsAdmin);
 
+// Admin: download documents for a lead
+router.get('/leads/:leadId/documents/download', adminController.downloadLeadDocuments);
+
 // Admin: assign lead to counselor
 router.patch('/leads/:id/assign-counselor', adminController.assignLeadToCounselorAdmin);
 router.patch('/students/:id/assign-counselor', adminController.assignLeadToCounselorAdmin);
