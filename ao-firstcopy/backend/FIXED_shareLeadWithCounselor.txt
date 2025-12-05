@@ -1,0 +1,103 @@
+// INSTRUCTIONS: Add this to line 1 of counselorController.js imports
+// Replace line 10 (TelecallerImportedTask) with:
+  TelecallerImportedTask,
+  Notification
+
+// INSTRUCTIONS: Replace the shareLeadWithCounselor function (lines 418-513) with this:
+
+exports.shareLeadWithCounselor = async (req, res) => {
+  try {
+    const sourceCounselorId = req.user.id;
+    const sourceCounselorName = req.user.name || 'Counselor';
+    const { id } = req.params; // student/lead id
+    const { counselorId: targetCounselorId } = req.body || {};
+
+    if (!targetCounselorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Target counselorId is required'
+      });
+    }
+
+    if (Number(targetCounselorId) === Number(sourceCounselorId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot share a lead with yourself'
+      });
+    }
+
+    // Ensure target counselor exists and is active
+    const targetCounselor = await User.findOne({
+      where: {
+        id: targetCounselorId,
+        role: 'counselor',
+        active: true
+      },
+      attributes: ['id', 'name', 'email']
+    });
+
+    if (!targetCounselor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Target counselor not found or inactive'
+      });
+    }
+
+    // Ensure the student belongs to the current counselor
+    const student = await Student.findOne({
+      where: {
+        id,
+        counselorId: sourceCounselorId
+      },
+      attributes: ['id', 'firstName', 'lastName', 'email', 'counselorId']
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead (student) not found for this counselor'
+      });
+    }
+
+    // Create persistent notification in database
+    const notificationData = {
+      userId: targetCounselor.id,
+      type: 'lead_assignment',
+      title: 'Lead Shared With You',
+      message: `${sourceCounselorName} shared a lead: ${student.firstName} ${student.lastName}`,
+      priority: 'high',
+      leadId: student.id,
+      sharedByCounselorId: sourceCounselorId,
+      isRead: false
+    };
+
+    const savedNotification = await Notification.create(notificationData);
+
+    // Also push to Redis/WebSocket for real-time update
+    try {
+      const key = `notifications:${targetCounselor.id}`;
+      const existing = (await cacheUtils.get(key)) || [];
+      existing.unshift(savedNotification.toJSON());
+      await cacheUtils.set(key, existing, 3600);
+
+      await websocketService.sendNotification(targetCounselor.id, savedNotification);
+    } catch (notifyError) {
+      console.error('Failed to push counselor lead share notification:', notifyError);
+    }
+
+    return res.json({
+      success: true,
+      message: `Lead share request sent to counselor ${targetCounselor.name} successfully`,
+      data: {
+        studentId: student.id,
+        targetCounselorId: targetCounselor.id
+      }
+    });
+  } catch (error) {
+    console.error('Error sharing lead with counselor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to share lead with counselor'
+    });
+  }
+};
