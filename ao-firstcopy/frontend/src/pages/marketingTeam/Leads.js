@@ -461,9 +461,8 @@ function MarketingLeads() {
                     <Grid item xs={12} md={3}>
                       <TextField
                         label="Mobile Number"
-                        placeholder="Enter contact number"
+                        placeholder="Enter contact number (Optional)"
                         fullWidth
-                        required
                         value={leadForm.mobile}
                         onChange={(e) => setLeadForm({ ...leadForm, mobile: e.target.value })}
                         error={!!leadFormErrors.mobile}
@@ -528,7 +527,8 @@ function MarketingLeads() {
                         if (!leadForm.completionYear) errors.completionYear = 'Completion year is required';
                         if (!leadForm.countries.length) errors.countries = 'Select at least one country';
                         if (!leadForm.universityName.trim()) errors.universityName = 'University name is required';
-                        if (!leadForm.mobile || !leadForm.mobile.trim()) errors.mobile = 'Mobile number is required';
+                        // Mobile number is required for regular marketing, optional for B2B marketing
+                        if (!isB2B && (!leadForm.mobile || !leadForm.mobile.trim())) errors.mobile = 'Mobile number is required';
 
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (leadForm.email && !emailRegex.test(leadForm.email)) {
@@ -548,11 +548,26 @@ function MarketingLeads() {
                         setLeadFormErrors({});
                         try {
                           setCreatingLead(true);
-                          await axiosInstance.post('/marketing/leads', leadForm);
+                          
+                          // Prepare clean data for submission
+                          const submitData = {
+                            studentName: leadForm.studentName.trim(),
+                            branch: isB2B ? undefined : leadForm.branch.trim(),
+                            consultancyName: isB2B ? leadForm.consultancyName.trim() : undefined,
+                            yearOfStudy: leadForm.yearOfStudy ? parseInt(leadForm.yearOfStudy, 10) : undefined,
+                            completionYear: leadForm.completionYear ? parseInt(leadForm.completionYear, 10) : undefined,
+                            countries: leadForm.countries,
+                            universityName: leadForm.universityName.trim(),
+                            mobile: leadForm.mobile ? leadForm.mobile.trim() : undefined,
+                            email: leadForm.email ? leadForm.email.trim() : undefined,
+                            parentsAnnualIncome: leadForm.parentsAnnualIncome ? parseInt(leadForm.parentsAnnualIncome, 10) : undefined
+                          };
+                          
+                          const response = await axiosInstance.post('/marketing/leads', submitData);
                           setSnackbar({
                             open: true,
                             severity: 'success',
-                            message: 'Lead created successfully.'
+                            message: response.data?.message || 'Lead created successfully.'
                           });
                           setLeadForm({
                             studentName: '',
@@ -569,11 +584,33 @@ function MarketingLeads() {
                           await loadLeads({ showLoader: false });
                         } catch (apiError) {
                           console.error('Failed to create lead:', apiError);
+                          const errorMessage = apiError.response?.data?.message || 
+                                              (apiError.response?.data?.errors?.join('. ') || 'Failed to create lead. Please try again.');
                           setSnackbar({
                             open: true,
                             severity: 'error',
-                            message: apiError.response?.data?.message || 'Failed to create lead. Please try again.'
+                            message: errorMessage
                           });
+                          
+                          // Display field-specific errors if provided
+                          if (apiError.response?.data?.errors) {
+                            const fieldErrors = {};
+                            apiError.response.data.errors.forEach((err, index) => {
+                              // Try to match error to field
+                              if (err.includes('Student name')) fieldErrors.studentName = err;
+                              else if (err.includes('Branch')) fieldErrors.branch = err;
+                              else if (err.includes('Consultancy')) fieldErrors.consultancyName = err;
+                              else if (err.includes('Year of study')) fieldErrors.yearOfStudy = err;
+                              else if (err.includes('Completion year')) fieldErrors.completionYear = err;
+                              else if (err.includes('country')) fieldErrors.countries = err;
+                              else if (err.includes('University') || err.includes('College')) fieldErrors.universityName = err;
+                              else if (err.includes('Mobile')) fieldErrors.mobile = err;
+                              else if (err.includes('email') || err.includes('Email')) fieldErrors.email = err;
+                            });
+                            if (Object.keys(fieldErrors).length > 0) {
+                              setLeadFormErrors(fieldErrors);
+                            }
+                          }
                         } finally {
                           setCreatingLead(false);
                         }

@@ -191,23 +191,47 @@ exports.createLead = async (req, res) => {
     // Basic validation
     const isB2B = req.user?.role === 'b2b_marketing';
 
-    if (
-      !studentName ||
-      (!isB2B && !branch) ||
-      (isB2B && !consultancyName) ||
-      !yearOfStudy ||
-      !completionYear ||
-      !Array.isArray(countries) ||
-      countries.length === 0 ||
-      !universityName ||
-      !mobile ||
-      !mobile.trim()
-    ) {
+    // Detailed validation with specific error messages
+    const validationErrors = [];
+
+    if (!studentName || !String(studentName).trim()) {
+      validationErrors.push('Student name is required');
+    }
+
+    if (!isB2B && (!branch || !String(branch).trim())) {
+      validationErrors.push('Branch is required');
+    }
+
+    if (isB2B && (!consultancyName || !String(consultancyName).trim())) {
+      validationErrors.push('Consultancy name is required');
+    }
+
+    if (yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === '') {
+      validationErrors.push('Year of study is required');
+    }
+
+    if (completionYear === undefined || completionYear === null || completionYear === '') {
+      validationErrors.push('Completion year is required');
+    }
+
+    if (!Array.isArray(countries) || countries.length === 0) {
+      validationErrors.push('At least one target country is required');
+    }
+
+    if (!universityName || !String(universityName).trim()) {
+      validationErrors.push('University/College name is required');
+    }
+
+    // Mobile number is required for regular marketing, optional for B2B marketing
+    if (!isB2B && (!mobile || !String(mobile).trim())) {
+      validationErrors.push('Mobile number is required');
+    }
+
+    if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: isB2B
-          ? 'All fields are required: studentName, consultancyName, yearOfStudy, completionYear, countries, universityName, mobile'
-          : 'All fields are required: studentName, branch, yearOfStudy, completionYear, countries, universityName, mobile'
+        message: validationErrors.join('. '),
+        errors: validationErrors
       });
     }
 
@@ -216,10 +240,26 @@ exports.createLead = async (req, res) => {
       yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === ''
         ? null
         : parseInt(yearOfStudy, 10);
+    
+    if (isNaN(normalizedYearOfStudy)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Year of study must be a valid number'
+      });
+    }
+
     const normalizedCompletionYear =
       completionYear === undefined || completionYear === null || completionYear === ''
         ? null
         : parseInt(completionYear, 10);
+    
+    if (isNaN(normalizedCompletionYear)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Completion year must be a valid number'
+      });
+    }
+
     const normalizedParentsAnnualIncome =
       parentsAnnualIncome === undefined || parentsAnnualIncome === null || parentsAnnualIncome === ''
         ? null
@@ -250,7 +290,7 @@ exports.createLead = async (req, res) => {
       firstName,
       lastName,
       email: effectiveEmail,
-      phone: mobile || null,
+      phone: (mobile && String(mobile).trim()) ? String(mobile).trim() : null,
       preferredUniversity: universityName,
       preferredCourse: branch,
       yearOfStudy: normalizedYearOfStudy,
@@ -294,7 +334,46 @@ exports.createLead = async (req, res) => {
       scope: 'marketing_create_lead',
       userId: req.user.id
     });
-    console.error('Error creating marketing lead:', error);
+    
+    // Log request body for debugging
+    console.error('Error creating marketing lead:', {
+      error: error.message,
+      stack: error.stack,
+      requestBody: {
+        studentName,
+        consultancyName,
+        branch,
+        yearOfStudy,
+        completionYear,
+        countries,
+        universityName,
+        mobile,
+        email,
+        parentsAnnualIncome,
+        isB2B: req.user?.role === 'b2b_marketing'
+      },
+      userId: req.user?.id,
+      userRole: req.user?.role
+    });
+
+    // Handle database validation errors
+    if (error.name === 'SequelizeValidationError') {
+      const validationMessages = error.errors?.map(e => e.message) || [error.message];
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: ' + validationMessages.join(', '),
+        errors: validationMessages
+      });
+    }
+
+    // Handle unique constraint errors (e.g., duplicate email)
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'A lead with this email already exists'
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Failed to create lead',
@@ -334,8 +413,8 @@ exports.updateLead = async (req, res) => {
 
     const isB2B = req.user?.role === 'b2b_marketing';
 
-    // Validate required fields
-    if (!mobile || !mobile.trim()) {
+    // Validate required fields - Mobile number is required for regular marketing, optional for B2B
+    if (!isB2B && (!mobile || !mobile.trim())) {
       return res.status(400).json({
         success: false,
         message: 'Mobile number is required'
@@ -381,7 +460,7 @@ exports.updateLead = async (req, res) => {
       firstName,
       lastName,
       email: effectiveEmail,
-      phone: mobile || student.phone,
+      phone: (mobile && String(mobile).trim()) ? String(mobile).trim() : (student.phone || null),
       preferredUniversity: universityName ?? student.preferredUniversity,
       preferredCourse: isB2B ? student.preferredCourse : (branch ?? student.preferredCourse),
       yearOfStudy: normalizedYearOfStudy,
