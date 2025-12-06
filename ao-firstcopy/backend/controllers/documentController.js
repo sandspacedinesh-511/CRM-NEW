@@ -34,6 +34,9 @@ const upload = multer({
   }
 });
 
+// Export upload middleware for use in other routes
+exports.upload = upload;
+
 // Upload document
 exports.uploadDocument = async (req, res) => {
   try {

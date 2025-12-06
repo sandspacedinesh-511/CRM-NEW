@@ -63,6 +63,7 @@ import {
   Comment as CommentIcon,
   AttachFile as AttachFileIcon,
   History as HistoryIcon,
+  Chat as ChatIcon,
   Visibility as VisibilityIcon,
   Person as PersonIcon,
   TrendingUp as TrendingUpIcon,
@@ -85,11 +86,13 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import axiosInstance from '../../utils/axios';
+import { useAuth } from '../../context/AuthContext';
 import ApplicationForm from '../../components/counselor/ApplicationForm';
 import TaskManager from '../../components/counselor/TaskManager';
 import AcademicRecords from '../../components/counselor/AcademicRecords';
 import StudentProgressBar from '../../components/counselor/StudentProgressBar';
 import PhaseChangeErrorDialog from '../../components/common/PhaseChangeErrorDialog';
+import StudentChat from '../../components/counselor/StudentChat';
 
 function TabPanel({ children, value, index }) {
   return (
@@ -143,10 +146,40 @@ const formatDate = (dateString) => {
   }
 };
 
+// Format student name with marketing owner name (telecaller, marketing, or b2b_marketing) if available
+const formatStudentName = (student) => {
+  if (!student) return '';
+  
+  const firstName = student.firstName || '';
+  const lastName = student.lastName || '';
+  
+  // If student has a marketingOwner and lastName indicates it's from a lead source
+  if (student.marketingOwner && student.marketingOwner.name) {
+    // Handle telecaller leads (lastName = "From Telecaller")
+    if (lastName === 'From Telecaller') {
+      return `${firstName} from ${student.marketingOwner.name}`;
+    }
+    
+    // Handle marketing leads (lastName = "Lead" and role is "marketing")
+    if (lastName === 'Lead' && student.marketingOwner.role === 'marketing') {
+      return `${firstName} from ${student.marketingOwner.name}`;
+    }
+    
+    // Handle B2B marketing leads (lastName = "Lead" and role is "b2b_marketing")
+    if (lastName === 'Lead' && student.marketingOwner.role === 'b2b_marketing') {
+      return `${firstName} from ${student.marketingOwner.name}`;
+    }
+  }
+  
+  // Otherwise, return the normal name
+  return `${firstName} ${lastName}`.trim();
+};
+
 function StudentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
+  const { user } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -161,6 +194,8 @@ function StudentDetails() {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
   const [openNoteDialog, setOpenNoteDialog] = useState(false);
+  const [openChatDialog, setOpenChatDialog] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [noteText, setNoteText] = useState('');
   const [activities, setActivities] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -464,7 +499,7 @@ function StudentDetails() {
       setPhaseConfirmDialog({
         open: true,
         phase: phase,
-        studentName: `${student?.firstName} ${student?.lastName}`,
+        studentName: formatStudentName(student),
         remarks: ''
       });
     }
@@ -661,6 +696,31 @@ function StudentDetails() {
       calculateStudentStats();
     }
   }, [student, documents, applications, calculateStudentStats]);
+
+  // Fetch unread message count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!student?.id || !user?.id) return;
+    try {
+      const studentMessagesResponse = await axiosInstance.get(`/messages/student/${student.id}`);
+      if (studentMessagesResponse.data.success) {
+        const unread = studentMessagesResponse.data.data.filter(
+          msg => msg.receiverId === user.id && !msg.isRead
+        ).length;
+        setUnreadMessageCount(unread);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [student?.id, user?.id]);
+
+  useEffect(() => {
+    if (student?.id && student?.marketingOwner && user?.id) {
+      fetchUnreadCount();
+      // Poll for new messages every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [student?.id, student?.marketingOwner, user?.id, fetchUnreadCount]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -1239,7 +1299,7 @@ function StudentDetails() {
          <!DOCTYPE html>
          <html>
          <head>
-           <title>Student Profile - ${student?.firstName} ${student?.lastName}</title>
+           <title>Student Profile - ${formatStudentName(student)}</title>
            <style>
              body {
                font-family: Arial, sans-serif;
@@ -1370,7 +1430,7 @@ function StudentDetails() {
              <div class="info-grid">
                <div class="info-item">
                  <div class="info-label">Full Name</div>
-                 <div class="info-value">${student?.firstName} ${student?.lastName}</div>
+                 <div class="info-value">${formatStudentName(student)}</div>
                </div>
                <div class="info-item">
                  <div class="info-label">Email</div>
@@ -1544,7 +1604,7 @@ function StudentDetails() {
                 mb: 1
               }}
             >
-              {student?.firstName} {student?.lastName}
+              {formatStudentName(student)}
             </Typography>
             <Typography variant="body1" color="textSecondary" sx={{ mb: 1 }}>
               Student ID: {student?.id}
@@ -1578,6 +1638,22 @@ function StudentDetails() {
                 <EditIcon />
               </IconButton>
             </Tooltip>
+            {student?.marketingOwner && (
+              <Tooltip title="Chat with Marketing Team">
+                <Badge badgeContent={unreadMessageCount} color="error">
+                  <IconButton
+                    onClick={() => setOpenChatDialog(true)}
+                    sx={{ 
+                      bgcolor: 'secondary.main',
+                      color: 'white',
+                      '&:hover': { bgcolor: 'secondary.dark' }
+                    }}
+                  >
+                    <ChatIcon />
+                  </IconButton>
+                </Badge>
+              </Tooltip>
+            )}
                          <Tooltip title="Print Profile">
                <IconButton 
                  onClick={handlePrintProfile}
@@ -2875,7 +2951,7 @@ function StudentDetails() {
               </Link>
               <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
                 <PersonIcon sx={{ mr: 0.5, fontSize: 20 }} />
-                {student?.firstName} {student?.lastName}
+                {formatStudentName(student)}
               </Typography>
             </Breadcrumbs>
 
@@ -3603,6 +3679,17 @@ function StudentDetails() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Chat Dialog */}
+        <StudentChat
+          open={openChatDialog}
+          onClose={() => {
+            setOpenChatDialog(false);
+            // Refresh unread count when closing
+            fetchUnreadCount();
+          }}
+          student={student}
+        />
 
         {/* Snackbar for notifications */}
         <Snackbar

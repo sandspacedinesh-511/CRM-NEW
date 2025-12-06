@@ -57,6 +57,8 @@ import MarketingDashboard from './pages/marketingTeam/Dashboard';
 import MarketingLeads from './pages/marketingTeam/Leads';
 import MarketingActivities from './pages/marketingTeam/Activities';
 import MarketingReports from './pages/marketingTeam/Reports';
+import MarketingCommunication from './pages/marketingTeam/Communication';
+import MarketingNotifications from './pages/marketingTeam/Notifications';
 
 function App() {
   return (
@@ -135,6 +137,8 @@ function App() {
                   <Route path="/marketing/leads" element={<MarketingLeads />} />
                   <Route path="/marketing/activities" element={<MarketingActivities />} />
                   <Route path="/marketing/reports" element={<MarketingReports />} />
+                  <Route path="/marketing/communication" element={<MarketingCommunication />} />
+                  <Route path="/marketing/notifications" element={<MarketingNotifications />} />
                 </Route>
               </Route>
 
@@ -146,6 +150,8 @@ function App() {
                   <Route path="/b2b-marketing/leads" element={<MarketingLeads />} />
                   <Route path="/b2b-marketing/activities" element={<MarketingActivities />} />
                   <Route path="/b2b-marketing/reports" element={<MarketingReports />} />
+                  <Route path="/b2b-marketing/communication" element={<MarketingCommunication />} />
+                  <Route path="/b2b-marketing/notifications" element={<MarketingNotifications />} />
                 </Route>
               </Route>
 

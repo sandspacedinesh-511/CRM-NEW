@@ -1,5 +1,5 @@
 const { Op, fn, col, literal } = require('sequelize');
-const { Student, Activity, User } = require('../models');
+const { Student, Activity, User, Document, StudentUniversityApplication, University, Notification } = require('../models');
 const { performanceLogger, errorLogger } = require('../utils/logger');
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -64,6 +64,18 @@ const formatLeadRecord = (studentInstance) => {
       )
     : null;
 
+  // Parse notes to extract consultancy name
+  let consultancyName = null;
+  try {
+    if (student.notes) {
+      const notesData = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+      consultancyName = notesData?.consultancyName || null;
+    }
+  } catch (e) {
+    // If notes is not valid JSON, ignore
+    console.log('Could not parse notes for consultancy name:', e);
+  }
+
   return {
     id: student.id,
     name: fullName || 'Unnamed Lead',
@@ -82,6 +94,7 @@ const formatLeadRecord = (studentInstance) => {
           email: student.counselor.email
         }
       : null,
+    consultancyName,
     ageInDays
   };
 };
@@ -187,13 +200,14 @@ exports.createLead = async (req, res) => {
       !Array.isArray(countries) ||
       countries.length === 0 ||
       !universityName ||
-      (!isB2B && !parentsAnnualIncome)
+      !mobile ||
+      !mobile.trim()
     ) {
       return res.status(400).json({
         success: false,
         message: isB2B
-          ? 'All fields are required: studentName, consultancyName, yearOfStudy, completionYear, countries, universityName'
-          : 'All fields are required: studentName, branch, yearOfStudy, completionYear, countries, universityName, parentsAnnualIncome'
+          ? 'All fields are required: studentName, consultancyName, yearOfStudy, completionYear, countries, universityName, mobile'
+          : 'All fields are required: studentName, branch, yearOfStudy, completionYear, countries, universityName, mobile'
       });
     }
 
@@ -320,6 +334,14 @@ exports.updateLead = async (req, res) => {
 
     const isB2B = req.user?.role === 'b2b_marketing';
 
+    // Validate required fields
+    if (!mobile || !mobile.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number is required'
+      });
+    }
+
     // Normalise numeric fields, falling back to existing values when empty
     const normalizedYearOfStudy =
       yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === ''
@@ -359,7 +381,7 @@ exports.updateLead = async (req, res) => {
       firstName,
       lastName,
       email: effectiveEmail,
-      phone: isB2B ? student.phone : (mobile ?? student.phone),
+      phone: mobile || student.phone,
       preferredUniversity: universityName ?? student.preferredUniversity,
       preferredCourse: isB2B ? student.preferredCourse : (branch ?? student.preferredCourse),
       yearOfStudy: normalizedYearOfStudy,
@@ -1109,6 +1131,479 @@ exports.getActivities = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to load marketing activities',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get lead details by ID
+exports.getLeadDetails = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_lead_details');
+  
+  try {
+    const lead = await Student.findOne({
+      where: {
+        id: req.params.id,
+        marketingOwnerId: req.user.id
+      },
+      include: [
+        {
+          model: User,
+          as: 'counselor',
+          attributes: ['id', 'name', 'email'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'marketingOwner',
+          attributes: ['id', 'name', 'email', 'role'],
+          required: false
+        }
+      ]
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}`, duration, 200, req.user.id);
+    
+    res.json({
+      success: true,
+      data: lead
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}`, duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_lead_details',
+      userId: req.user.id,
+      leadId: req.params.id
+    });
+    console.error('Error fetching lead details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lead details',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get lead documents
+exports.getLeadDocuments = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_lead_documents');
+  
+  try {
+    // First, verify the lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: req.params.id,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    const { type, status } = req.query;
+    const whereClause = {
+      studentId: req.params.id
+    };
+    
+    if (type) {
+      whereClause.type = type;
+    }
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const documents = await Document.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'uploader',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/documents`, duration, 200, req.user.id);
+    
+    res.json({
+      success: true,
+      data: documents
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/documents`, duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_lead_documents',
+      userId: req.user.id,
+      leadId: req.params.id
+    });
+    console.error('Error fetching lead documents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lead documents',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Upload document for lead
+exports.uploadLeadDocument = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_upload_document');
+  
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const { type, description } = req.body;
+    const studentId = req.params.id;
+
+    // Verify lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: studentId,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found or access denied'
+      });
+    }
+
+    // Upload to DigitalOcean Spaces (with fallback to local storage if DO is not configured)
+    let uploadResult;
+    const DigitalOceanStorageService = require('../services/digitalOceanStorage');
+    
+    try {
+      const storageService = new DigitalOceanStorageService();
+      uploadResult = await storageService.uploadFile(req.file, 'marketing-documents');
+    } catch (storageError) {
+      console.error('DigitalOcean Spaces upload failed, trying local storage:', storageError);
+      
+      // Fallback to local storage if DigitalOcean is not configured
+      const fs = require('fs');
+      const path = require('path');
+      const crypto = require('crypto');
+
+      // Ensure uploads directory exists
+      const uploadsDir = path.join(__dirname, '..', 'uploads', 'marketing-documents');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const fileExtension = path.extname(req.file.originalname);
+      const uniqueFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${fileExtension}`;
+      const filePath = path.join(uploadsDir, uniqueFilename);
+
+      // Save file locally
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      uploadResult = {
+        url: `${process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/marketing-documents/${uniqueFilename}`,
+        key: `marketing-documents/${uniqueFilename}`,
+        bucket: 'local-storage',
+        region: 'local',
+        localPath: filePath
+      };
+    }
+
+    // Validate document type
+    const validTypes = ['ID_CARD', 'ENROLLMENT_LETTER', 'OTHER'];
+    const documentType = type && validTypes.includes(type) ? type : 'OTHER';
+
+    // Save document record to database
+    const document = await Document.create({
+      name: req.file.originalname,
+      type: documentType,
+      description: description || '',
+      path: uploadResult.key,
+      url: uploadResult.url,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      studentId: studentId,
+      status: 'PENDING',
+      uploadedBy: req.user.id,
+      priority: 'MEDIUM'
+    });
+    
+    console.log('Document saved to database:', {
+      id: document.id,
+      type: document.type,
+      name: document.name,
+      studentId: document.studentId,
+      path: document.path
+    });
+
+    // Create activity
+    await Activity.create({
+      type: 'DOCUMENT_UPLOAD',
+      description: `Document uploaded by marketing: ${document.name} (${document.type})`,
+      studentId: studentId,
+      userId: req.user.id,
+      metadata: {
+        documentId: document.id,
+        documentType: document.type,
+        documentName: document.name
+      }
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', `/api/marketing/leads/${studentId}/documents/upload`, duration, 201, req.user.id);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: document
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', `/api/marketing/leads/${req.params.id}/documents/upload`, duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_upload_document',
+      userId: req.user.id,
+      leadId: req.params.id
+    });
+    console.error('Error uploading document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload document',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Save reminder for lead
+exports.saveReminder = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_save_reminder');
+  
+  try {
+    const { leadId, scheduledTime, reminderText } = req.body;
+
+    if (!leadId || !scheduledTime || !reminderText) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lead ID, scheduled time, and reminder text are required'
+      });
+    }
+
+    // Verify lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: leadId,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found or access denied'
+      });
+    }
+
+    // Validate scheduled time is in the future
+    const scheduledDate = new Date(scheduledTime);
+    if (scheduledDate <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reminder time must be in the future'
+      });
+    }
+
+    // Create notification as reminder
+    const notification = await Notification.create({
+      userId: req.user.id,
+      type: 'reminder',
+      title: `Reminder: ${lead.firstName} ${lead.lastName}`,
+      message: reminderText,
+      priority: 'high',
+      leadId: leadId,
+      scheduledTime: scheduledDate,
+      reminderText: reminderText,
+      isRead: false,
+      metadata: {
+        leadName: `${lead.firstName} ${lead.lastName}`,
+        leadEmail: lead.email
+      }
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', '/api/marketing/leads/reminder', duration, 201, req.user.id);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Reminder saved successfully',
+      data: notification
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', '/api/marketing/leads/reminder', duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_save_reminder',
+      userId: req.user.id,
+      leadId: req.body.leadId
+    });
+    console.error('Error saving reminder:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save reminder',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Save remarks for lead
+exports.saveRemarks = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_save_remarks');
+  
+  try {
+    const { leadId, remarks } = req.body;
+
+    if (!leadId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lead ID is required'
+      });
+    }
+
+    // Verify lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: leadId,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found or access denied'
+      });
+    }
+
+    // Parse existing notes or create new object
+    let notesData = {};
+    try {
+      if (lead.notes) {
+        notesData = typeof lead.notes === 'string' ? JSON.parse(lead.notes) : lead.notes;
+      }
+    } catch (e) {
+      // If notes is not valid JSON, start fresh
+      notesData = {};
+    }
+
+    // Add remarks to notes
+    notesData.remarks = remarks || '';
+    notesData.remarksUpdatedAt = new Date().toISOString();
+    notesData.remarksUpdatedBy = req.user.id;
+
+    // Update student with remarks
+    await lead.update({
+      notes: JSON.stringify(notesData)
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', '/api/marketing/leads/remarks', duration, 200, req.user.id);
+    
+    res.json({
+      success: true,
+      message: 'Remarks saved successfully',
+      data: {
+        leadId: lead.id,
+        remarks: remarks
+      }
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('POST', '/api/marketing/leads/remarks', duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_save_remarks',
+      userId: req.user.id,
+      leadId: req.body.leadId
+    });
+    console.error('Error saving remarks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save remarks',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get lead applications
+exports.getLeadApplications = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_lead_applications');
+  
+  try {
+    // First, verify the lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: req.params.id,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    const applications = await StudentUniversityApplication.findAll({
+      where: { studentId: req.params.id },
+      include: [
+        {
+          model: University,
+          as: 'university',
+          attributes: ['id', 'name', 'country', 'city', 'ranking']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/applications`, duration, 200, req.user.id);
+    
+    res.json({
+      success: true,
+      data: applications
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/applications`, duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_lead_applications',
+      userId: req.user.id,
+      leadId: req.params.id
+    });
+    console.error('Error fetching lead applications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lead applications',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

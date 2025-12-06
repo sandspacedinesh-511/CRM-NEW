@@ -13,6 +13,7 @@ const Country = require('./Country');
 const TelecallerImportedTask = require('./TelecallerImportedTask');
 const Notification = require('./Notification');
 const SharedLead = require('./SharedLead');
+const Message = require('./Message');
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 
@@ -47,6 +48,10 @@ const StudentUniversity = sequelize.define('StudentUniversity', {
 // User associations
 User.hasMany(Student, { foreignKey: 'counselorId', as: 'students' });
 Student.belongsTo(User, { foreignKey: 'counselorId', as: 'counselor' });
+
+// Marketing Owner (Telecaller) associations
+User.hasMany(Student, { foreignKey: 'marketingOwnerId', as: 'marketingLeads' });
+Student.belongsTo(User, { foreignKey: 'marketingOwnerId', as: 'marketingOwner' });
 
 // Counselor Activity associations
 User.hasMany(CounselorActivity, { foreignKey: 'counselorId', as: 'activities' });
@@ -114,6 +119,14 @@ SharedLead.belongsTo(User, { foreignKey: 'receiverId', as: 'receiver' });
 SharedLead.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 Student.hasMany(SharedLead, { foreignKey: 'studentId', as: 'sharedLeads' });
 
+// Message associations
+User.hasMany(Message, { foreignKey: 'senderId', as: 'sentMessages' });
+User.hasMany(Message, { foreignKey: 'receiverId', as: 'receivedMessages' });
+Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
+Message.belongsTo(User, { foreignKey: 'receiverId', as: 'receiver' });
+Student.hasMany(Message, { foreignKey: 'studentId', as: 'messages' });
+Message.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
 // Initialize Country model
 const CountryModel = Country(sequelize);
 
@@ -132,5 +145,6 @@ module.exports = {
   Country: CountryModel,
   TelecallerImportedTask,
   Notification,
-  SharedLead
+  SharedLead,
+  Message
 };

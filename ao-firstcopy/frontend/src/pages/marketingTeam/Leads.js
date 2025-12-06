@@ -433,8 +433,8 @@ function MarketingLeads() {
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
                     <TextField
-                      label="University Name"
-                      placeholder="e.g., University of Toronto"
+                      label="College Name"
+                      placeholder="e.g., college of Toronto"
                       fullWidth
                       required
                       value={leadForm.universityName}
@@ -447,8 +447,23 @@ function MarketingLeads() {
                     <Grid item xs={12} md={3}>
                       <TextField
                         label="Mobile Number"
-                        placeholder="Optional contact number"
+                        placeholder="Enter contact number"
                         fullWidth
+                        required
+                        value={leadForm.mobile}
+                        onChange={(e) => setLeadForm({ ...leadForm, mobile: e.target.value })}
+                        error={!!leadFormErrors.mobile}
+                        helperText={leadFormErrors.mobile}
+                      />
+                    </Grid>
+                  )}
+                  {isB2B && (
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        label="Mobile Number"
+                        placeholder="Enter contact number"
+                        fullWidth
+                        required
                         value={leadForm.mobile}
                         onChange={(e) => setLeadForm({ ...leadForm, mobile: e.target.value })}
                         error={!!leadFormErrors.mobile}
@@ -475,9 +490,8 @@ function MarketingLeads() {
                     <Grid item xs={12} md={4}>
                       <TextField
                         label="Parents Annual Income"
-                        placeholder="e.g., 800000"
+                        placeholder="e.g., 800000 (Optional)"
                         fullWidth
-                        required
                         type="number"
                         value={leadForm.parentsAnnualIncome}
                         onChange={(e) => setLeadForm({ ...leadForm, parentsAnnualIncome: e.target.value })}
@@ -514,7 +528,7 @@ function MarketingLeads() {
                         if (!leadForm.completionYear) errors.completionYear = 'Completion year is required';
                         if (!leadForm.countries.length) errors.countries = 'Select at least one country';
                         if (!leadForm.universityName.trim()) errors.universityName = 'University name is required';
-                        if (!isB2B && !leadForm.parentsAnnualIncome) errors.parentsAnnualIncome = 'Parents annual income is required';
+                        if (!leadForm.mobile || !leadForm.mobile.trim()) errors.mobile = 'Mobile number is required';
 
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (leadForm.email && !emailRegex.test(leadForm.email)) {

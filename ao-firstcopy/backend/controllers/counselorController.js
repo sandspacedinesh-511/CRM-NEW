@@ -7,7 +7,8 @@ const {
   Note,
   Activity,
   Task,
-  TelecallerImportedTask
+  TelecallerImportedTask,
+  Notification
 } = require('../models');
 const { Sequelize, Op } = require('sequelize');
 const { createObjectCsvStringifier } = require('csv-writer');
@@ -699,6 +700,12 @@ exports.getStudentDetails = async (req, res) => {
             model: University,
             as: 'university'
           }]
+        },
+        {
+          model: User,
+          as: 'marketingOwner',
+          attributes: ['id', 'name', 'email', 'role'],
+          required: false
         }
       ]
     });
@@ -791,6 +798,42 @@ exports.updateStudent = async (req, res) => {
           newPhase: req.body.currentPhase
         }
       });
+
+      // Notify marketing owner if student belongs to a marketing person
+      if (student.marketingOwnerId) {
+        try {
+          const phaseLabels = {
+            'DOCUMENT_COLLECTION': 'Document Collection',
+            'UNIVERSITY_SHORTLISTING': 'University Shortlisting',
+            'APPLICATION_SUBMISSION': 'Application Submission',
+            'OFFER_RECEIVED': 'Offer Received',
+            'INITIAL_PAYMENT': 'Initial Payment',
+            'INTERVIEW': 'Interview',
+            'FINANCIAL_TB_TEST': 'Financial & TB Test',
+            'CAS_VISA': 'CAS & Visa',
+            'VISA_APPLICATION': 'Visa Application',
+            'ENROLLMENT': 'Enrollment'
+          };
+
+          await Notification.create({
+            userId: student.marketingOwnerId,
+            type: 'application_progress',
+            title: `Application Progress Updated: ${student.firstName} ${student.lastName}`,
+            message: `Application progress has been updated from ${phaseLabels[student.currentPhase] || student.currentPhase.replace(/_/g, ' ')} to ${phaseLabels[req.body.currentPhase] || req.body.currentPhase.replace(/_/g, ' ')}.`,
+            priority: 'medium',
+            leadId: student.id,
+            isRead: false,
+            metadata: {
+              previousPhase: student.currentPhase,
+              newPhase: req.body.currentPhase,
+              studentName: `${student.firstName} ${student.lastName}`
+            }
+          });
+        } catch (notifError) {
+          console.error('Error creating notification for marketing owner:', notifError);
+          // Don't fail the request if notification creation fails
+        }
+      }
     }
 
     // Clear dashboard cache to ensure stats update
@@ -1512,7 +1555,7 @@ exports.updateApplication = async (req, res) => {
         {
           model: Student,
           as: 'student',
-          attributes: ['id', 'firstName', 'lastName']
+          attributes: ['id', 'firstName', 'lastName', 'marketingOwnerId']
         },
         {
           model: University,
@@ -1521,6 +1564,45 @@ exports.updateApplication = async (req, res) => {
         }
       ]
     });
+
+    // Check if application status changed and notify marketing owner
+    const oldStatus = application.applicationStatus;
+    const newStatus = updatedApplication.applicationStatus;
+    
+    if (oldStatus !== newStatus && updatedApplication.student?.marketingOwnerId) {
+      try {
+        const statusLabels = {
+          'PENDING': 'Pending',
+          'SUBMITTED': 'Submitted',
+          'UNDER_REVIEW': 'Under Review',
+          'ACCEPTED': 'Accepted',
+          'REJECTED': 'Rejected',
+          'DEFERRED': 'Deferred',
+          'WAITLISTED': 'Waitlisted',
+          'CONDITIONAL_OFFER': 'Conditional Offer'
+        };
+
+        await Notification.create({
+          userId: updatedApplication.student.marketingOwnerId,
+          type: 'application_update',
+          title: `Application Status Updated: ${updatedApplication.student.firstName} ${updatedApplication.student.lastName}`,
+          message: `Application to ${updatedApplication.university?.name || 'University'} has been updated from ${statusLabels[oldStatus] || oldStatus} to ${statusLabels[newStatus] || newStatus}.`,
+          priority: newStatus === 'ACCEPTED' ? 'high' : newStatus === 'REJECTED' ? 'high' : 'medium',
+          leadId: updatedApplication.student.id,
+          isRead: false,
+          metadata: {
+            applicationId: updatedApplication.id,
+            oldStatus: oldStatus,
+            newStatus: newStatus,
+            universityName: updatedApplication.university?.name,
+            courseName: updatedApplication.courseName
+          }
+        });
+      } catch (notifError) {
+        console.error('Error creating notification for marketing owner:', notifError);
+        // Don't fail the request if notification creation fails
+      }
+    }
 
     res.json(updatedApplication);
   } catch (error) {
@@ -2221,7 +2303,43 @@ Need help? Contact your counselor for assistance.`;
       });
     } catch (activityError) {
       console.error(' Error creating phase change activity:', activityError);
-      // Don't fail the entire request if activity creation fails
+    }
+
+    // Notify marketing owner if student belongs to a marketing person
+    if (student.marketingOwnerId) {
+      try {
+        const phaseLabels = {
+          'DOCUMENT_COLLECTION': 'Document Collection',
+          'UNIVERSITY_SHORTLISTING': 'University Shortlisting',
+          'APPLICATION_SUBMISSION': 'Application Submission',
+          'OFFER_RECEIVED': 'Offer Received',
+          'INITIAL_PAYMENT': 'Initial Payment',
+          'INTERVIEW': 'Interview',
+          'FINANCIAL_TB_TEST': 'Financial & TB Test',
+          'CAS_VISA': 'CAS & Visa',
+          'VISA_APPLICATION': 'Visa Application',
+          'ENROLLMENT': 'Enrollment'
+        };
+
+        await Notification.create({
+          userId: student.marketingOwnerId,
+          type: 'application_progress',
+          title: `Application Progress Updated: ${student.firstName} ${student.lastName}`,
+          message: `Application progress has been updated from ${phaseLabels[previousPhase] || previousPhase.replace(/_/g, ' ')} to ${phaseLabels[currentPhase] || currentPhase.replace(/_/g, ' ')}.${remarks ? ` Remarks: ${remarks}` : ''}`,
+          priority: 'medium',
+          leadId: student.id,
+          isRead: false,
+          metadata: {
+            previousPhase: previousPhase,
+            newPhase: currentPhase,
+            studentName: `${student.firstName} ${student.lastName}`,
+            remarks: remarks || null
+          }
+        });
+      } catch (notifError) {
+        console.error('Error creating notification for marketing owner:', notifError);
+        // Don't fail the request if notification creation fails
+      }
     }
 
     // Clear dashboard cache to ensure stats update

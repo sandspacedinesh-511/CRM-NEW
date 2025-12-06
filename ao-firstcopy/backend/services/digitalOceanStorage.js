@@ -187,6 +187,26 @@ class DigitalOceanStorageService {
       throw new Error(`Failed to list files: ${error.message}`);
     }
   }
+
+  // Download file from Spaces
+  async downloadFile(key) {
+    try {
+      if (!this.bucket) {
+        throw new Error('DO_SPACES_BUCKET environment variable is not set');
+      }
+
+      const params = {
+        Bucket: this.bucket,
+        Key: key
+      };
+
+      const result = await this.s3.getObject(params).promise();
+      return result.Body;
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw new Error(`Failed to download file: ${error.message}`);
+    }
+  }
 }
 
 module.exports = DigitalOceanStorageService;
