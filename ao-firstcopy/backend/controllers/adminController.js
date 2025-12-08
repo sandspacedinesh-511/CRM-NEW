@@ -14,6 +14,7 @@ const {
 } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 const telecallerController = require('./telecallerController');
+const XLSX = require('xlsx');
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -1822,7 +1823,22 @@ exports.getUniversities = async (req, res) => {
 
 exports.addUniversity = async (req, res) => {
   try {
-    const { name, country, requirements } = req.body;
+    const { 
+      name, 
+      country, 
+      city,
+      website,
+      ranking,
+      acceptanceRate,
+      averageGPA,
+      averageIELTS,
+      averageTOEFL,
+      tuitionFeeRange,
+      description,
+      requirements,
+      applicationDeadlines,
+      status
+    } = req.body;
 
     if (!name || !country) {
       return res.status(400).json({
@@ -1834,8 +1850,18 @@ exports.addUniversity = async (req, res) => {
     const university = await University.create({
       name,
       country,
+      city: city || null,
+      website: website || null,
+      ranking: ranking ? parseInt(ranking) : null,
+      acceptanceRate: acceptanceRate ? parseFloat(acceptanceRate) : null,
+      averageGPA: averageGPA ? parseFloat(averageGPA) : null,
+      averageIELTS: averageIELTS ? parseFloat(averageIELTS) : null,
+      averageTOEFL: averageTOEFL ? parseFloat(averageTOEFL) : null,
+      tuitionFeeRange: tuitionFeeRange || null,
+      description: description || null,
       requirements: requirements || null,
-      active: true
+      applicationDeadlines: applicationDeadlines || null,
+      active: status === 'INACTIVE' ? false : true
     });
 
     res.status(201).json({
@@ -1918,6 +1944,205 @@ exports.deleteUniversity = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete university. Please try again later.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Normalize header for flexible column matching
+const normalizeHeader = (header = '') => String(header || '').trim().toLowerCase().replace(/[_\s]/g, '');
+
+// Map Excel column names to database fields
+const mapExcelColumnToField = (excelColumn) => {
+  const normalized = normalizeHeader(excelColumn);
+  const columnMap = {
+    'universityname': 'name',
+    'name': 'name',
+    'university': 'name',
+    'universitycountry': 'country',
+    'country': 'country',
+    'address': 'city', // Map address to city field
+    'city': 'city',
+    'location': 'city',
+    'website': 'website',
+    'url': 'website',
+    'ranking': 'ranking',
+    'rank': 'ranking',
+    'acceptancerate': 'acceptanceRate',
+    'acceptance': 'acceptanceRate',
+    'averagegpa': 'averageGPA',
+    'gpa': 'averageGPA',
+    'averageielts': 'averageIELTS',
+    'ielts': 'averageIELTS',
+    'averagetofel': 'averageTOEFL',
+    'tofel': 'averageTOEFL',
+    'tuitionfeerange': 'tuitionFeeRange',
+    'fees': 'tuitionFeeRange',
+    'tuition': 'tuitionFeeRange',
+    'description': 'description',
+    'requirements': 'requirements',
+    'requirement': 'requirements',
+    'applicationdeadlines': 'applicationDeadlines',
+    'deadlines': 'applicationDeadlines',
+    'campus': 'campus', // Store as JSON or text
+    'campuses': 'campus',
+    'intake': 'intake', // Store as JSON or text
+    'intakes': 'intake',
+    'coursetype': 'courseType', // Store as JSON or text
+    'coursetypes': 'courseType',
+    'coursetypes': 'courseType'
+  };
+  return columnMap[normalized] || null;
+};
+
+exports.bulkImportUniversities = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const firstSheetName = workbook.SheetNames[0];
+
+    if (!firstSheetName) {
+      return res.status(400).json({
+        success: false,
+        message: 'The uploaded Excel file does not contain any sheets.'
+      });
+    }
+
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+    if (!rows.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'The uploaded Excel file is empty.'
+      });
+    }
+
+    // Get headers from first row
+    const headerRow = rows[0].map((h) => String(h || '').trim());
+    const columnMapping = {};
+    
+    // Build mapping from Excel columns to database fields
+    headerRow.forEach((excelColumn, index) => {
+      if (excelColumn) {
+        const dbField = mapExcelColumnToField(excelColumn);
+        if (dbField) {
+          columnMapping[dbField] = index;
+        }
+      }
+    });
+
+    // Check for required fields
+    if (columnMapping['name'] === undefined || columnMapping['country'] === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Excel file must contain "University Name" (or "Name") and "University Country" (or "Country") columns.',
+        availableColumns: headerRow,
+        mappedColumns: Object.keys(columnMapping)
+      });
+    }
+
+    // Process data rows
+    const dataRows = rows.slice(1).filter((row) => row.some((cell) => String(cell).trim() !== ''));
+    
+    if (!dataRows.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'No data rows found in the Excel file.'
+      });
+    }
+
+    const results = {
+      total: dataRows.length,
+      successful: 0,
+      failed: 0,
+      errors: []
+    };
+
+    // Process each row
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const rowNum = i + 2; // +2 because row 1 is header, and arrays are 0-indexed
+
+      try {
+        // Extract data based on column mapping
+        const universityData = {
+          name: row[columnMapping['name']] ? String(row[columnMapping['name']]).trim() : null,
+          country: row[columnMapping['country']] ? String(row[columnMapping['country']]).trim() : null,
+          city: columnMapping['city'] !== undefined ? (row[columnMapping['city']] ? String(row[columnMapping['city']]).trim() : null) : null,
+          website: columnMapping['website'] !== undefined ? (row[columnMapping['website']] ? String(row[columnMapping['website']]).trim() : null) : null,
+          ranking: columnMapping['ranking'] !== undefined ? (row[columnMapping['ranking']] ? parseInt(row[columnMapping['ranking']]) || null : null) : null,
+          acceptanceRate: columnMapping['acceptanceRate'] !== undefined ? (row[columnMapping['acceptanceRate']] ? parseFloat(row[columnMapping['acceptanceRate']]) || null : null) : null,
+          averageGPA: columnMapping['averageGPA'] !== undefined ? (row[columnMapping['averageGPA']] ? parseFloat(row[columnMapping['averageGPA']]) || null : null) : null,
+          averageIELTS: columnMapping['averageIELTS'] !== undefined ? (row[columnMapping['averageIELTS']] ? parseFloat(row[columnMapping['averageIELTS']]) || null : null) : null,
+          averageTOEFL: columnMapping['averageTOEFL'] !== undefined ? (row[columnMapping['averageTOEFL']] ? parseFloat(row[columnMapping['averageTOEFL']]) || null : null) : null,
+          tuitionFeeRange: columnMapping['tuitionFeeRange'] !== undefined ? (row[columnMapping['tuitionFeeRange']] ? String(row[columnMapping['tuitionFeeRange']]).trim() : null) : null,
+          description: (() => {
+            let desc = columnMapping['description'] !== undefined ? (row[columnMapping['description']] ? String(row[columnMapping['description']]).trim() : '') : '';
+            const additional = [];
+            if (columnMapping['campus'] !== undefined && row[columnMapping['campus']]) additional.push(`Campus(s): ${String(row[columnMapping['campus']]).trim()}`);
+            if (columnMapping['intake'] !== undefined && row[columnMapping['intake']]) additional.push(`Intake(s): ${String(row[columnMapping['intake']]).trim()}`);
+            if (columnMapping['courseType'] !== undefined && row[columnMapping['courseType']]) additional.push(`Course Type(s): ${String(row[columnMapping['courseType']]).trim()}`);
+            if (columnMapping['tuitionFeeRange'] !== undefined && row[columnMapping['tuitionFeeRange']]) additional.push(`Fees: ${String(row[columnMapping['tuitionFeeRange']]).trim()}`);
+            if (columnMapping['applicationDeadlines'] !== undefined && row[columnMapping['applicationDeadlines']]) additional.push(`Application Deadlines: ${String(row[columnMapping['applicationDeadlines']]).trim()}`);
+            return additional.length > 0 ? (desc ? desc + '\n\n' : '') + additional.join('\n') : (desc || null);
+          })(),
+          requirements: (() => {
+            let req = columnMapping['requirements'] !== undefined ? (row[columnMapping['requirements']] ? String(row[columnMapping['requirements']]).trim() : '') : '';
+            const reqParts = [];
+            if (columnMapping['averageGPA'] !== undefined && row[columnMapping['averageGPA']]) reqParts.push(`Average GPA: ${row[columnMapping['averageGPA']]}`);
+            if (columnMapping['averageIELTS'] !== undefined && row[columnMapping['averageIELTS']]) reqParts.push(`Average IELTS: ${row[columnMapping['averageIELTS']]}`);
+            if (columnMapping['averageTOEFL'] !== undefined && row[columnMapping['averageTOEFL']]) reqParts.push(`Average TOEFL: ${row[columnMapping['averageTOEFL']]}`);
+            return reqParts.length > 0 ? (req ? req + '\n' : '') + reqParts.join('\n') : (req || null);
+          })(),
+          active: true
+        };
+
+        // Validate required fields
+        if (!universityData.name || !universityData.country) {
+          throw new Error('Name and country are required');
+        }
+
+        // Check if university already exists
+        const existing = await University.findOne({
+          where: { name: universityData.name }
+        });
+
+        if (existing) {
+          // Update existing university
+          await existing.update(universityData);
+          results.successful++;
+        } else {
+          // Create new university
+          await University.create(universityData);
+          results.successful++;
+        }
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          error: error.message || 'Unknown error',
+          data: row[columnMapping['name']] || 'Unknown'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import completed: ${results.successful} successful, ${results.failed} failed`,
+      results: results
+    });
+  } catch (error) {
+    console.error('Error importing universities from Excel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to import universities',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

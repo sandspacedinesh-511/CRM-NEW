@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
@@ -31,7 +31,8 @@ import {
   Add as AddIcon,
   School as SchoolIcon,
   Language as WebsiteIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Upload as UploadIcon
 } from '@mui/icons-material';
 import axiosInstance from '../../utils/axios';
 
@@ -56,6 +57,11 @@ function UniversityManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUniversities, setTotalUniversities] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openImportDialog, setOpenImportDialog] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
   const [selectedUniversity, setSelectedUniversity] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -202,6 +208,72 @@ function UniversityManagement() {
     }
   };
 
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const allowedTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Please upload a valid Excel file (.xlsx or .xls)');
+        return;
+      }
+      setSelectedFile(file);
+      setImportResults(null);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if (!selectedFile) {
+      setError('Please select an Excel file to import');
+      return;
+    }
+
+    clearMessages();
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await axiosInstance.post('/admin/universities/bulk-import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        setSuccess(response.data.message);
+        setImportResults(response.data.results);
+        setOpenImportDialog(false);
+        setSelectedFile(null);
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        // Refresh the universities list
+        fetchUniversities();
+      } else {
+        setError(response.data.message || 'Failed to import universities');
+        if (response.data.results) {
+          setImportResults(response.data.results);
+        }
+      }
+    } catch (error) {
+      console.error('Error importing universities:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to import universities. Please check the file format and try again.';
+      setError(errorMessage);
+      if (error.response?.data?.results) {
+        setImportResults(error.response.data.results);
+      }
+      if (error.response?.data?.availableColumns) {
+        setError(`${errorMessage}\n\nAvailable columns in your file: ${error.response.data.availableColumns.join(', ')}`);
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading && page === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -217,13 +289,26 @@ function UniversityManagement() {
           <Typography variant="h4" component="h1">
             University Management
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-          >
-            Add University
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={() => {
+                setOpenImportDialog(true);
+                setImportResults(null);
+                setSelectedFile(null);
+              }}
+            >
+              Bulk Import
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
+            >
+              Add University
+            </Button>
+          </Box>
         </Box>
 
         {error && (
@@ -499,6 +584,108 @@ function UniversityManagement() {
               </Button>
             </DialogActions>
           </form>
+        </Dialog>
+
+        {/* Bulk Import Dialog */}
+        <Dialog open={openImportDialog} onClose={() => setOpenImportDialog(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Bulk Import Universities</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Upload an Excel file (.xlsx or .xls) containing university data. The file should have the following columns:
+              </Typography>
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Required Columns:</Typography>
+                <Typography variant="body2">• University Name (or Name)</Typography>
+                <Typography variant="body2">• University Country (or Country)</Typography>
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Optional Columns:</Typography>
+                <Typography variant="body2">• Address, City, Location</Typography>
+                <Typography variant="body2">• Website, URL</Typography>
+                <Typography variant="body2">• Ranking, Rank</Typography>
+                <Typography variant="body2">• Acceptance Rate, Acceptance</Typography>
+                <Typography variant="body2">• Average GPA, GPA</Typography>
+                <Typography variant="body2">• Average IELTS, IELTS</Typography>
+                <Typography variant="body2">• Average TOEFL, TOEFL</Typography>
+                <Typography variant="body2">• Fees, Tuition, Tuition Fee Range</Typography>
+                <Typography variant="body2">• Description</Typography>
+                <Typography variant="body2">• Requirements, Requirement</Typography>
+                <Typography variant="body2">• Application Deadlines, Deadlines</Typography>
+                <Typography variant="body2">• Campus(s), Campuses</Typography>
+                <Typography variant="body2">• Intake(s), Intakes</Typography>
+                <Typography variant="body2">• Course Type(s), Course Types</Typography>
+              </Box>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                id="bulk-import-file-input"
+              />
+              <label htmlFor="bulk-import-file-input">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  disabled={importing}
+                >
+                  {selectedFile ? selectedFile.name : 'Select Excel File'}
+                </Button>
+              </label>
+
+              {selectedFile && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Selected file: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
+                </Alert>
+              )}
+
+              {importResults && (
+                <Box sx={{ mt: 2 }}>
+                  <Alert 
+                    severity={importResults.failed > 0 ? 'warning' : 'success'}
+                    sx={{ mb: 2 }}
+                  >
+                    <Typography variant="subtitle2">
+                      Import Results: {importResults.successful} successful, {importResults.failed} failed out of {importResults.total} total
+                    </Typography>
+                  </Alert>
+                  
+                  {importResults.errors && importResults.errors.length > 0 && (
+                    <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Errors:</Typography>
+                      {importResults.errors.map((err, idx) => (
+                        <Typography key={idx} variant="body2" color="error" sx={{ fontSize: '0.75rem' }}>
+                          Row {err.row} ({err.data}): {err.error}
+                        </Typography>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setOpenImportDialog(false);
+              setSelectedFile(null);
+              setImportResults(null);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkImport}
+              variant="contained"
+              disabled={!selectedFile || importing}
+              startIcon={importing ? <CircularProgress size={20} /> : <UploadIcon />}
+            >
+              {importing ? 'Importing...' : 'Import'}
+            </Button>
+          </DialogActions>
         </Dialog>
       </Box>
     </Container>

@@ -749,7 +749,7 @@ exports.updateStudent = async (req, res) => {
       
       // Define required documents for each phase (logical progression)
       const phaseRequirements = {
-        'DOCUMENT_COLLECTION': [],
+        'DOCUMENT_COLLECTION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'],
         'UNIVERSITY_SHORTLISTING': ['PASSPORT', 'ACADEMIC_TRANSCRIPT'],
         'APPLICATION_SUBMISSION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE'],
         'OFFER_RECEIVED': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE'],
@@ -760,6 +760,30 @@ exports.updateStudent = async (req, res) => {
         'VISA_APPLICATION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'],
         'ENROLLMENT': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
       };
+
+      // Special validation: If moving FROM Document Collection, ensure all required documents are uploaded
+      if (currentPhase === 'DOCUMENT_COLLECTION' && newPhase !== 'DOCUMENT_COLLECTION') {
+        const docCollectionRequired = phaseRequirements['DOCUMENT_COLLECTION'] || [];
+        if (docCollectionRequired.length > 0) {
+          const uploadedDocs = await Document.findAll({
+            where: {
+              studentId: req.params.id,
+              type: docCollectionRequired,
+              status: ['PENDING', 'APPROVED']
+            }
+          });
+
+          const uploadedDocTypes = uploadedDocs.map(doc => doc.type);
+          const missingDocs = docCollectionRequired.filter(docType => !uploadedDocTypes.includes(docType));
+
+          if (missingDocs.length > 0) {
+            return res.status(400).json({
+              message: `Cannot proceed to ${newPhase.replace(/_/g, ' ')} phase. Document Collection phase is not complete. All required documents (PASSPORT, ACADEMIC_TRANSCRIPT, RECOMMENDATION_LETTER, STATEMENT_OF_PURPOSE, CV_RESUME) must be uploaded before moving to the next phase.`,
+              missingDocuments: missingDocs
+            });
+          }
+        }
+      }
 
       // Check if moving to a phase that requires documents
       const requiredDocs = phaseRequirements[newPhase] || [];
@@ -907,7 +931,7 @@ exports.getStudentDocuments = async (req, res) => {
         {
           model: User,
           as: 'uploader',
-          attributes: ['id', 'name']
+          attributes: ['id', 'name', 'role']
         }
       ],
       order: [['createdAt', 'DESC']]
@@ -2195,7 +2219,7 @@ exports.updateStudentPhase = async (req, res) => {
       
       // Define required documents for each phase with detailed descriptions
       const phaseRequirements = {
-        'DOCUMENT_COLLECTION': [],
+        'DOCUMENT_COLLECTION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'],
         'UNIVERSITY_SHORTLISTING': ['PASSPORT', 'ACADEMIC_TRANSCRIPT'],
         'APPLICATION_SUBMISSION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE'],
         'OFFER_RECEIVED': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE'],
@@ -2211,6 +2235,9 @@ exports.updateStudentPhase = async (req, res) => {
       const documentDescriptions = {
         'PASSPORT': 'Valid passport with at least 6 months validity',
         'ACADEMIC_TRANSCRIPT': 'Official academic transcripts from previous institutions',
+        'RECOMMENDATION_LETTER': 'Recommendation letters from professors or employers',
+        'STATEMENT_OF_PURPOSE': 'Statement of Purpose (SOP) explaining your academic and career goals',
+        'CV_RESUME': 'Updated CV or Resume highlighting your qualifications and experience',
         'ENGLISH_TEST_SCORE': 'IELTS, TOEFL, or equivalent English proficiency test results',
         'FINANCIAL_STATEMENT': 'Bank statements showing sufficient funds for tuition and living expenses',
         'MEDICAL_CERTIFICATE': 'Medical examination certificate and TB test results'
@@ -2227,6 +2254,55 @@ exports.updateStudentPhase = async (req, res) => {
         'VISA_APPLICATION': 'Visa application requires all supporting documents including medical certificates.',
         'ENROLLMENT': 'Final enrollment requires complete documentation package.'
       };
+
+      // Special validation: If moving FROM Document Collection, ensure all required documents are uploaded
+      if (previousPhase === 'DOCUMENT_COLLECTION' && newPhase !== 'DOCUMENT_COLLECTION') {
+        const docCollectionRequired = phaseRequirements['DOCUMENT_COLLECTION'] || [];
+        if (docCollectionRequired.length > 0) {
+          const uploadedDocs = await Document.findAll({
+            where: {
+              studentId: id,
+              type: docCollectionRequired,
+              status: ['PENDING', 'APPROVED']
+            }
+          });
+
+          const uploadedDocTypes = uploadedDocs.map(doc => doc.type);
+          const missingDocs = docCollectionRequired.filter(docType => !uploadedDocTypes.includes(docType));
+
+          if (missingDocs.length > 0) {
+            const missingDocsList = missingDocs.map(docType => 
+              `• ${docType.replace(/_/g, ' ')}: ${documentDescriptions[docType] || 'Required document'}`
+            ).join('\n');
+
+            const detailedMessage = `Cannot proceed to ${newPhase.replace(/_/g, ' ')} phase
+
+Document Collection phase is not complete. All required documents must be uploaded before moving to the next phase.
+
+ Missing Required Documents:
+${missingDocsList}
+
+ Next Steps:
+1. Upload all missing documents in the Documents section
+2. Ensure documents are in PDF, JPG, or PNG format
+3. Wait for document approval (if applicable)
+4. Try changing the phase again
+
+Need help? Contact your counselor for assistance.`;
+
+            return res.status(400).json({
+              message: detailedMessage,
+              missingDocuments: missingDocs,
+              phaseName: newPhase.replace(/_/g, ' '),
+              phaseDescription: 'Document Collection phase must be completed before proceeding',
+              documentDetails: missingDocs.map(docType => ({
+                type: docType,
+                description: documentDescriptions[docType] || 'Required document'
+              }))
+            });
+          }
+        }
+      }
 
       // Check if moving to a phase that requires documents
       const requiredDocs = phaseRequirements[newPhase] || [];
@@ -2284,10 +2360,272 @@ Need help? Contact your counselor for assistance.`;
     const previousPhase = student.currentPhase;
     await student.update({ currentPhase });
 
+    // If moving to University Shortlisting phase, save selected universities
+    if (currentPhase === 'UNIVERSITY_SHORTLISTING' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
+      const { selectedUniversities } = req.body;
+      
+      // Verify all university IDs exist
+      const validUniversities = await University.findAll({
+        where: {
+          id: selectedUniversities,
+          active: true
+        }
+      });
+
+      if (validUniversities.length !== selectedUniversities.length) {
+        return res.status(400).json({
+          message: 'Some selected universities are invalid or inactive',
+          invalidCount: selectedUniversities.length - validUniversities.length
+        });
+      }
+
+      // Create shortlist entries (we can store this in a separate table or in student notes)
+      // For now, we'll store it in the student's notes as JSON
+      const shortlistData = {
+        universities: validUniversities.map(u => ({
+          id: u.id,
+          name: u.name,
+          country: u.country,
+          city: u.city
+        })),
+        selectedAt: new Date().toISOString()
+      };
+
+      // Append to existing notes or create new
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      const updatedNotes = {
+        ...existingNotes,
+        universityShortlist: shortlistData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
+    // If moving to Offer Received phase, save selected universities with offers
+    if (currentPhase === 'OFFER_RECEIVED' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
+      const { selectedUniversities } = req.body;
+      
+      // Get existing shortlisted universities from notes
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      const shortlist = existingNotes?.universityShortlist;
+      
+      if (!shortlist || !shortlist.universities || shortlist.universities.length === 0) {
+        return res.status(400).json({
+          message: 'No shortlisted universities found. Please shortlist universities first in the University Shortlisting phase.'
+        });
+      }
+
+      // Verify selected universities are from the shortlisted ones
+      const shortlistedIds = shortlist.universities.map(u => u.id);
+      const invalidSelections = selectedUniversities.filter(id => !shortlistedIds.includes(id));
+      
+      if (invalidSelections.length > 0) {
+        return res.status(400).json({
+          message: 'Some selected universities are not in the shortlisted universities',
+          invalidIds: invalidSelections
+        });
+      }
+
+      // Get full university details for selected ones
+      const selectedUniversityData = shortlist.universities.filter(u => 
+        selectedUniversities.includes(u.id)
+      );
+
+      // Store universities with offers
+      const offersData = {
+        universities: selectedUniversityData.map(u => ({
+          id: u.id,
+          name: u.name,
+          country: u.country,
+          city: u.city
+        })),
+        receivedAt: new Date().toISOString()
+      };
+
+      const updatedNotes = {
+        ...existingNotes,
+        universitiesWithOffers: offersData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
+    // If moving to Initial Payment phase, save selected university for payment
+    if (currentPhase === 'INITIAL_PAYMENT' && req.body.selectedUniversity) {
+      const { selectedUniversity } = req.body;
+      
+      // Get existing universities with offers from notes, or fallback to shortlisted
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      const offers = existingNotes?.universitiesWithOffers;
+      const shortlist = existingNotes?.universityShortlist;
+      
+      // Determine which universities list to use: offers first, then fallback to shortlisted
+      let availableUniversities = null;
+      let isFallback = false;
+      
+      if (offers && offers.universities && offers.universities.length > 0) {
+        availableUniversities = offers.universities;
+        isFallback = false;
+      } else if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
+        availableUniversities = shortlist.universities;
+        isFallback = true;
+      }
+      
+      if (!availableUniversities || availableUniversities.length === 0) {
+        return res.status(400).json({
+          message: 'No universities found. Please shortlist universities first in the University Shortlisting phase.'
+        });
+      }
+
+      // Verify selected university is from the available universities list
+      const selectedUniversityData = availableUniversities.find(u => u.id === selectedUniversity);
+      
+      if (!selectedUniversityData) {
+        return res.status(400).json({
+          message: 'Selected university is not in the available universities list'
+        });
+      }
+
+      // Store selected university for initial payment
+      const paymentData = {
+        university: {
+          id: selectedUniversityData.id,
+          name: selectedUniversityData.name,
+          country: selectedUniversityData.country,
+          city: selectedUniversityData.city
+        },
+        selectedAt: new Date().toISOString(),
+        isFallback: isFallback // Track if this was selected from shortlist (fallback)
+      };
+
+      const updatedNotes = {
+        ...existingNotes,
+        initialPaymentUniversity: paymentData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
+    // If moving to Interview phase, save interview status
+    if (currentPhase === 'INTERVIEW' && req.body.interviewStatus) {
+      const { interviewStatus } = req.body;
+      
+      // Validate interview status
+      if (!['APPROVED', 'REFUSED', 'STOPPED'].includes(interviewStatus)) {
+        return res.status(400).json({
+          message: 'Invalid interview status. Must be APPROVED, REFUSED, or STOPPED.'
+        });
+      }
+
+      // Get existing notes
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      
+      // Store interview status
+      const interviewData = {
+        status: interviewStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      const updatedNotes = {
+        ...existingNotes,
+        interviewStatus: interviewData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
+    // If moving to CAS & Visa phase, save CAS & Visa status
+    if (currentPhase === 'CAS_VISA' && req.body.casVisaStatus) {
+      const { casVisaStatus } = req.body;
+      
+      // Validate CAS & Visa status
+      if (!['APPROVED', 'REFUSED', 'STOPPED'].includes(casVisaStatus)) {
+        return res.status(400).json({
+          message: 'Invalid CAS & Visa status. Must be APPROVED, REFUSED, or STOPPED.'
+        });
+      }
+
+      // Get existing notes
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      
+      // Store CAS & Visa status
+      const casVisaData = {
+        status: casVisaStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      const updatedNotes = {
+        ...existingNotes,
+        casVisaStatus: casVisaData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
+    // If moving to Financial & TB Test phase, save financial option
+    if (currentPhase === 'FINANCIAL_TB_TEST' && req.body.financialOption) {
+      const { financialOption } = req.body;
+      
+      // Validate financial option
+      if (!['LOAN', 'SELF_AMOUNT', 'OTHERS'].includes(financialOption)) {
+        return res.status(400).json({
+          message: 'Invalid financial option. Must be LOAN, SELF_AMOUNT, or OTHERS.'
+        });
+      }
+
+      // Get existing notes
+      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      
+      // Map values to display labels
+      const financialOptionLabels = {
+        'LOAN': 'Loan',
+        'SELF_AMOUNT': 'Self amount',
+        'OTHERS': 'Others'
+      };
+      
+      // Store financial option
+      const financialData = {
+        option: financialOption,
+        label: financialOptionLabels[financialOption],
+        selectedAt: new Date().toISOString()
+      };
+
+      const updatedNotes = {
+        ...existingNotes,
+        financialOption: financialData
+      };
+      
+      await student.update({ notes: JSON.stringify(updatedNotes) });
+    }
+
     // Create activity log entry for phase change
-    const activityDescription = remarks 
-      ? `Phase changed from ${previousPhase} to ${currentPhase}. Remarks: ${remarks}`
-      : `Phase changed from ${previousPhase} to ${currentPhase}`;
+    let activityDescription;
+    if (previousPhase === currentPhase && currentPhase === 'INTERVIEW' && req.body.interviewStatus) {
+      // Just updating interview status without changing phase
+      const statusLabels = {
+        'APPROVED': 'Approved',
+        'REFUSED': 'Refused',
+        'STOPPED': 'Stopped'
+      };
+      activityDescription = remarks 
+        ? `Interview status updated to ${statusLabels[req.body.interviewStatus]}. Remarks: ${remarks}`
+        : `Interview status updated to ${statusLabels[req.body.interviewStatus]}`;
+    } else if (previousPhase === currentPhase && currentPhase === 'CAS_VISA' && req.body.casVisaStatus) {
+      // Just updating CAS & Visa status without changing phase
+      const statusLabels = {
+        'APPROVED': 'Approved',
+        'REFUSED': 'Refused',
+        'STOPPED': 'Stopped'
+      };
+      activityDescription = remarks 
+        ? `CAS & Visa status updated to ${statusLabels[req.body.casVisaStatus]}. Remarks: ${remarks}`
+        : `CAS & Visa status updated to ${statusLabels[req.body.casVisaStatus]}`;
+    } else {
+      // Normal phase change
+      activityDescription = remarks 
+        ? `Phase changed from ${previousPhase} to ${currentPhase}. Remarks: ${remarks}`
+        : `Phase changed from ${previousPhase} to ${currentPhase}`;
+    }
     try {
       const activity = await Activity.create({
         type: 'PHASE_CHANGE',

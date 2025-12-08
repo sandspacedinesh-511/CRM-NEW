@@ -9,6 +9,14 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     console.log('AuthProvider mounted');
+    // Don't check auth if we're on the login page
+    const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/login/';
+    if (isLoginPage) {
+      console.log('On login page, skipping auth check');
+      setLoading(false);
+      return;
+    }
+    
     const token = localStorage.getItem('token');
     if (token) {
       console.log('Found token, checking auth');
