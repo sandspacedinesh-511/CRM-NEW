@@ -151,82 +151,57 @@ const buildPrioritySummary = (tasks) => {
   return PRIORITY_OPTIONS.map((priority) => {
     const total = tasks.filter((task) => (task.priority || 'MEDIUM') === priority).length;
     return {
-      priority,
       total,
       percentage: totalTasks === 0 ? 0 : Math.round((total / totalTasks) * 100)
     };
   });
 };
 
-const buildWorkloadAging = (tasks, now = new Date()) => {
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
-  const dayInMs = 24 * 60 * 60 * 1000;
+const buildPendingCallsByDate = (tasks, importedTasks = []) => {
+  const pendingMap = {};
 
-  const buckets = [
-    {
-      key: 'upcoming',
-      label: 'Upcoming',
-      matcher: (task) => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return dueDate > endOfToday && !task.completed;
-      }
-    },
-    {
-      key: 'today',
-      label: 'Due Today',
-      matcher: (task) => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return (
-          dueDate >= startOfToday &&
-          dueDate <= endOfToday &&
-          !task.completed
-        );
-      }
-    },
-    {
-      key: 'overdue_1_2',
-      label: '1-2 days overdue',
-      matcher: (task) => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        if (dueDate >= startOfToday) return false;
-        const diff = Math.floor((startOfToday - dueDate) / dayInMs);
-        return diff >= 1 && diff <= 2 && !task.completed;
-      }
-    },
-    {
-      key: 'overdue_3_5',
-      label: '3-5 days overdue',
-      matcher: (task) => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        if (dueDate >= startOfToday) return false;
-        const diff = Math.floor((startOfToday - dueDate) / dayInMs);
-        return diff >= 3 && diff <= 5 && !task.completed;
-      }
-    },
-    {
-      key: 'overdue_6_plus',
-      label: '6+ days overdue',
-      matcher: (task) => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        if (dueDate >= startOfToday) return false;
-        const diff = Math.floor((startOfToday - dueDate) / dayInMs);
-        return diff >= 6 && !task.completed;
-      }
+  // Process system tasks
+  tasks.forEach((task) => {
+    if (task.completed || !task.dueDate) return;
+
+    const dateKey = new Date(task.dueDate).toLocaleDateString('en-CA'); // YYYY-MM-DD
+    if (!pendingMap[dateKey]) {
+      pendingMap[dateKey] = {
+        dateKey,
+        date: new Date(task.dueDate),
+        count: 0
+      };
     }
-  ];
+    pendingMap[dateKey].count += 1;
+  });
 
-  return buckets.map((bucket) => ({
-    key: bucket.key,
-    label: bucket.label,
-    total: tasks.filter(bucket.matcher).length
+  // Process imported tasks
+  importedTasks.forEach((task) => {
+    const dateRef = task.createdAt || new Date();
+    const dateKey = new Date(dateRef).toLocaleDateString('en-CA');
+
+    if (!pendingMap[dateKey]) {
+      pendingMap[dateKey] = {
+        dateKey,
+        date: new Date(dateRef),
+        count: 0
+      };
+    }
+    pendingMap[dateKey].count += 1;
+  });
+
+  const allDates = Object.values(pendingMap)
+    .filter(item => item.count > 0)
+    .sort((a, b) => b.date - a.date) // Descending by date
+    .slice(0, 5); // Limit to 5
+
+  const totalDisplayed = allDates.reduce((sum, item) => sum + item.count, 0);
+
+  return allDates.map(item => ({
+    date: item.dateKey,
+    formattedDate: item.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    total: item.count,
+    percentage: totalDisplayed === 0 ? 0 : Math.round((item.count / totalDisplayed) * 100)
   }));
 };
 
@@ -472,7 +447,22 @@ exports.getDashboard = async (req, res) => {
     const engagementAlerts = buildEngagementAlerts(followUpTasks, now);
 
     const prioritySummary = buildPrioritySummary(formattedTasks);
-    const workloadAging = buildWorkloadAging(formattedTasks, now);
+    // Fetch all pending imported tasks for workload aging
+    const allPendingImportedTasks = await TelecallerImportedTask.findAll({
+      where: {
+        telecallerId,
+        [Op.or]: [
+          { callStatus: null },
+          { callStatus: '' },
+          { callStatus: '-' },
+          { callStatus: '—' },
+          { callStatus: 'n/a' }
+        ]
+      },
+      attributes: ['createdAt'] // optimized select
+    });
+
+    const workloadAging = buildPendingCallsByDate(formattedTasks, allPendingImportedTasks);
     const nextFollowUp = findNextFollowUp(formattedTasks);
 
     const baseCallsAttemptedToday = followUpTasks.reduce((count, task) => {

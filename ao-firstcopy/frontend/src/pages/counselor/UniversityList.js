@@ -102,7 +102,7 @@ const SORT_OPTIONS = [
 
 function UniversityList() {
   const theme = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [universities, setUniversities] = useState([]);
@@ -153,7 +153,7 @@ function UniversityList() {
           limit: rowsPerPage
         }
       });
-      
+
       if (response.data.success) {
         setUniversities(response.data.data?.universities || []);
       } else {
@@ -301,7 +301,7 @@ function UniversityList() {
           isActive: false
         });
       }
-      
+
       setSelectedUniversities([]);
       setBulkActionDialog(false);
       setBulkAction('');
@@ -321,8 +321,8 @@ function UniversityList() {
   };
 
   const handleSelectUniversity = (universityId) => {
-    setSelectedUniversities(prev => 
-      prev.includes(universityId) 
+    setSelectedUniversities(prev =>
+      prev.includes(universityId)
         ? prev.filter(id => id !== universityId)
         : [...prev, universityId]
     );
@@ -341,7 +341,7 @@ function UniversityList() {
     const inactive = universities.filter(u => u.isActive === false).length;
     const topRanked = universities.filter(u => u.ranking && parseInt(u.ranking) <= 100).length;
     const highAcceptance = universities.filter(u => u.acceptanceRate && parseFloat(u.acceptanceRate) >= 50).length;
-    
+
     return { total, active, inactive, topRanked, highAcceptance };
   };
 
@@ -386,19 +386,19 @@ function UniversityList() {
     <Container maxWidth="xl">
       <Box sx={{ py: 4 }}>
         {/* Header */}
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           mb: 4,
           flexWrap: 'wrap',
           gap: 2
         }}>
           <Box>
-            <Typography 
-              variant="h3" 
-              component="h1" 
-              sx={{ 
+            <Typography
+              variant="h3"
+              component="h1"
+              sx={{
                 fontWeight: 700,
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 backgroundClip: 'text',
@@ -426,32 +426,14 @@ function UniversityList() {
             >
               Refresh
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog('add')}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                px: 3,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
-                '&:hover': {
-                  boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Add University
-            </Button>
+
           </Box>
         </Box>
 
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={2.4}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
               border: `1px solid ${theme.palette.primary[200]}`
             }}>
@@ -466,7 +448,7 @@ function UniversityList() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
               border: `1px solid ${theme.palette.success[200]}`
             }}>
@@ -481,7 +463,7 @@ function UniversityList() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
               border: `1px solid ${theme.palette.warning[200]}`
             }}>
@@ -496,7 +478,7 @@ function UniversityList() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${theme.palette.info[50]} 0%, ${theme.palette.info[100]} 100%)`,
               border: `1px solid ${theme.palette.info[200]}`
             }}>
@@ -511,7 +493,7 @@ function UniversityList() {
             </Card>
           </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
-            <Card sx={{ 
+            <Card sx={{
               background: `linear-gradient(135deg, ${theme.palette.secondary[50]} 0%, ${theme.palette.secondary[100]} 100%)`,
               border: `1px solid ${theme.palette.secondary[200]}`
             }}>
@@ -528,9 +510,9 @@ function UniversityList() {
         </Grid>
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 3,
               borderRadius: 2,
               '& .MuiAlert-icon': {
@@ -544,94 +526,94 @@ function UniversityList() {
         )}
 
         {/* Filters */}
-        <Card sx={{ 
+        <Card sx={{
           mb: 3,
           background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
           border: `1px solid ${theme.palette.divider}`
         }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Filters & Search
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button
-                    size="small"
-                    startIcon={<FilterIcon />}
-                    onClick={() => setShowFilters(!showFilters)}
-                    variant={showFilters ? "contained" : "outlined"}
-                  >
-                    {showFilters ? 'Hide' : 'Show'} Filters
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<ClearIcon />}
-                    onClick={clearFilters}
-                    variant="outlined"
-                  >
-                    Clear All
-                  </Button>
-                </Box>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Filters & Search
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  startIcon={<FilterIcon />}
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant={showFilters ? "contained" : "outlined"}
+                >
+                  {showFilters ? 'Hide' : 'Show'} Filters
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<ClearIcon />}
+                  onClick={clearFilters}
+                  variant="outlined"
+                >
+                  Clear All
+                </Button>
               </Box>
+            </Box>
 
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search universities..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{ borderRadius: 2 }}
-                  />
-                </Grid>
-                
-                {showFilters && (
-                  <>
-                    <Grid item xs={12} md={4}>
-                      <FormControl fullWidth>
-                        <InputLabel>Country</InputLabel>
-                        <Select
-                          value={countryFilter}
-                          onChange={(e) => setCountryFilter(e.target.value)}
-                          label="Country"
-                        >
-                          {COUNTRY_OPTIONS.map((country) => (
-                            <MenuItem key={country.value} value={country.value}>
-                              {country.value !== 'ALL' && getCountryFlag(country.value)} {country.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={4}>
-                      <FormControl fullWidth>
-                        <InputLabel>Sort By</InputLabel>
-                        <Select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value)}
-                          label="Sort By"
-                        >
-                          {SORT_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  </>
-                )}
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  placeholder="Search universities..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ borderRadius: 2 }}
+                />
               </Grid>
-            </CardContent>
-          </Card>
+
+              {showFilters && (
+                <>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Country</InputLabel>
+                      <Select
+                        value={countryFilter}
+                        onChange={(e) => setCountryFilter(e.target.value)}
+                        label="Country"
+                      >
+                        {COUNTRY_OPTIONS.map((country) => (
+                          <MenuItem key={country.value} value={country.value}>
+                            {country.value !== 'ALL' && getCountryFlag(country.value)} {country.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Sort By</InputLabel>
+                      <Select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        label="Sort By"
+                      >
+                        {SORT_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </>
+              )}
+            </Grid>
+          </CardContent>
+        </Card>
 
         {/* Bulk Actions */}
         {selectedUniversities.length > 0 && (
@@ -664,184 +646,184 @@ function UniversityList() {
 
         {/* Universities Table */}
         <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedUniversities.length === universities.length && universities.length > 0}
+                      indeterminate={selectedUniversities.length > 0 && selectedUniversities.length < universities.length}
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                  <TableCell>University</TableCell>
+                  <TableCell>Country</TableCell>
+                  <TableCell>Ranking</TableCell>
+                  <TableCell>Acceptance Rate</TableCell>
+                  <TableCell>Programs</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {universities.map((university) => (
+                  <TableRow key={university.id} hover>
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selectedUniversities.length === universities.length && universities.length > 0}
-                        indeterminate={selectedUniversities.length > 0 && selectedUniversities.length < universities.length}
-                        onChange={handleSelectAll}
+                        checked={selectedUniversities.includes(university.id)}
+                        onChange={() => handleSelectUniversity(university.id)}
                       />
                     </TableCell>
-                    <TableCell>University</TableCell>
-                    <TableCell>Country</TableCell>
-                    <TableCell>Ranking</TableCell>
-                    <TableCell>Acceptance Rate</TableCell>
-                    <TableCell>Programs</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {universities.map((university) => (
-                    <TableRow key={university.id} hover>
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          checked={selectedUniversities.includes(university.id)}
-                          onChange={() => handleSelectUniversity(university.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar sx={{ 
-                            bgcolor: university.isActive !== false ? theme.palette.primary.main : theme.palette.grey[400]
-                          }}>
-                            <SchoolIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {university.name}
-                            </Typography>
-                            {university.website && (
-                              <Link 
-                                href={university.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                sx={{ fontSize: '0.75rem' }}
-                              >
-                                Visit Website
-                              </Link>
-                            )}
-                          </Box>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{
+                          bgcolor: university.isActive !== false ? theme.palette.primary.main : theme.palette.grey[400]
+                        }}>
+                          <SchoolIcon />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {university.name}
+                          </Typography>
+                          {university.website && (
+                            <Link
+                              href={university.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ fontSize: '0.75rem' }}
+                            >
+                              Visit Website
+                            </Link>
+                          )}
                         </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span style={{ fontSize: '1.2rem' }}>
-                            {getCountryFlag(university.country)}
-                          </span>
-                          <Typography variant="body2">
-                            {COUNTRY_OPTIONS.find(c => c.value === university.country)?.label || university.country}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {university.ranking ? (
-                          <Chip
-                            label={`#${university.ranking}`}
-                            color={parseInt(university.ranking) <= 50 ? 'success' : 
-                                   parseInt(university.ranking) <= 100 ? 'primary' : 
-                                   parseInt(university.ranking) <= 200 ? 'warning' : 'default'}
-                            size="small"
-                          />
-                        ) : (
-                          <Typography variant="body2" color="textSecondary">
-                            N/A
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {university.acceptanceRate ? (
-                          <Typography variant="body2">
-                            {university.acceptanceRate}%
-                          </Typography>
-                        ) : (
-                          <Typography variant="body2" color="textSecondary">
-                            N/A
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ maxWidth: 150 }}>
-                          {university.programsOffered ? 
-                            university.programsOffered.split(',').slice(0, 2).join(', ') + 
-                            (university.programsOffered.split(',').length > 2 ? '...' : '') :
-                            'N/A'
-                          }
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span style={{ fontSize: '1.2rem' }}>
+                          {getCountryFlag(university.country)}
+                        </span>
+                        <Typography variant="body2">
+                          {COUNTRY_OPTIONS.find(c => c.value === university.country)?.label || university.country}
                         </Typography>
-                      </TableCell>
-                      <TableCell>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {university.ranking ? (
                         <Chip
-                          label={university.isActive !== false ? 'Active' : 'Inactive'}
-                          color={university.isActive !== false ? 'success' : 'default'}
+                          label={`#${university.ranking}`}
+                          color={parseInt(university.ranking) <= 50 ? 'success' :
+                            parseInt(university.ranking) <= 100 ? 'primary' :
+                              parseInt(university.ranking) <= 200 ? 'warning' : 'default'}
                           size="small"
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Tooltip title="View Details">
-                            <IconButton size="small">
-                              <ViewIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDialog('edit', university)}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDelete(university.id)}
-                              sx={{ color: theme.palette.error.main }}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          N/A
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {university.acceptanceRate ? (
+                        <Typography variant="body2">
+                          {university.acceptanceRate}%
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          N/A
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ maxWidth: 150 }}>
+                        {university.programsOffered ?
+                          university.programsOffered.split(',').slice(0, 2).join(', ') +
+                          (university.programsOffered.split(',').length > 2 ? '...' : '') :
+                          'N/A'
+                        }
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={university.isActive !== false ? 'Active' : 'Inactive'}
+                        color={university.isActive !== false ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small">
+                            <ViewIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog('edit', university)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(university.id)}
+                            sx={{ color: theme.palette.error.main }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-            {universities.length === 0 && !loading && (
-              <Box sx={{ 
-                textAlign: 'center', 
-                py: 8,
-                color: theme.palette.text.secondary
-              }}>
-                <SchoolIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  No universities found
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 3 }}>
-                  {searchQuery || countryFilter !== 'ALL' 
-                    ? 'Try adjusting your filters or search terms'
-                    : 'Start by adding your first university'
-                  }
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenDialog('add')}
-                >
-                  Add University
-                </Button>
-              </Box>
-            )}
+          {universities.length === 0 && !loading && (
+            <Box sx={{
+              textAlign: 'center',
+              py: 8,
+              color: theme.palette.text.secondary
+            }}>
+              <SchoolIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                No universities found
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 3 }}>
+                {searchQuery || countryFilter !== 'ALL'
+                  ? 'Try adjusting your filters or search terms'
+                  : 'Start by adding your first university'
+                }
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog('add')}
+              >
+                Add University
+              </Button>
+            </Box>
+          )}
 
-            <TablePagination
-              component="div"
-              count={-1} // You can set actual count if available
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-            />
-          </Paper>
+          <TablePagination
+            component="div"
+            count={-1} // You can set actual count if available
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+          />
+        </Paper>
       </Box>
 
       {/* Add/Edit University Dialog */}
-      <Dialog 
-        open={openDialog} 
+      <Dialog
+        open={openDialog}
         onClose={handleCloseDialog}
         maxWidth="md"
         fullWidth
@@ -1034,9 +1016,9 @@ function UniversityList() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
-          <Button 
-            onClick={handleBulkAction} 
-            variant="contained" 
+          <Button
+            onClick={handleBulkAction}
+            variant="contained"
             color={bulkAction === 'delete' ? 'error' : 'primary'}
             disabled={!bulkAction}
           >

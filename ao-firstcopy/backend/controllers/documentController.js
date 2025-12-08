@@ -16,7 +16,7 @@ const upload = multer({
     const allowedTypes = [
       'application/pdf',
       'image/jpeg',
-      'image/jpg', 
+      'image/jpg',
       'image/png',
       'image/gif',
       'application/msword',
@@ -25,7 +25,7 @@ const upload = multer({
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'text/plain'
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -44,190 +44,190 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-      // Get studentId from route parameter or body
-      const studentId = req.params.id || req.body.studentId;
-      const { type, description, expiryDate, issueDate, issuingAuthority, documentNumber, countryOfIssue, remarks, priority } = req.body;
+    // Get studentId from route parameter or body
+    const studentId = req.params.id || req.body.studentId;
+    const { type, description, expiryDate, issueDate, issuingAuthority, documentNumber, countryOfIssue, remarks, priority } = req.body;
 
-      // Verify student belongs to counselor
-      const student = await Student.findOne({
-        where: { 
-          id: studentId,
-          counselorId: req.user.id 
-        }
-      });
-
-      if (!student) {
-        return res.status(404).json({ message: 'Student not found' });
+    // Verify student belongs to counselor
+    const student = await Student.findOne({
+      where: {
+        id: studentId,
+        counselorId: req.user.id
       }
+    });
 
-      // Upload to DigitalOcean Spaces (with graceful local fallback in non-production)
-      let uploadResult;
-      
-      // Check if Digital Ocean is configured
-      const hasDOConfig = process.env.DO_SPACES_KEY && process.env.DO_SPACES_SECRET && process.env.DO_SPACES_BUCKET;
-      
-      const useLocalStorage = async () => {
-        const fs = require('fs');
-        const path = require('path');
-        const crypto = require('crypto');
-
-        // Ensure uploads directory exists
-        const uploadsDir = path.join(__dirname, '..', 'uploads', 'documents');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-
-        // Generate unique filename
-        const fileExtension = path.extname(req.file.originalname);
-        const uniqueFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${fileExtension}`;
-        const filePath = path.join(uploadsDir, uniqueFilename);
-
-        // Save file locally
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        return {
-          url: `${process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/documents/${uniqueFilename}`,
-          key: `documents/${uniqueFilename}`,
-          bucket: 'local-storage',
-          region: 'local',
-          localPath: filePath
-        };
-      };
-      
-      if (!hasDOConfig) {
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(503).json({ 
-            message: 'File storage not configured. Please contact administrator.',
-            error: 'Digital Ocean Spaces configuration missing'
-          });
-        }
-        
-        // Development / non-production: always fall back to local storage
-        uploadResult = await useLocalStorage();
-      } else {
-        // Digital Ocean is configured, proceed with real upload
-        const storageServiceInstance = new DigitalOceanStorageService();
-        try {
-          uploadResult = await storageServiceInstance.uploadFile(req.file, 'documents');
-        } catch (storageError) {
-          console.error('❌ DigitalOcean Spaces upload failed:', storageError);
-          
-          // In non-production, gracefully fall back to local storage if bucket/credentials are misconfigured
-          if (process.env.NODE_ENV !== 'production' && (storageError.code === 'NoSuchBucket' || storageError.message?.includes('NoSuchBucket'))) {
-            console.warn('⚠️ Falling back to local file storage due to missing DigitalOcean bucket (non-production only).');
-            uploadResult = await useLocalStorage();
-          } else {
-            throw storageError;
-          }
-        }
-      }
-
-      // Save document record to database
-      const document = await Document.create({
-        name: req.file.originalname,
-        type: type || 'GENERAL',
-        description: description || '',
-        path: uploadResult.key, // Store the Spaces key instead of local path
-        url: uploadResult.url, // Store the full URL
-        mimeType: req.file.mimetype,
-        size: req.file.size,
-        studentId: studentId,
-        status: 'PENDING',
-        uploadedBy: req.user.id,
-        expiryDate: expiryDate || null,
-        issueDate: issueDate || null,
-        issuingAuthority: issuingAuthority || null,
-        documentNumber: documentNumber || null,
-        countryOfIssue: countryOfIssue || null,
-        remarks: remarks || null,
-        priority: priority || 'MEDIUM'
-      });
-
-      // Create activity for document upload
-      await Activity.create({
-        type: 'DOCUMENT_UPLOAD',
-        description: `Document uploaded: ${document.name} (${document.type})`,
-        studentId: studentId,
-        userId: req.user.id,
-        metadata: {
-          documentId: document.id,
-          documentType: document.type,
-          documentName: document.name,
-          fileSize: document.size,
-          mimeType: document.mimeType
-        }
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'Document uploaded successfully',
-        data: {
-          id: document.id,
-          name: document.name,
-          type: document.type,
-          size: document.size,
-          status: document.status,
-          createdAt: document.createdAt,
-          mimeType: document.mimeType,
-          description: document.description,
-          expiryDate: document.expiryDate,
-          issueDate: document.issueDate,
-          issuingAuthority: document.issuingAuthority,
-          documentNumber: document.documentNumber,
-          countryOfIssue: document.countryOfIssue,
-          remarks: document.remarks,
-          priority: document.priority
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error uploading document:', error);
-      console.error('📋 Error details:', {
-        message: error.message,
-        stack: error.stack,
-        code: error.code,
-        statusCode: error.statusCode,
-        name: error.name
-      });
-      console.error('📋 Full error object:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Error uploading document';
-      let statusCode = 500;
-      
-      if (error.message.includes('DO_SPACES_BUCKET') || error.message.includes('environment variable is not set')) {
-        errorMessage = process.env.NODE_ENV === 'production' 
-          ? 'File storage not configured. Please contact administrator.'
-          : 'Digital Ocean Spaces not configured. Missing environment variables.';
-        statusCode = 503; // Service unavailable
-      } else if (error.message.includes('Digital Ocean Spaces configuration missing')) {
-        errorMessage = 'File storage not configured. Please contact administrator.';
-        statusCode = 503;
-      } else if (error.message.includes('InvalidAccessKeyId')) {
-        errorMessage = 'Digital Ocean Spaces configuration error: Invalid access key';
-        statusCode = 500;
-      } else if (error.message.includes('SignatureDoesNotMatch')) {
-        errorMessage = 'Digital Ocean Spaces configuration error: Invalid secret key';
-        statusCode = 500;
-      } else if (error.message.includes('NoSuchBucket')) {
-        errorMessage = 'Digital Ocean Spaces configuration error: Bucket does not exist';
-        statusCode = 500;
-      } else if (error.message.includes('AccessDenied')) {
-        errorMessage = 'Digital Ocean Spaces access denied: Check permissions';
-        statusCode = 500;
-      } else if (error.message.includes('RequestTimeout')) {
-        errorMessage = 'Upload timeout: Please try again';
-        statusCode = 408;
-      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-        errorMessage = 'Network error: Cannot connect to Digital Ocean Spaces';
-        statusCode = 503;
-      }
-      
-      res.status(statusCode).json({ 
-        message: errorMessage,
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
     }
-  };
+
+    // Upload to DigitalOcean Spaces (with graceful local fallback in non-production)
+    let uploadResult;
+
+    // Check if Digital Ocean is configured
+    const hasDOConfig = process.env.DO_SPACES_KEY && process.env.DO_SPACES_SECRET && process.env.DO_SPACES_BUCKET;
+
+    const useLocalStorage = async () => {
+      const fs = require('fs');
+      const path = require('path');
+      const crypto = require('crypto');
+
+      // Ensure uploads directory exists
+      const uploadsDir = path.join(__dirname, '..', 'uploads', 'documents');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const fileExtension = path.extname(req.file.originalname);
+      const uniqueFilename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${fileExtension}`;
+      const filePath = path.join(uploadsDir, uniqueFilename);
+
+      // Save file locally
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      return {
+        url: `${process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`}/uploads/documents/${uniqueFilename}`,
+        key: `documents/${uniqueFilename}`,
+        bucket: 'local-storage',
+        region: 'local',
+        localPath: filePath
+      };
+    };
+
+    if (!hasDOConfig) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(503).json({
+          message: 'File storage not configured. Please contact administrator.',
+          error: 'Digital Ocean Spaces configuration missing'
+        });
+      }
+
+      // Development / non-production: always fall back to local storage
+      uploadResult = await useLocalStorage();
+    } else {
+      // Digital Ocean is configured, proceed with real upload
+      const storageServiceInstance = new DigitalOceanStorageService();
+      try {
+        uploadResult = await storageServiceInstance.uploadFile(req.file, 'documents');
+      } catch (storageError) {
+        console.error('❌ DigitalOcean Spaces upload failed:', storageError);
+
+        // In non-production, gracefully fall back to local storage if bucket/credentials are misconfigured
+        if (process.env.NODE_ENV !== 'production' && (storageError.code === 'NoSuchBucket' || storageError.message?.includes('NoSuchBucket'))) {
+          console.warn('⚠️ Falling back to local file storage due to missing DigitalOcean bucket (non-production only).');
+          uploadResult = await useLocalStorage();
+        } else {
+          throw storageError;
+        }
+      }
+    }
+
+    // Save document record to database
+    const document = await Document.create({
+      name: req.file.originalname,
+      type: type || 'GENERAL',
+      description: description || '',
+      path: uploadResult.key, // Store the Spaces key instead of local path
+      url: uploadResult.url, // Store the full URL
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      studentId: studentId,
+      status: 'PENDING',
+      uploadedBy: req.user.id,
+      expiryDate: expiryDate || null,
+      issueDate: issueDate || null,
+      issuingAuthority: issuingAuthority || null,
+      documentNumber: documentNumber || null,
+      countryOfIssue: countryOfIssue || null,
+      remarks: remarks || null,
+      priority: priority || 'MEDIUM'
+    });
+
+    // Create activity for document upload
+    await Activity.create({
+      type: 'DOCUMENT_UPLOAD',
+      description: `Document uploaded: ${document.name} (${document.type})`,
+      studentId: studentId,
+      userId: req.user.id,
+      metadata: {
+        documentId: document.id,
+        documentType: document.type,
+        documentName: document.name,
+        fileSize: document.size,
+        mimeType: document.mimeType
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        id: document.id,
+        name: document.name,
+        type: document.type,
+        size: document.size,
+        status: document.status,
+        createdAt: document.createdAt,
+        mimeType: document.mimeType,
+        description: document.description,
+        expiryDate: document.expiryDate,
+        issueDate: document.issueDate,
+        issuingAuthority: document.issuingAuthority,
+        documentNumber: document.documentNumber,
+        countryOfIssue: document.countryOfIssue,
+        remarks: document.remarks,
+        priority: document.priority
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error uploading document:', error);
+    console.error('📋 Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      statusCode: error.statusCode,
+      name: error.name
+    });
+    console.error('📋 Full error object:', error);
+
+    // Provide more specific error messages
+    let errorMessage = 'Error uploading document';
+    let statusCode = 500;
+
+    if (error.message.includes('DO_SPACES_BUCKET') || error.message.includes('environment variable is not set')) {
+      errorMessage = process.env.NODE_ENV === 'production'
+        ? 'File storage not configured. Please contact administrator.'
+        : 'Digital Ocean Spaces not configured. Missing environment variables.';
+      statusCode = 503; // Service unavailable
+    } else if (error.message.includes('Digital Ocean Spaces configuration missing')) {
+      errorMessage = 'File storage not configured. Please contact administrator.';
+      statusCode = 503;
+    } else if (error.message.includes('InvalidAccessKeyId')) {
+      errorMessage = 'Digital Ocean Spaces configuration error: Invalid access key';
+      statusCode = 500;
+    } else if (error.message.includes('SignatureDoesNotMatch')) {
+      errorMessage = 'Digital Ocean Spaces configuration error: Invalid secret key';
+      statusCode = 500;
+    } else if (error.message.includes('NoSuchBucket')) {
+      errorMessage = 'Digital Ocean Spaces configuration error: Bucket does not exist';
+      statusCode = 500;
+    } else if (error.message.includes('AccessDenied')) {
+      errorMessage = 'Digital Ocean Spaces access denied: Check permissions';
+      statusCode = 500;
+    } else if (error.message.includes('RequestTimeout')) {
+      errorMessage = 'Upload timeout: Please try again';
+      statusCode = 408;
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      errorMessage = 'Network error: Cannot connect to Digital Ocean Spaces';
+      statusCode = 503;
+    }
+
+    res.status(statusCode).json({
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 
 // Preview document
 exports.previewDocument = async (req, res) => {
@@ -248,13 +248,13 @@ exports.previewDocument = async (req, res) => {
     // Check if file is stored locally or in DigitalOcean Spaces
     // DigitalOcean Spaces files have URLs that contain the bucket domain
     const isDigitalOceanFile = document.url && (
-      document.url.includes('digitaloceanspaces.com') || 
+      document.url.includes('digitaloceanspaces.com') ||
       document.url.includes('counselor-crm-files.') ||
       document.path.startsWith('documents/') && !document.path.includes('/app/uploads/')
     );
-    
+
     const isLocalFile = !isDigitalOceanFile && (
-      document.path.startsWith('/app/uploads/') || 
+      document.path.startsWith('/app/uploads/') ||
       document.path.startsWith('uploads/') ||
       document.path.startsWith('documents/') && document.path.includes('/app/uploads/')
     );
@@ -262,7 +262,7 @@ exports.previewDocument = async (req, res) => {
       // Handle local files (legacy uploads)
       const fs = require('fs');
       const path = require('path');
-      
+
       // Try multiple possible local paths
       let filePath = null;
       const possiblePaths = [
@@ -273,14 +273,14 @@ exports.previewDocument = async (req, res) => {
         path.join(__dirname, '..', 'uploads', path.basename(document.path)),
         path.join(process.cwd(), 'uploads', path.basename(document.path))
       ];
-      
+
       for (const testPath of possiblePaths) {
         if (fs.existsSync(testPath)) {
           filePath = testPath;
           break;
         }
       }
-      
+
       if (!filePath) {
         return res.json({
           previewable: false,
@@ -297,17 +297,17 @@ exports.previewDocument = async (req, res) => {
           errorType: 'FILE_NOT_FOUND_LOCALLY'
         });
       }
-      
+
       // For local files, serve directly
       const previewableTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      
+
       if (previewableTypes.includes(document.mimeType)) {
         res.setHeader('Content-Type', document.mimeType);
         res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
-        
+
         const stats = fs.statSync(filePath);
         res.setHeader('Content-Length', stats.size);
-        
+
         const fileStream = fs.createReadStream(filePath);
         fileStream.pipe(res);
         return;
@@ -327,7 +327,7 @@ exports.previewDocument = async (req, res) => {
     } else {
       // Handle DigitalOcean Spaces files
       const storageService = new DigitalOceanStorageService();
-      
+
       try {
         const fileExists = await storageService.fileExists(document.path);
         if (!fileExists) {
@@ -348,6 +348,29 @@ exports.previewDocument = async (req, res) => {
         }
       } catch (storageError) {
         console.error('❌ Error checking DigitalOcean Spaces:', storageError);
+
+        // Fallback: Check if file exists locally (e.g. for dev/seed data)
+        const fs = require('fs');
+        const path = require('path');
+        const localPath = path.join(__dirname, '..', 'uploads', 'documents', path.basename(document.path));
+
+        if (fs.existsSync(localPath)) {
+          console.log('⚠️ Serving local fallback for:', localPath);
+          const previewableTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+
+          if (previewableTypes.includes(document.mimeType)) {
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
+
+            const stats = fs.statSync(localPath);
+            res.setHeader('Content-Length', stats.size);
+
+            const fileStream = fs.createReadStream(localPath);
+            fileStream.pipe(res);
+            return;
+          }
+        }
+
         return res.json({
           previewable: false,
           message: 'Error accessing cloud storage. Please check your DigitalOcean Spaces configuration.',
@@ -369,7 +392,7 @@ exports.previewDocument = async (req, res) => {
     const signedUrl = await storageService.getPresignedUrl(document.path, 3600); // 1 hour expiry
     // For previewable files, return signed URL
     const previewableTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    
+
     if (previewableTypes.includes(document.mimeType)) {
       res.json({
         previewable: true,
@@ -425,9 +448,9 @@ exports.downloadDocument = async (req, res) => {
     // Check if file exists in cloud storage
     const storageService = new DigitalOceanStorageService();
     const fileExists = await storageService.fileExists(document.path);
-    
+
     if (!fileExists) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'Document file is not available. It may have been deleted or moved.',
         errorType: 'FILE_NOT_FOUND'
       });
@@ -435,7 +458,7 @@ exports.downloadDocument = async (req, res) => {
 
     // Generate signed URL for download
     const signedUrl = await storageService.getPresignedUrl(document.path, 3600); // 1 hour expiry
-    
+
     res.redirect(signedUrl);
   } catch (error) {
     console.error('Error downloading document:', error);
