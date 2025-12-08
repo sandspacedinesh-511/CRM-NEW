@@ -49,6 +49,7 @@ import {
   Visibility as ViewIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
+  Close as CloseIcon,
   Sort as SortIcon,
   GetApp as ExportIcon,
   Refresh as RefreshIcon,
@@ -102,7 +103,7 @@ const SORT_OPTIONS = [
 
 function Documents() {
   const theme = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -133,6 +134,8 @@ function Documents() {
     description: '',
     status: 'PENDING'
   });
+  const [folderView, setFolderView] = useState(true);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
 
   const fetchDocuments = async () => {
     try {
@@ -148,7 +151,7 @@ function Documents() {
           limit: rowsPerPage
         }
       });
-      
+
       if (response.data.success) {
         setDocuments(response.data.data?.documents || []);
       } else {
@@ -223,7 +226,7 @@ function Documents() {
       const response = await axiosInstance.get(`/counselor/documents/${documentId}/download`, {
         responseType: 'blob'
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -235,13 +238,13 @@ function Documents() {
     } catch (error) {
       console.error('Error downloading document:', error);
       let errorMessage = 'Failed to download document. Please try again.';
-      
+
       if (error.response?.status === 404) {
         errorMessage = 'Document file not found on server.';
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to download this document.';
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -261,7 +264,7 @@ function Documents() {
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      
+
       let errorMessage = 'Failed to delete document. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -270,7 +273,7 @@ function Documents() {
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to delete this document.';
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -301,7 +304,7 @@ function Documents() {
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      
+
       let errorMessage = 'Failed to update document. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -310,7 +313,7 @@ function Documents() {
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to update this document.';
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -342,7 +345,7 @@ function Documents() {
           }
         }
       }
-      
+
       setSelectedDocuments([]);
       setBulkActionDialog(false);
       setBulkAction('');
@@ -362,8 +365,8 @@ function Documents() {
   };
 
   const handleSelectDocument = (documentId) => {
-    setSelectedDocuments(prev => 
-      prev.includes(documentId) 
+    setSelectedDocuments(prev =>
+      prev.includes(documentId)
         ? prev.filter(id => id !== documentId)
         : [...prev, documentId]
     );
@@ -382,7 +385,7 @@ function Documents() {
     if (documentType === 'ACADEMIC_TRANSCRIPT') {
       return <SchoolIcon />;
     }
-    
+
     if (!fileName || typeof fileName !== 'string') {
       return <FileIcon />;
     }
@@ -423,9 +426,9 @@ function Documents() {
             <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
               Academic Details:
             </Typography>
-            <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 1,
               fontSize: '0.75rem'
             }}>
@@ -472,7 +475,7 @@ function Documents() {
         );
       }
     }
-    
+
     // For other documents, show description if available
     if (document.description && document.description.length < 200) {
       return (
@@ -481,7 +484,7 @@ function Documents() {
         </Typography>
       );
     }
-    
+
     return null;
   };
 
@@ -505,7 +508,7 @@ function Documents() {
     const pending = documents.filter(d => d.status === 'PENDING').length;
     const approved = documents.filter(d => d.status === 'APPROVED').length;
     const rejected = documents.filter(d => d.status === 'REJECTED').length;
-    
+
     return { total, pending, approved, rejected };
   };
 
@@ -535,7 +538,7 @@ function Documents() {
     try {
       setPreviewDocument(document);
       setPreviewDialog(true);
-      
+
       // For academic records, create a formatted preview
       if (document.type === 'ACADEMIC_TRANSCRIPT' && document.description) {
         const academicData = formatAcademicRecordData(document.description);
@@ -602,19 +605,19 @@ function Documents() {
               ` : ''}
             </div>
           `;
-          
+
           const blob = new Blob([previewContent], { type: 'text/html' });
           const url = window.URL.createObjectURL(blob);
-          setPreviewDocument({ 
-            ...document, 
-            previewable: true, 
+          setPreviewDocument({
+            ...document,
+            previewable: true,
             previewUrl: url,
             mimeType: 'text/html'
           });
           return;
         }
       }
-      
+
       // Check if document is previewable
       let response;
       try {
@@ -638,7 +641,7 @@ function Documents() {
           throw error;
         }
       }
-      
+
       // Check if response is JSON (non-previewable file)
       const contentType = response.headers['content-type'];
       if (contentType && contentType.includes('application/json')) {
@@ -649,29 +652,29 @@ function Documents() {
           return;
         }
       }
-      
+
       // Create preview URL for previewable files
       const url = window.URL.createObjectURL(response.data);
-      setPreviewDocument({ 
-        ...document, 
-        previewable: true, 
+      setPreviewDocument({
+        ...document,
+        previewable: true,
         previewUrl: url,
         mimeType: response.headers['content-type'] || document.mimeType
       });
     } catch (error) {
       console.error('Error previewing document:', error);
       let errorMessage = 'Failed to load preview. Please download to view.';
-      
+
       if (error.response?.status === 404) {
         errorMessage = 'Document file is not available locally. This may be because the file was uploaded to a different server environment.';
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to preview this document.';
       }
-      
-      setPreviewDocument({ 
-        ...document, 
-        previewable: false, 
-        message: errorMessage 
+
+      setPreviewDocument({
+        ...document,
+        previewable: false,
+        message: errorMessage
       });
     }
   };
@@ -684,24 +687,58 @@ function Documents() {
     setPreviewDialog(false);
   };
 
+  // Group documents by student
+  const getStudentFolders = () => {
+    const folders = {};
+    documents.forEach(doc => {
+      if (!doc.studentId) return;
+      if (!folders[doc.studentId]) {
+        folders[doc.studentId] = {
+          id: doc.studentId,
+          name: doc.student ? `${doc.student.firstName} ${doc.student.lastName}` : 'Unknown Student',
+          count: 0,
+          documents: []
+        };
+      }
+      folders[doc.studentId].count++;
+      folders[doc.studentId].documents.push(doc);
+    });
+    return Object.values(folders);
+  };
+
+  const handleFolderClick = (studentId) => {
+    setSelectedFolderId(studentId);
+    setFolderView(false);
+  };
+
+  const handleBackToFolders = () => {
+    setSelectedFolderId(null);
+    setFolderView(true);
+    setSelectedDocuments([]);
+  };
+
+  const activeDocuments = folderView
+    ? documents
+    : documents.filter(doc => doc.studentId === selectedFolderId);
+
   return (
     <Container maxWidth="xl">
       <Box sx={{ py: 4 }}>
         {/* Header */}
         <Fade in={true} timeout={600}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             mb: 4,
             flexWrap: 'wrap',
             gap: 2
           }}>
             <Box>
-              <Typography 
-                variant="h3" 
-                component="h1" 
-                sx={{ 
+              <Typography
+                variant="h3"
+                component="h1"
+                sx={{
                   fontWeight: 700,
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                   backgroundClip: 'text',
@@ -732,7 +769,7 @@ function Documents() {
               <Button
                 variant="outlined"
                 startIcon={<ExportIcon />}
-                onClick={() => {/* Handle export */}}
+                onClick={() => {/* Handle export */ }}
                 sx={{
                   borderRadius: 2,
                   textTransform: 'none',
@@ -768,7 +805,7 @@ function Documents() {
         <Fade in={true} timeout={800}>
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
+              <Card sx={{
                 background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
                 border: `1px solid ${theme.palette.primary[200]}`
               }}>
@@ -783,7 +820,7 @@ function Documents() {
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
+              <Card sx={{
                 background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
                 border: `1px solid ${theme.palette.warning[200]}`
               }}>
@@ -798,7 +835,7 @@ function Documents() {
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
+              <Card sx={{
                 background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
                 border: `1px solid ${theme.palette.success[200]}`
               }}>
@@ -813,7 +850,7 @@ function Documents() {
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
+              <Card sx={{
                 background: `linear-gradient(135deg, ${theme.palette.error[50]} 0%, ${theme.palette.error[100]} 100%)`,
                 border: `1px solid ${theme.palette.error[200]}`
               }}>
@@ -832,9 +869,9 @@ function Documents() {
 
         {error && (
           <Fade in={true} timeout={800}>
-            <Alert 
-              severity="error" 
-              sx={{ 
+            <Alert
+              severity="error"
+              sx={{
                 mb: 3,
                 borderRadius: 2,
                 '& .MuiAlert-icon': {
@@ -850,7 +887,7 @@ function Documents() {
 
         {/* Filters */}
         <Fade in={true} timeout={1000}>
-          <Card sx={{ 
+          <Card sx={{
             mb: 3,
             background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
             border: `1px solid ${theme.palette.divider}`
@@ -897,7 +934,7 @@ function Documents() {
                     sx={{ borderRadius: 2 }}
                   />
                 </Grid>
-                
+
                 {showFilters && (
                   <>
                     <Grid item xs={12} md={2}>
@@ -916,7 +953,7 @@ function Documents() {
                         </Select>
                       </FormControl>
                     </Grid>
-                    
+
                     <Grid item xs={12} md={2}>
                       <FormControl fullWidth>
                         <InputLabel>Type</InputLabel>
@@ -934,7 +971,7 @@ function Documents() {
                         </Select>
                       </FormControl>
                     </Grid>
-                    
+
                     <Grid item xs={12} md={2}>
                       <FormControl fullWidth>
                         <InputLabel>Sort By</InputLabel>
@@ -991,173 +1028,225 @@ function Documents() {
 
         {/* Documents Table */}
         <Grow in={true} timeout={1200}>
-          <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={selectedDocuments.length === documents.length && documents.length > 0}
-                        indeterminate={selectedDocuments.length > 0 && selectedDocuments.length < documents.length}
-                        onChange={handleSelectAll}
-                      />
-                    </TableCell>
-                    <TableCell>Document</TableCell>
-                    <TableCell>Student</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Upload Date</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {documents.map((document) => (
-                    <TableRow key={document.id} hover>
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          checked={selectedDocuments.includes(document.id)}
-                          onChange={() => handleSelectDocument(document.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                          <Avatar sx={{ 
-                            bgcolor: theme.palette.grey[100],
-                            color: theme.palette.text.secondary,
-                            mt: 0.5
-                          }}>
-                            {getDocumentIcon(document.name, document.type)}
-                          </Avatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {document.name || 'Untitled Document'}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
-                              {document.size ? `${Math.round(document.size / 1024)} KB` : 'Unknown size'}
-                            </Typography>
-                            {renderDocumentContent(document)}
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <PersonIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                          <Typography variant="body2">
-                            {document.student?.firstName} {document.student?.lastName}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={DOCUMENT_TYPES.find(t => t.value === document.type)?.label}
-                          color={getTypeColor(document.type)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={document.status}
-                          color={getStatusColor(document.status)}
-                          size="small"
-                          icon={
-                            document.status === 'APPROVED' ? <CheckCircleIcon /> :
-                            document.status === 'PENDING' ? <WarningIcon /> :
-                            document.status === 'REJECTED' ? <ErrorIcon /> : null
+          <Box>
+            {folderView ? (
+              <Grid container spacing={3}>
+                {getStudentFolders().length > 0 ? (
+                  getStudentFolders().map((folder) => (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={folder.id}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: theme.shadows[4]
                           }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {document.createdAt ? format(new Date(document.createdAt), 'MMM d, yyyy') : 'Unknown date'}
-                        </Typography>
-                      </TableCell>
-                                             <TableCell>
-                         <Box sx={{ display: 'flex', gap: 1 }}>
-                           <Tooltip title="Preview">
-                             <IconButton
-                               size="small"
-                               onClick={() => handlePreview(document)}
-                             >
-                               <ViewIcon />
-                             </IconButton>
-                           </Tooltip>
-                           <Tooltip title="Download">
-                             <IconButton
-                               size="small"
-                               onClick={() => handleDownload(document.id, document.name)}
-                             >
-                               <DownloadIcon />
-                             </IconButton>
-                           </Tooltip>
-                           <Tooltip title="Edit">
-                             <IconButton
-                               size="small"
-                               onClick={() => handleEdit(document)}
-                               sx={{ color: theme.palette.primary.main }}
-                             >
-                               <EditIcon />
-                             </IconButton>
-                           </Tooltip>
-                           <Tooltip title="Delete">
-                             <IconButton
-                               size="small"
-                               onClick={() => handleDelete(document.id)}
-                               sx={{ color: theme.palette.error.main }}
-                             >
-                               <DeleteIcon />
-                             </IconButton>
-                           </Tooltip>
-                         </Box>
-                       </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                        }}
+                        onClick={() => handleFolderClick(folder.id)}
+                      >
+                        <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                          <Avatar sx={{
+                            bgcolor: theme.palette.primary.light,
+                            color: theme.palette.primary.main,
+                            width: 64,
+                            height: 64,
+                            mb: 2,
+                            mx: 'auto'
+                          }}>
+                            <PersonIcon sx={{ fontSize: 32 }} />
+                          </Avatar>
+                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                            {folder.name}
+                          </Typography>
+                          <Chip
+                            label={`${folder.count} Documents`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))
+                ) : (
+                  <Grid item xs={12}>
+                    <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+                      <Typography variant="h6">No documents found</Typography>
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+            ) : (
+              <>
+                <Box sx={{ mb: 2 }}>
+                  <Button
+                    startIcon={<SortIcon sx={{ transform: 'rotate(90deg)' }} />}
+                    onClick={handleBackToFolders}
+                    variant="text"
+                  >
+                    Back to All Folders
+                  </Button>
+                </Box>
+                <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedDocuments.length === activeDocuments.length && activeDocuments.length > 0}
+                              indeterminate={selectedDocuments.length > 0 && selectedDocuments.length < activeDocuments.length}
+                              onChange={handleSelectAll}
+                            />
+                          </TableCell>
+                          <TableCell>Document</TableCell>
+                          <TableCell>Student</TableCell>
+                          <TableCell>Type</TableCell>
 
-            {documents.length === 0 && !loading && (
-              <Box sx={{ 
-                textAlign: 'center', 
-                py: 8,
-                color: theme.palette.text.secondary
-              }}>
-                <DocumentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  No documents found
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 3 }}>
-                  {searchQuery || statusFilter !== 'ALL' || typeFilter !== 'ALL' 
-                    ? 'Try adjusting your filters or search terms'
-                    : 'Start by uploading your first document'
-                  }
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<UploadIcon />}
-                  onClick={() => setOpenUpload(true)}
-                >
-                  Upload Document
-                </Button>
-              </Box>
+                          <TableCell>Upload Date</TableCell>
+                          <TableCell>Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {activeDocuments.map((document) => (
+                          <TableRow key={document.id} hover>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={selectedDocuments.includes(document.id)}
+                                onChange={() => handleSelectDocument(document.id)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                <Avatar sx={{
+                                  bgcolor: theme.palette.grey[100],
+                                  color: theme.palette.text.secondary,
+                                  mt: 0.5
+                                }}>
+                                  {getDocumentIcon(document.name, document.type)}
+                                </Avatar>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {document.name || 'Untitled Document'}
+                                  </Typography>
+                                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                                    {document.size ? `${Math.round(document.size / 1024)} KB` : 'Unknown size'}
+                                  </Typography>
+                                  {renderDocumentContent(document)}
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <PersonIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+                                <Typography variant="body2">
+                                  {document.student?.firstName} {document.student?.lastName}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={DOCUMENT_TYPES.find(t => t.value === document.type)?.label}
+                                color={getTypeColor(document.type)}
+                                size="small"
+                              />
+                            </TableCell>
+
+                            <TableCell>
+                              <Typography variant="body2">
+                                {document.createdAt ? format(new Date(document.createdAt), 'MMM d, yyyy') : 'Unknown date'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Tooltip title="Preview">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handlePreview(document)}
+                                  >
+                                    <ViewIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Download">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDownload(document.id, document.name)}
+                                  >
+                                    <DownloadIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Edit">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleEdit(document)}
+                                    sx={{ color: theme.palette.primary.main }}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDelete(document.id)}
+                                    sx={{ color: theme.palette.error.main }}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {activeDocuments.length === 0 && !loading && (
+                    <Box sx={{
+                      textAlign: 'center',
+                      py: 8,
+                      color: theme.palette.text.secondary
+                    }}>
+                      <DocumentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
+                      <Typography variant="h6" sx={{ mb: 1 }}>
+                        No documents found
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 3 }}>
+                        {searchQuery || statusFilter !== 'ALL' || typeFilter !== 'ALL'
+                          ? 'Try adjusting your filters or search terms'
+                          : 'Upload a document to this folder'
+                        }
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<UploadIcon />}
+                        onClick={() => setOpenUpload(true)}
+                      >
+                        Upload Document
+                      </Button>
+                    </Box>
+                  )}
+
+                  <TablePagination
+                    component="div"
+                    count={-1} // You can set actual count if available
+                    page={page}
+                    onPageChange={handleChangePage}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[5, 10, 25, 50]}
+                  />
+                </Paper>
+              </>
             )}
-
-            <TablePagination
-              component="div"
-              count={-1} // You can set actual count if available
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-            />
-          </Paper>
+          </Box>
         </Grow>
       </Box>
 
       {/* Upload Dialog */}
-      <Dialog 
-        open={openUpload} 
+      <Dialog
+        open={openUpload}
         onClose={() => setOpenUpload(false)}
         maxWidth="sm"
         fullWidth
@@ -1213,14 +1302,32 @@ function Documents() {
       </Dialog>
 
       {/* Preview Dialog */}
-      <Dialog 
-        open={previewDialog} 
+      <Dialog
+        open={previewDialog}
         onClose={handleClosePreview}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          Document Preview: {previewDocument?.name || 'Untitled Document'}
+        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+              {previewDocument?.name || 'Untitled Document'}
+            </Typography>
+            {previewDocument && (
+              <Typography variant="caption" color="text.secondary">
+                {previewDocument.type && DOCUMENT_TYPES.find(t => t.value === previewDocument.type)?.label} • Uploaded: {previewDocument.createdAt ? format(new Date(previewDocument.createdAt), 'MMM d, yyyy') : 'Unknown'}
+              </Typography>
+            )}
+          </Box>
+          <IconButton
+            aria-label="close"
+            onClick={handleClosePreview}
+            sx={{
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           {previewDocument && (
@@ -1305,71 +1412,71 @@ function Documents() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
-          <Button 
-            onClick={handleBulkAction} 
-            variant="contained" 
+          <Button
+            onClick={handleBulkAction}
+            variant="contained"
             color={bulkAction === 'delete' ? 'error' : 'primary'}
             disabled={!bulkAction}
           >
             Confirm
           </Button>
-                 </DialogActions>
-       </Dialog>
+        </DialogActions>
+      </Dialog>
 
-       {/* Edit Document Dialog */}
-       <Dialog 
-         open={editDialog} 
-         onClose={handleCloseEdit}
-         maxWidth="sm"
-         fullWidth
-       >
-         <DialogTitle>Edit Document</DialogTitle>
-         <DialogContent>
-           <Grid container spacing={2} sx={{ mt: 1 }}>
-             <Grid item xs={12}>
-               <TextField
-                 fullWidth
-                 label="Document Name"
-                 value={editFormData.name}
-                 onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-               />
-             </Grid>
-             <Grid item xs={12}>
-               <TextField
-                 fullWidth
-                 multiline
-                 rows={3}
-                 label="Description"
-                 value={editFormData.description}
-                 onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
-               />
-             </Grid>
-             <Grid item xs={12}>
-               <FormControl fullWidth>
-                 <InputLabel>Status</InputLabel>
-                 <Select
-                   value={editFormData.status}
-                   onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
-                   label="Status"
-                 >
-                   <MenuItem value="PENDING">Pending</MenuItem>
-                   <MenuItem value="APPROVED">Approved</MenuItem>
-                   <MenuItem value="REJECTED">Rejected</MenuItem>
-                   <MenuItem value="EXPIRED">Expired</MenuItem>
-                 </Select>
-               </FormControl>
-             </Grid>
-           </Grid>
-         </DialogContent>
-         <DialogActions>
-           <Button onClick={handleCloseEdit}>Cancel</Button>
-           <Button onClick={handleUpdate} variant="contained">
-             Update
-           </Button>
-         </DialogActions>
-       </Dialog>
-     </Container>
-   );
- }
+      {/* Edit Document Dialog */}
+      <Dialog
+        open={editDialog}
+        onClose={handleCloseEdit}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Document</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Document Name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  label="Status"
+                >
+                  <MenuItem value="PENDING">Pending</MenuItem>
+                  <MenuItem value="APPROVED">Approved</MenuItem>
+                  <MenuItem value="REJECTED">Rejected</MenuItem>
+                  <MenuItem value="EXPIRED">Expired</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEdit}>Cancel</Button>
+          <Button onClick={handleUpdate} variant="contained">
+            Update
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
+  );
+}
 
 export default Documents; 

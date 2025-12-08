@@ -38,8 +38,8 @@ import {
   Link,
   Rating
 } from '@mui/material';
-import { 
-  getFileValidationError, 
+import {
+  getFileValidationError,
   FILE_SIZE_LIMITS
 } from '../../utils/fileValidation';
 import {
@@ -57,6 +57,7 @@ import {
   Note as NoteIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
+  Public as PublicIcon,
   LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
   Assignment as AssignmentIcon,
@@ -89,7 +90,7 @@ import axiosInstance from '../../utils/axios';
 import { useAuth } from '../../context/AuthContext';
 import ApplicationForm from '../../components/counselor/ApplicationForm';
 import TaskManager from '../../components/counselor/TaskManager';
-import AcademicRecords from '../../components/counselor/AcademicRecords';
+// AcademicRecords import removed
 import StudentProgressBar from '../../components/counselor/StudentProgressBar';
 import PhaseChangeErrorDialog from '../../components/common/PhaseChangeErrorDialog';
 import StudentChat from '../../components/counselor/StudentChat';
@@ -136,10 +137,11 @@ const DOCUMENT_TYPES = [
   'OTHER'
 ];
 
-const formatDate = (dateString) => {
+const formatDate = (dateString, includeTime = false) => {
   if (!dateString) return '';
   try {
-    return format(new Date(dateString), 'MMM d, yyyy');
+    const formatStr = includeTime ? 'MMM d, yyyy \u2014 hh:mm a' : 'MMM d, yyyy';
+    return format(new Date(dateString), formatStr);
   } catch (error) {
     console.error('Invalid date:', dateString);
     return '';
@@ -149,28 +151,28 @@ const formatDate = (dateString) => {
 // Format student name with marketing owner name (telecaller, marketing, or b2b_marketing) if available
 const formatStudentName = (student) => {
   if (!student) return '';
-  
+
   const firstName = student.firstName || '';
   const lastName = student.lastName || '';
-  
+
   // If student has a marketingOwner and lastName indicates it's from a lead source
   if (student.marketingOwner && student.marketingOwner.name) {
     // Handle telecaller leads (lastName = "From Telecaller")
     if (lastName === 'From Telecaller') {
       return `${firstName} from ${student.marketingOwner.name}`;
     }
-    
+
     // Handle marketing leads (lastName = "Lead" and role is "marketing")
     if (lastName === 'Lead' && student.marketingOwner.role === 'marketing') {
       return `${firstName} from ${student.marketingOwner.name}`;
     }
-    
+
     // Handle B2B marketing leads (lastName = "Lead" and role is "b2b_marketing")
     if (lastName === 'Lead' && student.marketingOwner.role === 'b2b_marketing') {
       return `${firstName} from ${student.marketingOwner.name}`;
     }
   }
-  
+
   // Otherwise, return the normal name
   return `${firstName} ${lastName}`.trim();
 };
@@ -180,7 +182,7 @@ function StudentDetails() {
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [student, setStudent] = useState(null);
@@ -188,6 +190,7 @@ function StudentDetails() {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(true); // New state for document visibility
   const [documentMenuAnchor, setDocumentMenuAnchor] = useState(null);
   const [applicationMenuAnchor, setApplicationMenuAnchor] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -224,7 +227,7 @@ function StudentDetails() {
     message: '',
     severity: 'info'
   });
-  
+
   // Enhanced state variables
   const [viewMode, setViewMode] = useState('overview'); // 'overview', 'detailed', 'compact'
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -247,7 +250,7 @@ function StudentDetails() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewFileName, setPreviewFileName] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
-  
+
   // Phase change confirmation dialog state
   const [phaseConfirmDialog, setPhaseConfirmDialog] = useState({
     open: false,
@@ -289,16 +292,16 @@ function StudentDetails() {
     console.log('📄 Documents:', documents);
     console.log('📋 Applications:', applications);
     console.log('👤 Student phase:', student?.currentPhase);
-    
+
     const totalDocs = documents.length;
     const pendingDocs = documents.filter(doc => doc.status === 'PENDING').length;
     const completedApps = applications.filter(app => app.applicationStatus === 'ACCEPTED').length;
     const pendingApps = applications.filter(app => app.applicationStatus === 'PENDING').length;
-    
+
     // Calculate progress percentage based on current phase
     const phaseIndex = PHASES.indexOf(student?.currentPhase);
     const progressPercentage = phaseIndex >= 0 ? ((phaseIndex + 1) / PHASES.length) * 100 : 0;
-    
+
     const stats = {
       totalDocuments: totalDocs,
       pendingDocuments: pendingDocs,
@@ -307,7 +310,7 @@ function StudentDetails() {
       averageRating: 4.2, // This could come from a rating system
       progressPercentage: Math.round(progressPercentage)
     };
-    
+
     console.log('📊 Calculated stats:', stats);
     setStudentStats(stats);
   }, [documents, applications, student?.currentPhase]);
@@ -354,7 +357,7 @@ function StudentDetails() {
     const now = new Date();
     const date = new Date(dateString);
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
@@ -474,7 +477,7 @@ function StudentDetails() {
     // Only allow clicking on the next immediate phase
     const phases = [
       'DOCUMENT_COLLECTION',
-      'UNIVERSITY_SHORTLISTING', 
+      'UNIVERSITY_SHORTLISTING',
       'APPLICATION_SUBMISSION',
       'OFFER_RECEIVED',
       'INITIAL_PAYMENT',
@@ -484,16 +487,16 @@ function StudentDetails() {
       'VISA_APPLICATION',
       'ENROLLMENT'
     ];
-    
+
     const currentPhaseIndex = phases.indexOf(student?.currentPhase);
     const clickedPhaseIndex = phases.indexOf(phase.key);
     const isNextPhase = clickedPhaseIndex === currentPhaseIndex + 1;
-    
+
     if (!isNextPhase) {
       showSnackbar(`You can only move to the next phase. Current phase: ${student?.currentPhase?.replace(/_/g, ' ')}`, 'warning');
       return;
     }
-    
+
     // Show a custom dialog to confirm phase change
     if (!phase.isCompleted && phase.key !== student?.currentPhase) {
       setPhaseConfirmDialog({
@@ -565,9 +568,9 @@ function StudentDetails() {
       setLoading(true);
       setError(null);
       console.log('🔍 Fetching student details for ID:', id);
-      
+
       console.log('🚀 Starting to fetch student data...');
-      
+
       // Fetch core data first (required)
       const [
         studentResponse,
@@ -603,11 +606,11 @@ function StudentDetails() {
         console.log('⚠️ Continuing without activities data');
         activitiesResponse = { data: { success: true, data: [] } }; // Fallback to empty array
       }
-      
+
       console.log('✅ All API calls completed successfully');
 
       console.log('📄 Documents response:', documentsResponse.data);
-      
+
       const studentData = studentResponse.data.success ? studentResponse.data.data : studentResponse.data;
       const documentsData = documentsResponse.data.success ? documentsResponse.data.data : documentsResponse.data;
       const applicationsData = applicationsResponse.data.success ? applicationsResponse.data.data : applicationsResponse.data;
@@ -617,10 +620,10 @@ function StudentDetails() {
       console.log('📄 Processed documents data:', documentsData);
       console.log('📄 Documents array length:', documentsData?.length || 0);
       console.log('📄 Activities data:', activitiesData);
-      console.log('📄 Activities with user info:', activitiesData?.map(a => ({ 
-        id: a.id, 
-        description: a.description, 
-        user: a.user 
+      console.log('📄 Activities with user info:', activitiesData?.map(a => ({
+        id: a.id,
+        description: a.description,
+        user: a.user
       })));
 
       setStudent(studentData);
@@ -642,7 +645,7 @@ function StudentDetails() {
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      
+
       let errorMessage = 'Failed to load student details. Please try again later.';
       if (error.response?.status === 404) {
         errorMessage = 'Student not found or access denied.';
@@ -653,7 +656,7 @@ function StudentDetails() {
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -886,9 +889,9 @@ function StudentDetails() {
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
       console.error('Error headers:', error.response?.headers);
-      
+
       let errorMessage = 'Failed to upload document. Please try again.';
-      
+
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
@@ -896,7 +899,7 @@ function StudentDetails() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       // Add more specific error messages
       if (error.code === 'ECONNABORTED') {
         errorMessage = 'Upload timed out. Please try again with a smaller file.';
@@ -905,7 +908,7 @@ function StudentDetails() {
       } else if (error.response?.status === 415) {
         errorMessage = 'Unsupported file type. Please choose a different file.';
       }
-      
+
       setError(errorMessage);
       showSnackbar(errorMessage, 'error');
     }
@@ -926,7 +929,7 @@ function StudentDetails() {
 
       // Validate file type and size
       const validationError = getFileValidationError(file, 'documents', 'document');
-      
+
       if (validationError) {
         setError(validationError);
         showSnackbar(validationError, 'error');
@@ -934,13 +937,13 @@ function StudentDetails() {
         event.target.value = '';
         return;
       }
-      
+
       setUploadData({
         ...uploadData,
         file: file,
         fileSize: formatFileSize(file.size)
       });
-      
+
       setError(null); // Clear any previous errors
     }
   };
@@ -951,9 +954,9 @@ function StudentDetails() {
       const response = await axiosInstance.get(`/counselor/documents/${documentId}/download`, {
         responseType: 'blob'
       });
-      
+
       console.log('📥 Download response received');
-      
+
       // Check if this is a JSON response (metadata document)
       const contentType = response.headers['content-type'];
       if (contentType && contentType.includes('application/json')) {
@@ -977,14 +980,14 @@ function StudentDetails() {
         link.remove();
         window.URL.revokeObjectURL(url);
       }
-      
+
       showSnackbar('Document downloaded successfully', 'success');
     } catch (error) {
       console.error('❌ Error downloading document:', error);
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      
+
       let errorMessage = 'Failed to download document. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -993,23 +996,23 @@ function StudentDetails() {
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to download this document.';
       }
-      
+
       setError(errorMessage);
     }
   };
 
-     const handlePreviewDocument = async (document) => {
-     try {
-       setPreviewLoading(true);
-       setPreviewFileName(document.name);
-       console.log('👁️ Attempting to preview document:', document.id, document.name);
-       
-       // For academic records with JSON metadata, create a formatted preview
-       if (document.type === 'ACADEMIC_TRANSCRIPT' && document.description && 
-           (document.description.trim().startsWith('{') || document.description.trim().startsWith('['))) {
-         try {
-           const academicData = JSON.parse(document.description);
-           const previewContent = `
+  const handlePreviewDocument = async (document) => {
+    try {
+      setPreviewLoading(true);
+      setPreviewFileName(document.name);
+      console.log('👁️ Attempting to preview document:', document.id, document.name);
+
+      // For academic records with JSON metadata, create a formatted preview
+      if (document.type === 'ACADEMIC_TRANSCRIPT' && document.description &&
+        (document.description.trim().startsWith('{') || document.description.trim().startsWith('['))) {
+        try {
+          const academicData = JSON.parse(document.description);
+          const previewContent = `
              <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
                <h2 style="color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">
                  Academic Record Preview
@@ -1071,91 +1074,91 @@ function StudentDetails() {
                ` : ''}
              </div>
            `;
-           
-           const blob = new Blob([previewContent], { type: 'text/html' });
-           const url = window.URL.createObjectURL(blob);
-           setPreviewUrl(url);
-           setPreviewDialogOpen(true);
-           setPreviewLoading(false);
-           showSnackbar('Academic record preview loaded successfully!', 'success');
-           return;
-         } catch (e) {
-           console.warn('Document preview: Invalid academic data format for document:', document.name);
-           showSnackbar('Academic record data is corrupted or invalid. Please re-upload the document.', 'error');
-           setPreviewLoading(false);
-           return;
-         }
-       }
-       
-       // For regular files (including PDFs), try to preview via server
-       if (document.type === 'ACADEMIC_TRANSCRIPT' && (!document.description || 
-           (!document.description.trim().startsWith('{') && !document.description.trim().startsWith('[')))) {
-         // This is a regular PDF file with ACADEMIC_TRANSCRIPT type but no JSON metadata
-         // Fall through to server preview
-       }
-       
-       // For physical files, check if document is previewable via server
-       const response = await axiosInstance.get(`/counselor/documents/${document.id}/preview`, {
-         responseType: 'blob' // Expect blob for local files, will be overridden for JSON responses
-       });
-       
-       console.log('👁️ Preview response received:', response.data);
-       console.log('👁️ Response headers:', response.headers);
-       
-       // Check if response is JSON (DigitalOcean Spaces) or blob (local file)
-       const contentType = response.headers['content-type'];
-       
-       if (contentType && contentType.includes('application/json')) {
-         // Handle JSON response from DigitalOcean Spaces
-         const text = await response.data.text();
-         const data = JSON.parse(text);
-         
-         if (data.previewable && data.previewUrl) {
-           // Document is previewable, use the signed URL
-           setPreviewUrl(data.previewUrl);
-           setPreviewDialogOpen(true);
-           setPreviewLoading(false);
-           showSnackbar('Document preview loaded successfully!', 'success');
-           return;
-         } else if (!data.previewable) {
-           // Document is not previewable
-           showSnackbar(data.message || 'Preview not available for this file type. Please download to view.', 'warning');
-           setPreviewLoading(false);
-           return;
-         }
-       } else if (contentType && (contentType.includes('application/pdf') || contentType.includes('image/'))) {
-         // Handle direct file response (local files)
-         console.log('📄 Received direct file response, creating preview URL');
-         const url = window.URL.createObjectURL(response.data);
-         setPreviewUrl(url);
-         setPreviewDialogOpen(true);
-         setPreviewLoading(false);
-         showSnackbar('Document preview loaded successfully!', 'success');
-         return;
-       }
-       
-       // Fallback: if we get here, something went wrong
-       showSnackbar('Failed to load document preview', 'error');
-       setPreviewLoading(false);
-     } catch (error) {
-       console.error('❌ Error previewing document:', error);
-       console.error('Error response:', error.response);
-       console.error('Error status:', error.response?.status);
-       console.error('Error data:', error.response?.data);
-       
-       let errorMessage = 'Failed to preview document. Please try again.';
-       if (error.response?.data?.message) {
-         errorMessage = error.response.data.message;
-       } else if (error.response?.status === 404) {
-         errorMessage = 'Document not found or access denied.';
-       } else if (error.response?.status === 403) {
-         errorMessage = 'You do not have permission to preview this document.';
-       }
-       
-       showSnackbar(errorMessage, 'error');
-       setPreviewLoading(false);
-     }
-   };
+
+          const blob = new Blob([previewContent], { type: 'text/html' });
+          const url = window.URL.createObjectURL(blob);
+          setPreviewUrl(url);
+          setPreviewDialogOpen(true);
+          setPreviewLoading(false);
+          showSnackbar('Academic record preview loaded successfully!', 'success');
+          return;
+        } catch (e) {
+          console.warn('Document preview: Invalid academic data format for document:', document.name);
+          showSnackbar('Academic record data is corrupted or invalid. Please re-upload the document.', 'error');
+          setPreviewLoading(false);
+          return;
+        }
+      }
+
+      // For regular files (including PDFs), try to preview via server
+      if (document.type === 'ACADEMIC_TRANSCRIPT' && (!document.description ||
+        (!document.description.trim().startsWith('{') && !document.description.trim().startsWith('[')))) {
+        // This is a regular PDF file with ACADEMIC_TRANSCRIPT type but no JSON metadata
+        // Fall through to server preview
+      }
+
+      // For physical files, check if document is previewable via server
+      const response = await axiosInstance.get(`/counselor/documents/${document.id}/preview`, {
+        responseType: 'blob' // Expect blob for local files, will be overridden for JSON responses
+      });
+
+      console.log('👁️ Preview response received:', response.data);
+      console.log('👁️ Response headers:', response.headers);
+
+      // Check if response is JSON (DigitalOcean Spaces) or blob (local file)
+      const contentType = response.headers['content-type'];
+
+      if (contentType && contentType.includes('application/json')) {
+        // Handle JSON response from DigitalOcean Spaces
+        const text = await response.data.text();
+        const data = JSON.parse(text);
+
+        if (data.previewable && data.previewUrl) {
+          // Document is previewable, use the signed URL
+          setPreviewUrl(data.previewUrl);
+          setPreviewDialogOpen(true);
+          setPreviewLoading(false);
+          showSnackbar('Document preview loaded successfully!', 'success');
+          return;
+        } else if (!data.previewable) {
+          // Document is not previewable
+          showSnackbar(data.message || 'Preview not available for this file type. Please download to view.', 'warning');
+          setPreviewLoading(false);
+          return;
+        }
+      } else if (contentType && (contentType.includes('application/pdf') || contentType.includes('image/'))) {
+        // Handle direct file response (local files)
+        console.log('📄 Received direct file response, creating preview URL');
+        const url = window.URL.createObjectURL(response.data);
+        setPreviewUrl(url);
+        setPreviewDialogOpen(true);
+        setPreviewLoading(false);
+        showSnackbar('Document preview loaded successfully!', 'success');
+        return;
+      }
+
+      // Fallback: if we get here, something went wrong
+      showSnackbar('Failed to load document preview', 'error');
+      setPreviewLoading(false);
+    } catch (error) {
+      console.error('❌ Error previewing document:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+
+      let errorMessage = 'Failed to preview document. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Document not found or access denied.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to preview this document.';
+      }
+
+      showSnackbar(errorMessage, 'error');
+      setPreviewLoading(false);
+    }
+  };
 
   const handleClosePreview = () => {
     setPreviewDialogOpen(false);
@@ -1175,7 +1178,7 @@ function StudentDetails() {
       console.log('🗑️ Attempting to delete document:', documentId);
       const response = await axiosInstance.delete(`/counselor/documents/${documentId}`);
       console.log('🗑️ Delete response:', response.data);
-      
+
       // Refresh documents list
       fetchStudentDetails();
       showSnackbar('Document deleted successfully', 'success');
@@ -1184,7 +1187,7 @@ function StudentDetails() {
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
-      
+
       let errorMessage = 'Failed to delete document. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -1193,7 +1196,7 @@ function StudentDetails() {
       } else if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to delete this document.';
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -1202,11 +1205,11 @@ function StudentDetails() {
     console.log('Adding note with text:', noteText);
     try {
       setError(null); // Clear previous errors
-      
+
       await axiosInstance.post(`/counselor/students/${id}/notes`, {
         content: noteText
       });
-      
+
       console.log('Note added successfully');
       setOpenNoteDialog(false);
       setNoteText('');
@@ -1214,7 +1217,7 @@ function StudentDetails() {
       showSnackbar('Note added successfully', 'success');
     } catch (error) {
       console.error('Error adding note:', error);
-      
+
       if (error.response?.status === 401) {
         setError('Authentication failed. Please log in again.');
         showSnackbar('Authentication failed. Please log in again.', 'error');
@@ -1277,25 +1280,25 @@ function StudentDetails() {
     }
   };
 
-     const handleDeleteApplication = async (applicationId) => {
-     try {
-       await axiosInstance.delete(`/counselor/applications/${applicationId}`);
-       showSnackbar('Application deleted successfully');
-       fetchApplications();
-     } catch (error) {
-       console.error('Error deleting application:', error);
-       showSnackbar('Failed to delete application', 'error');
-     }
-     handleApplicationMenuClose();
-   };
+  const handleDeleteApplication = async (applicationId) => {
+    try {
+      await axiosInstance.delete(`/counselor/applications/${applicationId}`);
+      showSnackbar('Application deleted successfully');
+      fetchApplications();
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      showSnackbar('Failed to delete application', 'error');
+    }
+    handleApplicationMenuClose();
+  };
 
-   const handlePrintProfile = () => {
-     try {
-       // Create a new window for printing
-       const printWindow = window.open('', '_blank');
-       
-       // Generate the HTML content for printing
-       const printContent = `
+  const handlePrintProfile = () => {
+    try {
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+
+      // Generate the HTML content for printing
+      const printContent = `
          <!DOCTYPE html>
          <html>
          <head>
@@ -1537,26 +1540,26 @@ function StudentDetails() {
          </body>
          </html>
        `;
-       
-       // Write the content to the new window
-       printWindow.document.write(printContent);
-       printWindow.document.close();
-       
-       // Wait for content to load, then print
-       printWindow.onload = function() {
-         printWindow.print();
-         printWindow.close();
-       };
-       
-       showSnackbar('Print dialog opened successfully!', 'success');
-     } catch (error) {
-       console.error('Error printing profile:', error);
-       showSnackbar('Failed to open print dialog. Please try again.', 'error');
-     }
-   };
+
+      // Write the content to the new window
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+
+      // Wait for content to load, then print
+      printWindow.onload = function () {
+        printWindow.print();
+        printWindow.close();
+      };
+
+      showSnackbar('Print dialog opened successfully!', 'success');
+    } catch (error) {
+      console.error('Error printing profile:', error);
+      showSnackbar('Failed to open print dialog. Please try again.', 'error');
+    }
+  };
 
   const renderPersonalInfo = () => (
-    <Card sx={{ 
+    <Card sx={{
       borderRadius: 3,
       background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
       boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
@@ -1593,9 +1596,9 @@ function StudentDetails() {
             </Avatar>
           </Badge>
           <Box sx={{ flexGrow: 1 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
+            <Typography
+              variant="h4"
+              sx={{
                 fontWeight: 700,
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 backgroundClip: 'text',
@@ -1629,7 +1632,7 @@ function StudentDetails() {
             <Tooltip title="Edit Student">
               <IconButton
                 onClick={handleEdit}
-                sx={{ 
+                sx={{
                   bgcolor: 'primary.main',
                   color: 'white',
                   '&:hover': { bgcolor: 'primary.dark' }
@@ -1643,7 +1646,7 @@ function StudentDetails() {
                 <Badge badgeContent={unreadMessageCount} color="error">
                   <IconButton
                     onClick={() => setOpenChatDialog(true)}
-                    sx={{ 
+                    sx={{
                       bgcolor: 'secondary.main',
                       color: 'white',
                       '&:hover': { bgcolor: 'secondary.dark' }
@@ -1654,14 +1657,14 @@ function StudentDetails() {
                 </Badge>
               </Tooltip>
             )}
-                         <Tooltip title="Print Profile">
-               <IconButton 
-                 onClick={handlePrintProfile}
-                 sx={{ bgcolor: 'grey.100', '&:hover': { bgcolor: 'grey.200' } }}
-               >
-                 <PrintIcon />
-               </IconButton>
-             </Tooltip>
+            <Tooltip title="Print Profile">
+              <IconButton
+                onClick={handlePrintProfile}
+                sx={{ bgcolor: 'grey.100', '&:hover': { bgcolor: 'grey.200' } }}
+              >
+                <PrintIcon />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Share Profile">
               <IconButton sx={{ bgcolor: 'grey.100', '&:hover': { bgcolor: 'grey.200' } }}>
                 <ShareIcon />
@@ -1698,6 +1701,15 @@ function StudentDetails() {
                 <ListItemText
                   primary="Address"
                   secondary={student?.address || 'Not provided'}
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <PublicIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Selected Countries"
+                  secondary={student?.targetCountries ? student.targetCountries.replace(/,/g, ', ') : 'Not provided'}
                 />
               </ListItem>
             </List>
@@ -1792,6 +1804,15 @@ function StudentDetails() {
                   onChange={(e) => setEditData({ ...editData, address: e.target.value })}
                 />
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Selected Countries"
+                  value={editData.targetCountries || ''}
+                  onChange={(e) => setEditData({ ...editData, targetCountries: e.target.value })}
+                  helperText="Enter countries separated by commas (e.g., USA, UK, Canada)"
+                />
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -1829,7 +1850,14 @@ function StudentDetails() {
             </Box>
           </Box>
         ) : (
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant={showDocuments ? "outlined" : "contained"}
+              color="primary"
+              onClick={() => setShowDocuments(!showDocuments)}
+            >
+              {showDocuments ? "Hide Documents" : "View Documents & Applications"}
+            </Button>
             <Button startIcon={<EditIcon />} onClick={handleEdit}>
               Edit Details
             </Button>
@@ -1843,430 +1871,415 @@ function StudentDetails() {
     console.log('🎨 Rendering documents tab');
     console.log('📄 Documents state:', documents);
     console.log('📄 Documents length:', documents?.length || 0);
-    
+
     return (
-    <Card sx={{ 
-      borderRadius: 3,
-      background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-      border: `1px solid ${theme.palette.divider}`
-    }}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            <DocumentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            Documents ({documents?.length || 0})
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              startIcon={<DownloadIcon />}
-              onClick={handleExportDocuments}
-              variant="outlined"
-              size="small"
-              sx={{ borderRadius: 2 }}
-            >
-              Export All
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenUploadDialog(true)}
-              sx={{ 
-                borderRadius: 2,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
-                '&:hover': {
-                  boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
-                }
-              }}
-            >
-              Upload Document
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Enhanced Search and Filters */}
-        <Box sx={{ mb: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                }}
-                sx={{ borderRadius: 2 }}
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Status"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                sx={{ borderRadius: 2 }}
-              >
-                <MenuItem value="ALL">All Status</MenuItem>
-                <MenuItem value="APPROVED">Approved</MenuItem>
-                <MenuItem value="PENDING">Pending</MenuItem>
-                <MenuItem value="REJECTED">Rejected</MenuItem>
-                <MenuItem value="EXPIRED">Expired</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} md={3}>
+      <Card sx={{
+        borderRadius: 3,
+        background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        border: `1px solid ${theme.palette.divider}`
+      }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <DocumentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Documents ({documents?.length || 0})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
-                fullWidth
+                startIcon={<DownloadIcon />}
+                onClick={handleExportDocuments}
                 variant="outlined"
-                startIcon={<FilterIcon />}
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 size="small"
                 sx={{ borderRadius: 2 }}
               >
-                {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                Export All
               </Button>
-            </Grid>
-          </Grid>
-        </Box>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenUploadDialog(true)}
+                sx={{
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
+                  }
+                }}
+              >
+                Upload Document
+              </Button>
+            </Box>
+          </Box>
 
-        <List>
-          {documents
-            .filter(doc => {
-              const matchesSearch = !searchQuery || 
+          {/* Enhanced Search and Filters */}
+          <Box sx={{ mb: 3 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                  sx={{ borderRadius: 2 }}
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="ALL">All Status</MenuItem>
+                  <MenuItem value="APPROVED">Approved</MenuItem>
+                  <MenuItem value="PENDING">Pending</MenuItem>
+                  <MenuItem value="REJECTED">Rejected</MenuItem>
+                  <MenuItem value="EXPIRED">Expired</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<FilterIcon />}
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  size="small"
+                  sx={{ borderRadius: 2 }}
+                >
+                  {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+
+          <List>
+            {documents
+              .filter(doc => {
+                const matchesSearch = !searchQuery ||
+                  doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (doc.description && doc.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                const matchesStatus = filterStatus === 'ALL' || doc.status === filterStatus;
+                return matchesSearch && matchesStatus;
+              })
+              .map((doc) => (
+                <ListItem
+                  key={doc.id}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 1,
+                    border: `1px solid ${theme.palette.divider}`,
+                    '&:hover': {
+                      bgcolor: theme.palette.action.hover,
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Tooltip title="Preview">
+                        <IconButton
+                          size="small"
+                          onClick={() => handlePreviewDocument(doc)}
+                          sx={{ bgcolor: 'info.50', '&:hover': { bgcolor: 'info.100' } }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Download">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownloadDocument(doc.id, doc.name)}
+                          sx={{ bgcolor: 'success.50', '&:hover': { bgcolor: 'success.100' } }}
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="More options">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleDocumentMenuOpen(e, doc)}
+                          sx={{ bgcolor: 'grey.50', '&:hover': { bgcolor: 'grey.100' } }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  }
+                >
+                  <ListItemIcon>
+                    <Avatar sx={{
+                      bgcolor: getDocumentStatusColor(doc.status) === 'success' ? 'success.main' :
+                        getDocumentStatusColor(doc.status) === 'error' ? 'error.main' :
+                          getDocumentStatusColor(doc.status) === 'warning' ? 'warning.main' : 'primary.main',
+                      width: 40,
+                      height: 40
+                    }}>
+                      {getDocumentIcon(doc.name, doc.type)}
+                    </Avatar>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          {doc.name}
+                        </Typography>
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        {/* Only show description if it's not an academic record with formatted data */}
+                        {!(doc.type === 'ACADEMIC_TRANSCRIPT' && doc.description) && (
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                            {doc.description || 'No description provided'}
+                          </Typography>
+                        )}
+                        {renderDocumentContent(doc)}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Chip
+                            label={doc.type.replace(/_/g, ' ')}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: '0.75rem' }}
+                          />
+                          <Typography variant="caption" color="textSecondary">
+                            {formatFileSize(doc.size || 0)}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            {getTimeAgo(doc.createdAt)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            {documents.filter(doc => {
+              const matchesSearch = !searchQuery ||
                 doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (doc.description && doc.description.toLowerCase().includes(searchQuery.toLowerCase()));
               const matchesStatus = filterStatus === 'ALL' || doc.status === filterStatus;
               return matchesSearch && matchesStatus;
-            })
-            .map((doc) => (
-            <ListItem
-              key={doc.id}
-              sx={{
-                borderRadius: 2,
-                mb: 1,
-                border: `1px solid ${theme.palette.divider}`,
-                '&:hover': {
-                  bgcolor: theme.palette.action.hover,
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-              secondaryAction={
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Preview">
-                    <IconButton
-                      size="small"
-                      onClick={() => handlePreviewDocument(doc)}
-                      sx={{ bgcolor: 'info.50', '&:hover': { bgcolor: 'info.100' } }}
-                    >
-                      <VisibilityIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Download">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDownloadDocument(doc.id, doc.name)}
-                      sx={{ bgcolor: 'success.50', '&:hover': { bgcolor: 'success.100' } }}
-                    >
-                      <DownloadIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="More options">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleDocumentMenuOpen(e, doc)}
-                      sx={{ bgcolor: 'grey.50', '&:hover': { bgcolor: 'grey.100' } }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              }
-            >
-                             <ListItemIcon>
-                 <Avatar sx={{ 
-                   bgcolor: getDocumentStatusColor(doc.status) === 'success' ? 'success.main' : 
-                            getDocumentStatusColor(doc.status) === 'error' ? 'error.main' : 
-                            getDocumentStatusColor(doc.status) === 'warning' ? 'warning.main' : 'primary.main',
-                   width: 40,
-                   height: 40
-                 }}>
-                   {getDocumentIcon(doc.name, doc.type)}
-                 </Avatar>
-               </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      {doc.name}
-                    </Typography>
-                    <Chip
-                      label={doc.status || 'UNKNOWN'}
-                      color={getDocumentStatusColor(doc.status)}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {doc.priority && (
-                      <Chip
-                        icon={getPriorityIcon(doc.priority)}
-                        label={doc.priority}
-                        color={getPriorityColor(doc.priority)}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
-                  </Box>
-                }
-                                 secondary={
-                   <Box>
-                     {/* Only show description if it's not an academic record with formatted data */}
-                     {!(doc.type === 'ACADEMIC_TRANSCRIPT' && doc.description) && (
-                       <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                         {doc.description || 'No description provided'}
-                       </Typography>
-                     )}
-                     {renderDocumentContent(doc)}
-                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                       <Chip
-                         label={doc.type.replace(/_/g, ' ')}
-                         size="small"
-                         variant="outlined"
-                         sx={{ fontSize: '0.75rem' }}
-                       />
-                       <Typography variant="caption" color="textSecondary">
-                         {formatFileSize(doc.size || 0)}
-                       </Typography>
-                       <Typography variant="caption" color="textSecondary">
-                         {getTimeAgo(doc.createdAt)}
-                       </Typography>
-                     </Box>
-                   </Box>
-                 }
-              />
-            </ListItem>
-          ))}
-          {documents.filter(doc => {
-            const matchesSearch = !searchQuery || 
-              doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (doc.description && doc.description.toLowerCase().includes(searchQuery.toLowerCase()));
-            const matchesStatus = filterStatus === 'ALL' || doc.status === filterStatus;
-            return matchesSearch && matchesStatus;
-          }).length === 0 && (
-            <ListItem>
-              <ListItemText
-                primary={
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <DocumentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
-                      {searchQuery || filterStatus !== 'ALL' ? 'No documents found' : 'No documents uploaded yet'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
-                      {searchQuery || filterStatus !== 'ALL' ? 'Try adjusting your search or filters' : 'Start by uploading your first document'}
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<AddIcon />}
-                      onClick={() => setOpenUploadDialog(true)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      Upload Document
-                    </Button>
-                  </Box>
-                }
-              />
-            </ListItem>
-          )}
-        </List>
-      </CardContent>
+            }).length === 0 && (
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <DocumentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5, color: 'text.secondary' }} />
+                        <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
+                          {searchQuery || filterStatus !== 'ALL' ? 'No documents found' : 'No documents uploaded yet'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+                          {searchQuery || filterStatus !== 'ALL' ? 'Try adjusting your search or filters' : 'Start by uploading your first document'}
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={() => setOpenUploadDialog(true)}
+                          sx={{ borderRadius: 2 }}
+                        >
+                          Upload Document
+                        </Button>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              )}
+          </List>
+        </CardContent>
 
-      {/* Document Menu */}
-      <Menu
-        anchorEl={documentMenuAnchor}
-        open={Boolean(documentMenuAnchor)}
-        onClose={handleDocumentMenuClose}
-      >
-        <MenuItem onClick={() => {
-          handleDocumentMenuClose();
-          if (selectedDocument) {
-            handlePreviewDocument(selectedDocument);
-          }
-        }}>
-          <ListItemIcon>
-            <VisibilityIcon fontSize="small" />
-          </ListItemIcon>
-          Preview
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleDocumentMenuClose();
-          // TODO: Add edit document functionality
-          showSnackbar('Edit functionality coming soon!', 'info');
-        }}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          Edit Details
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleDocumentMenuClose();
-          if (selectedDocument) {
-            handleDeleteDocument(selectedDocument.id);
-          }
-        }}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          Delete
-        </MenuItem>
-      </Menu>
+        {/* Document Menu */}
+        <Menu
+          anchorEl={documentMenuAnchor}
+          open={Boolean(documentMenuAnchor)}
+          onClose={handleDocumentMenuClose}
+        >
+          <MenuItem onClick={() => {
+            handleDocumentMenuClose();
+            if (selectedDocument) {
+              handlePreviewDocument(selectedDocument);
+            }
+          }}>
+            <ListItemIcon>
+              <VisibilityIcon fontSize="small" />
+            </ListItemIcon>
+            Preview
+          </MenuItem>
+          <MenuItem onClick={() => {
+            handleDocumentMenuClose();
+            // TODO: Add edit document functionality
+            showSnackbar('Edit functionality coming soon!', 'info');
+          }}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            Edit Details
+          </MenuItem>
+          <MenuItem onClick={() => {
+            handleDocumentMenuClose();
+            if (selectedDocument) {
+              handleDeleteDocument(selectedDocument.id);
+            }
+          }}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            Delete
+          </MenuItem>
+        </Menu>
 
-      {/* Upload Dialog */}
-      <Dialog
-        open={openUploadDialog}
-        onClose={() => setOpenUploadDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Upload Document</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Document Type"
-                  value={uploadData.type}
-                  onChange={(e) => setUploadData({ ...uploadData, type: e.target.value })}
-                  required
-                >
-                  {DOCUMENT_TYPES.map((type) => (
-                    <MenuItem key={type} value={type}>
-                      {type.replace(/_/g, ' ')}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Priority"
-                  value={uploadData.priority}
-                  onChange={(e) => setUploadData({ ...uploadData, priority: e.target.value })}
-                >
-                  <MenuItem value="LOW">Low</MenuItem>
-                  <MenuItem value="MEDIUM">Medium</MenuItem>
-                  <MenuItem value="HIGH">High</MenuItem>
-                  <MenuItem value="CRITICAL">Critical</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Description"
-                  value={uploadData.description}
-                  onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
-                  multiline
-                  rows={2}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Document Number"
-                  value={uploadData.documentNumber}
-                  onChange={(e) => setUploadData({ ...uploadData, documentNumber: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Issuing Authority"
-                  value={uploadData.issuingAuthority}
-                  onChange={(e) => setUploadData({ ...uploadData, issuingAuthority: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Issue Date"
-                  value={uploadData.issueDate}
-                  onChange={(e) => setUploadData({ ...uploadData, issueDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Expiry Date"
-                  value={uploadData.expiryDate}
-                  onChange={(e) => setUploadData({ ...uploadData, expiryDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Country of Issue"
-                  value={uploadData.countryOfIssue}
-                  onChange={(e) => setUploadData({ ...uploadData, countryOfIssue: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Remarks"
-                  value={uploadData.remarks}
-                  onChange={(e) => setUploadData({ ...uploadData, remarks: e.target.value })}
-                  multiline
-                  rows={2}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <input
-                  accept="application/pdf,image/*"
-                  style={{ display: 'none' }}
-                  id="document-file"
-                  type="file"
-                  onChange={handleFileChange}
-                />
-                <label htmlFor="document-file">
-                  <Button
-                    variant="outlined"
-                    component="span"
-                    startIcon={<AttachFileIcon />}
+        {/* Upload Dialog */}
+        <Dialog
+          open={openUploadDialog}
+          onClose={() => setOpenUploadDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Upload Document</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    select
                     fullWidth
+                    label="Document Type"
+                    value={uploadData.type}
+                    onChange={(e) => setUploadData({ ...uploadData, type: e.target.value })}
+                    required
                   >
-                    {uploadData.file ? `${uploadData.file.name} (${uploadData.fileSize})` : 'Choose File'}
-                  </Button>
-                </label>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Max size: {formatFileSize(FILE_SIZE_LIMITS.DOCUMENT)} • Supported: PDF, Word, Excel, Images
-                </Typography>
+                    {DOCUMENT_TYPES.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type.replace(/_/g, ' ')}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Priority"
+                    value={uploadData.priority}
+                    onChange={(e) => setUploadData({ ...uploadData, priority: e.target.value })}
+                  >
+                    <MenuItem value="LOW">Low</MenuItem>
+                    <MenuItem value="MEDIUM">Medium</MenuItem>
+                    <MenuItem value="HIGH">High</MenuItem>
+                    <MenuItem value="CRITICAL">Critical</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    value={uploadData.description}
+                    onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Document Number"
+                    value={uploadData.documentNumber}
+                    onChange={(e) => setUploadData({ ...uploadData, documentNumber: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Issuing Authority"
+                    value={uploadData.issuingAuthority}
+                    onChange={(e) => setUploadData({ ...uploadData, issuingAuthority: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Issue Date"
+                    value={uploadData.issueDate}
+                    onChange={(e) => setUploadData({ ...uploadData, issueDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Expiry Date"
+                    value={uploadData.expiryDate}
+                    onChange={(e) => setUploadData({ ...uploadData, expiryDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Country of Issue"
+                    value={uploadData.countryOfIssue}
+                    onChange={(e) => setUploadData({ ...uploadData, countryOfIssue: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Remarks"
+                    value={uploadData.remarks}
+                    onChange={(e) => setUploadData({ ...uploadData, remarks: e.target.value })}
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <input
+                    accept="application/pdf,image/*"
+                    style={{ display: 'none' }}
+                    id="document-file"
+                    type="file"
+                    onChange={handleFileChange}
+                  />
+                  <label htmlFor="document-file">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<AttachFileIcon />}
+                      fullWidth
+                    >
+                      {uploadData.file ? `${uploadData.file.name} (${uploadData.fileSize})` : 'Choose File'}
+                    </Button>
+                  </label>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Max size: {formatFileSize(FILE_SIZE_LIMITS.DOCUMENT)} • Supported: PDF, Word, Excel, Images
+                  </Typography>
+                </Grid>
               </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenUploadDialog(false)}>Cancel</Button>
-          <Button
-            onClick={handleUploadDocument}
-            variant="contained"
-            disabled={!uploadData.file || !uploadData.type}
-          >
-            Upload
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
-  );
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenUploadDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleUploadDocument}
+              variant="contained"
+              disabled={!uploadData.file || !uploadData.type}
+            >
+              Upload
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Card>
+    );
   };
 
   const renderNotes = () => (
@@ -2397,7 +2410,7 @@ function StudentDetails() {
                       {activity.description}
                     </Typography>
                     <Chip
-                      label={formatDate(activity.timestamp)}
+                      label={formatDate(activity.createdAt || activity.timestamp, true)}
                       size="small"
                       variant="outlined"
                     />
@@ -2405,10 +2418,10 @@ function StudentDetails() {
                 }
                 secondary={
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    By {activity.user ? 
-                      `${activity.user.firstName || ''} ${activity.user.lastName || ''}`.trim() || 
-                      activity.user.email || 
-                      'Unknown User' 
+                    By {activity.user ?
+                      `${activity.user.firstName || ''} ${activity.user.lastName || ''}`.trim() ||
+                      activity.user.email ||
+                      'Unknown User'
                       : 'Unknown User'}
                   </Typography>
                 }
@@ -2425,7 +2438,7 @@ function StudentDetails() {
           )}
         </List>
       </CardContent>
-    </Card>
+    </Card >
   );
 
   const renderApplications = () => (
@@ -2478,12 +2491,12 @@ function StudentDetails() {
                       label={app.applicationStatus || 'UNKNOWN'}
                       color={
                         app.applicationStatus === 'ACCEPTED' ? 'success' :
-                        app.applicationStatus === 'REJECTED' ? 'error' :
-                        app.applicationStatus === 'WITHDRAWN' ? 'default' :
-                        app.applicationStatus === 'PENDING' ? 'warning' :
-                        app.applicationStatus === 'SUBMITTED' ? 'info' :
-                        app.applicationStatus === 'UNDER_REVIEW' ? 'primary' :
-                        'default'
+                          app.applicationStatus === 'REJECTED' ? 'error' :
+                            app.applicationStatus === 'WITHDRAWN' ? 'default' :
+                              app.applicationStatus === 'PENDING' ? 'warning' :
+                                app.applicationStatus === 'SUBMITTED' ? 'info' :
+                                  app.applicationStatus === 'UNDER_REVIEW' ? 'primary' :
+                                    'default'
                       }
                       size="small"
                     />
@@ -2594,9 +2607,9 @@ function StudentDetails() {
     console.log('🎯 Rendering Quick Actions component');
     console.log('🎯 Student ID:', id);
     console.log('🎯 Student data:', student);
-    
+
     return (
-      <Card sx={{ 
+      <Card sx={{
         borderRadius: 3,
         background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
@@ -2607,129 +2620,129 @@ function StudentDetails() {
             <SpeedIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
             Quick Actions
           </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                console.log('📄 Upload Document button clicked');
-                setOpenUploadDialog(true);
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                py: 1.5,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
-                '&:hover': {
-                  boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Upload Document
-            </Button>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  console.log('📄 Upload Document button clicked');
+                  setOpenUploadDialog(true);
+                }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  py: 1.5,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Upload Document
+              </Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<SchoolIcon />}
+                onClick={() => {
+                  console.log('🎓 New Application button clicked');
+                  setOpenApplicationDialog(true);
+                }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  py: 1.5,
+                  borderColor: theme.palette.secondary.main,
+                  color: theme.palette.secondary.main,
+                  '&:hover': {
+                    borderColor: theme.palette.secondary.dark,
+                    backgroundColor: theme.palette.secondary[50],
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                New Application
+              </Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<NoteIcon />}
+                onClick={handleOpenNoteDialog}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  py: 1.5,
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Add Note
+              </Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<EmailIcon />}
+                onClick={() => {
+                  console.log('📧 Send Email button clicked');
+                  setOpenEmailDialog(true);
+                }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  py: 1.5,
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Send Email
+              </Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<PrintIcon />}
+                onClick={() => {
+                  console.log('🖨️ Print Profile button clicked');
+                  handlePrintProfile();
+                }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  py: 1.5,
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                Print Profile
+              </Button>
+            </Grid>
           </Grid>
-          <Grid item xs={12}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<SchoolIcon />}
-              onClick={() => {
-                console.log('🎓 New Application button clicked');
-                setOpenApplicationDialog(true);
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                py: 1.5,
-                borderColor: theme.palette.secondary.main,
-                color: theme.palette.secondary.main,
-                '&:hover': {
-                  borderColor: theme.palette.secondary.dark,
-                  backgroundColor: theme.palette.secondary[50],
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              New Application
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<NoteIcon />}
-              onClick={handleOpenNoteDialog}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                py: 1.5,
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Add Note
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<EmailIcon />}
-              onClick={() => {
-                console.log('📧 Send Email button clicked');
-                setOpenEmailDialog(true);
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                py: 1.5,
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Send Email
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-                         <Button
-               fullWidth
-               variant="outlined"
-               startIcon={<PrintIcon />}
-               onClick={() => {
-                 console.log('🖨️ Print Profile button clicked');
-                 handlePrintProfile();
-               }}
-               sx={{
-                 borderRadius: 2,
-                 textTransform: 'none',
-                 py: 1.5,
-                 '&:hover': {
-                   transform: 'translateY(-1px)',
-                 },
-                 transition: 'all 0.2s ease-in-out'
-               }}
-             >
-               Print Profile
-             </Button>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
     );
   };
 
   const renderStatistics = () => (
-    <Card sx={{ 
+    <Card sx={{
       mt: 3,
       borderRadius: 3,
       background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
@@ -2741,7 +2754,7 @@ function StudentDetails() {
           <AnalyticsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
           Performance Metrics
         </Typography>
-        
+
         {/* Response Time */}
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -2851,20 +2864,20 @@ function StudentDetails() {
     console.log('Sending email with data:', emailData);
     try {
       setError(null);
-      
+
       await axiosInstance.post(`/counselor/students/${id}/send-email`, {
         to: emailData.to || student?.email,
         subject: emailData.subject,
         message: emailData.message
       });
-      
+
       console.log('Email sent successfully');
       setOpenEmailDialog(false);
       setEmailData({ subject: '', message: '', to: '' });
       showSnackbar('Email sent successfully', 'success');
     } catch (error) {
       console.error('Error sending email:', error);
-      
+
       if (error.response?.status === 401) {
         setError('Authentication failed. Please log in again.');
         showSnackbar('Authentication failed. Please log in again.', 'error');
@@ -2955,9 +2968,9 @@ function StudentDetails() {
               </Typography>
             </Breadcrumbs>
 
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: 2
@@ -2980,7 +2993,7 @@ function StudentDetails() {
                   Refresh
                 </Button>
               </Box>
-              
+
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
                   variant={viewMode === 'overview' ? 'contained' : 'outlined'}
@@ -3040,7 +3053,7 @@ function StudentDetails() {
             <Grow in={true} timeout={1000}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card sx={{ 
+                  <Card sx={{
                     background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
                     border: `1px solid ${theme.palette.primary[200]}`,
                     borderRadius: 3,
@@ -3059,9 +3072,9 @@ function StudentDetails() {
                     </Box>
                   </Card>
                 </Grid>
-                
+
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card sx={{ 
+                  <Card sx={{
                     background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
                     border: `1px solid ${theme.palette.warning[200]}`,
                     borderRadius: 3,
@@ -3080,9 +3093,9 @@ function StudentDetails() {
                     </Box>
                   </Card>
                 </Grid>
-                
+
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card sx={{ 
+                  <Card sx={{
                     background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
                     border: `1px solid ${theme.palette.success[200]}`,
                     borderRadius: 3,
@@ -3101,9 +3114,9 @@ function StudentDetails() {
                     </Box>
                   </Card>
                 </Grid>
-                
+
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card sx={{ 
+                  <Card sx={{
                     background: `linear-gradient(135deg, ${theme.palette.info[50]} 0%, ${theme.palette.info[100]} 100%)`,
                     border: `1px solid ${theme.palette.info[200]}`,
                     borderRadius: 3,
@@ -3131,8 +3144,8 @@ function StudentDetails() {
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
-              sx={{ 
-                borderBottom: 1, 
+              sx={{
+                borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
                   textTransform: 'none',
@@ -3145,7 +3158,6 @@ function StudentDetails() {
               <Tab label="Applications" />
               <Tab label="Notes" />
               <Tab label="Timeline" />
-              <Tab label="Academics" />
             </Tabs>
 
             <TabPanel value={tabValue} index={0}>
@@ -3162,10 +3174,6 @@ function StudentDetails() {
 
             <TabPanel value={tabValue} index={3}>
               {renderTimeline()}
-            </TabPanel>
-
-            <TabPanel value={tabValue} index={4}>
-              <AcademicRecords studentId={id} />
             </TabPanel>
           </Grid>
 
@@ -3211,9 +3219,9 @@ function StudentDetails() {
             }
           }}
         >
-          <DialogTitle sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <DialogTitle sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             borderBottom: 1,
             borderColor: 'divider'
@@ -3230,10 +3238,10 @@ function StudentDetails() {
           </DialogTitle>
           <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
             {previewLoading ? (
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
                 height: '100%',
                 minHeight: '400px'
               }}>
@@ -3241,38 +3249,38 @@ function StudentDetails() {
                 <Typography sx={{ ml: 2 }}>Loading preview...</Typography>
               </Box>
             ) : previewUrl ? (
-              <Box sx={{ 
-                flex: 1, 
-                display: 'flex', 
-                justifyContent: 'center', 
+              <Box sx={{
+                flex: 1,
+                display: 'flex',
+                justifyContent: 'center',
                 alignItems: 'center',
                 bgcolor: 'grey.100',
                 minHeight: '400px'
               }}>
                 {previewFileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
-                  <img 
-                    src={previewUrl} 
+                  <img
+                    src={previewUrl}
                     alt={previewFileName}
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '100%', 
-                      objectFit: 'contain' 
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain'
                     }}
                   />
                 ) : previewFileName.toLowerCase().match(/\.(pdf)$/) ? (
                   <iframe
                     src={previewUrl}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      border: 'none' 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none'
                     }}
                     title={previewFileName}
                   />
                 ) : (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     gap: 2
                   }}>
@@ -3283,8 +3291,8 @@ function StudentDetails() {
                     <Typography variant="body2" color="textSecondary" textAlign="center">
                       This file type cannot be previewed. Please download the file to view it.
                     </Typography>
-                    <Button 
-                      variant="outlined" 
+                    <Button
+                      variant="outlined"
                       startIcon={<DownloadIcon />}
                       onClick={() => {
                         const link = document.createElement('a');
@@ -3318,7 +3326,7 @@ function StudentDetails() {
             }
           }}
         >
-          <DialogTitle sx={{ 
+          <DialogTitle sx={{
             pb: 1,
             background: 'rgba(255,255,255,0.1)',
             backdropFilter: 'blur(10px)'
@@ -3346,11 +3354,11 @@ function StudentDetails() {
               </Box>
             </Box>
           </DialogTitle>
-          
+
           <DialogContent sx={{ pt: 3, pb: 2 }}>
-            <Box sx={{ 
-              background: 'rgba(255,255,255,0.1)', 
-              borderRadius: 2, 
+            <Box sx={{
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: 2,
               p: 3,
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255,255,255,0.2)'
@@ -3361,19 +3369,19 @@ function StudentDetails() {
                   {phaseConfirmDialog.studentName}
                 </Typography>
               </Box>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <SchoolIcon sx={{ mr: 1.5, fontSize: 24, color: 'rgba(255,255,255,0.9)' }} />
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   Move to: <strong>{phaseConfirmDialog.phase?.label}</strong>
                 </Typography>
               </Box>
-              
+
               {/* Warning if phase is not ready */}
               {phaseConfirmDialog.phase && !phaseConfirmDialog.phase.isReady && (
-                <Alert 
-                  severity="warning" 
-                  sx={{ 
+                <Alert
+                  severity="warning"
+                  sx={{
                     mb: 3,
                     background: 'rgba(255, 193, 7, 0.2)',
                     color: 'white',
@@ -3387,12 +3395,12 @@ function StudentDetails() {
                   </Typography>
                 </Alert>
               )}
-              
+
               {/* Remarks Text Field */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" sx={{ 
-                  fontWeight: 600, 
-                  mb: 1.5, 
+                <Typography variant="body2" sx={{
+                  fontWeight: 600,
+                  mb: 1.5,
                   color: 'rgba(255,255,255,0.9)',
                   display: 'flex',
                   alignItems: 'center',
@@ -3440,10 +3448,10 @@ function StudentDetails() {
                   }}
                 />
               </Box>
-              
-              <Alert 
-                severity="info" 
-                sx={{ 
+
+              <Alert
+                severity="info"
+                sx={{
                   background: 'rgba(255,255,255,0.15)',
                   color: 'white',
                   border: '1px solid rgba(255,255,255,0.3)',
@@ -3457,10 +3465,10 @@ function StudentDetails() {
               </Alert>
             </Box>
           </DialogContent>
-          
-          <DialogActions sx={{ 
-            px: 3, 
-            py: 2, 
+
+          <DialogActions sx={{
+            px: 3,
+            py: 2,
             background: 'rgba(255,255,255,0.05)',
             backdropFilter: 'blur(10px)'
           }}>
@@ -3515,7 +3523,7 @@ function StudentDetails() {
           maxWidth="md"
           fullWidth
         >
-          <DialogTitle sx={{ 
+          <DialogTitle sx={{
             background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
             color: 'white',
             display: 'flex',
@@ -3562,7 +3570,7 @@ function StudentDetails() {
             </Grid>
           </DialogContent>
           <DialogActions sx={{ p: 3 }}>
-            <Button 
+            <Button
               onClick={() => setOpenEmailDialog(false)}
               variant="outlined"
             >
@@ -3586,7 +3594,7 @@ function StudentDetails() {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle sx={{ 
+          <DialogTitle sx={{
             background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
             color: 'white',
             display: 'flex',
@@ -3605,11 +3613,11 @@ function StudentDetails() {
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
                 The file you selected is larger than 1MB and may take longer to upload.
               </Typography>
-              
-              <Box sx={{ 
-                bgcolor: 'grey.50', 
-                p: 2, 
-                borderRadius: 2, 
+
+              <Box sx={{
+                bgcolor: 'grey.50',
+                p: 2,
+                borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'grey.200',
                 mb: 3
@@ -3637,7 +3645,7 @@ function StudentDetails() {
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
-            <Button 
+            <Button
               onClick={() => {
                 setOpenFileSizeDialog(false);
                 setPendingFile(null);
@@ -3652,7 +3660,7 @@ function StudentDetails() {
                 if (pendingFile) {
                   // Validate the file before proceeding
                   const validationError = getFileValidationError(pendingFile, 'documents', 'document');
-                  
+
                   if (validationError) {
                     setError(validationError);
                     showSnackbar(validationError, 'error');
@@ -3660,7 +3668,7 @@ function StudentDetails() {
                     setPendingFile(null);
                     return;
                   }
-                  
+
                   setUploadData({
                     ...uploadData,
                     file: pendingFile,
@@ -3698,8 +3706,8 @@ function StudentDetails() {
           onClose={handleCloseSnackbar}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
-          <Alert 
-            onClose={handleCloseSnackbar} 
+          <Alert
+            onClose={handleCloseSnackbar}
             severity={snackbar.severity}
             sx={{ width: '100%' }}
           >

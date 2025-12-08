@@ -64,8 +64,6 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
   Bar,
-  PieChart,
-  Pie,
   Cell
 } from 'recharts';
 
@@ -77,7 +75,7 @@ import {
   rescheduleTelecallerTask
 } from '../../services/telecallerService';
 
-const CALL_OUTCOME_COLORS = ['#1E88E5', '#43A047', '#F4511E', '#8E24AA', '#FB8C00', '#3949AB'];
+
 const PRIORITY_CHIP_COLOR_MAP = {
   URGENT: 'error',
   HIGH: 'warning',
@@ -218,15 +216,13 @@ function TelecallerDashboard() {
     };
   const callQueue = dashboardData?.callQueue ?? [];
   const callVolume = dashboardData?.callVolume ?? [];
-  const callOutcomeSummary = dashboardData?.callOutcomes ?? { completed: 0, pending: 0, overdue: 0, byOutcome: [] };
+
   const activityFeed = dashboardData?.activityFeed ?? [];
-  const engagementAlerts = dashboardData?.engagementAlerts ?? [];
   const importedFollowUps = dashboardData?.importedFollowUps ?? [];
 
   const outcomeOptions = ['ALL', ...(filterOptions.outcomes || [])];
   const priorityOptions = ['ALL', ...(filterOptions.priorities || [])];
   const insights = dashboardData?.insights ?? {};
-  const prioritySummary = insights.prioritySummary ?? [];
   const workloadAging = insights.workloadAging ?? [];
   const nextFollowUp = insights.nextFollowUp ?? null;
 
@@ -383,37 +379,9 @@ function TelecallerDashboard() {
       });
   }, [callQueue, statusFilter, outcomeFilter, priorityFilter, searchTerm]);
 
-  const outcomeChartData = useMemo(() => {
-    return (callOutcomeSummary.byOutcome || []).map((item, index) => ({
-      status: item.outcome,
-      total: item.total,
-      color: CALL_OUTCOME_COLORS[index % CALL_OUTCOME_COLORS.length]
-    }));
-  }, [callOutcomeSummary]);
 
-  const priorityFillMap = useMemo(
-    () => ({
-      URGENT: theme.palette.error.main,
-      HIGH: theme.palette.warning.main,
-      MEDIUM: theme.palette.info.main,
-      LOW: theme.palette.success.main
-    }),
-    [theme]
-  );
 
-  const priorityChartData = useMemo(() => {
-    return (prioritySummary || []).map((item, index) => ({
-      priority: item.priority,
-      total: item.total,
-      percentage: item.percentage,
-      color: CALL_OUTCOME_COLORS[index % CALL_OUTCOME_COLORS.length]
-    }));
-  }, [prioritySummary]);
 
-  const workloadAgingTotal = useMemo(
-    () => (workloadAging || []).reduce((sum, bucket) => sum + bucket.total, 0),
-    [workloadAging]
-  );
 
   if (loading) {
     return (
@@ -616,152 +584,9 @@ function TelecallerDashboard() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} lg={5}>
-          <Card sx={{ borderRadius: 3, height: '100%' }}>
-            <CardHeader
-              title={
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Call Outcomes
-                </Typography>
-              }
-              subheader="Distribution of completed, pending, and overdue follow-ups"
-            />
-            <CardContent sx={{ height: 320 }}>
-              {outcomeChartData.length === 0 ? (
-                <Box
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Typography color="text.secondary">
-                    Call outcomes will appear once activity is recorded.
-                  </Typography>
-                </Box>
-              ) : (
-                <Stack spacing={2} sx={{ height: '100%' }}>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Chip label={`Pending: ${callOutcomeSummary.pending ?? 0}`} size="small" color="warning" />
-                    <Chip label={`Completed: ${callOutcomeSummary.completed ?? 0}`} size="small" color="success" />
-                    <Chip label={`Overdue: ${callOutcomeSummary.overdue ?? 0}`} size="small" color="error" />
-                  </Stack>
-                  <Box sx={{ flex: 1 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={outcomeChartData}
-                          dataKey="total"
-                          nameKey="status"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={3}
-                        >
-                          {outcomeChartData.map((entry, index) => (
-                            <Cell key={entry.status} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip
-                          formatter={(value) => [`${value}`, 'Calls']}
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: `1px solid ${theme.palette.divider}`,
-                            boxShadow: theme.shadows[6]
-                          }}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
 
-        <Grid item xs={12} lg={7}>
-          <Card sx={{ borderRadius: 3, height: '100%' }}>
-            <CardHeader
-              title={
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Priority Breakdown
-                </Typography>
-              }
-              subheader="How your current workload is distributed across priority levels"
-              action={
-                <Tooltip title="Understand where to focus next">
-                  <IconButton>
-                    <FlagIcon />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-            <CardContent sx={{ height: 320 }}>
-              {priorityChartData.length === 0 ? (
-                <Box
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Typography color="text.secondary">
-                    Priority insights will appear once follow-ups are assigned.
-                  </Typography>
-                </Box>
-              ) : (
-                <Stack spacing={2} sx={{ height: '100%' }}>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {priorityChartData.map((item) => {
-                      const chipColor =
-                        PRIORITY_CHIP_COLOR_MAP[item.priority] === 'success'
-                          ? 'success'
-                          : PRIORITY_CHIP_COLOR_MAP[item.priority];
-                      const label = `${item.priority.charAt(0)}${item.priority.slice(1).toLowerCase()}: ${item.total
-                        } • ${item.percentage}%`;
-                      return (
-                        <Chip
-                          key={item.priority}
-                          label={label}
-                          color={chipColor}
-                          variant="outlined"
-                          sx={{ textTransform: 'capitalize' }}
-                        />
-                      );
-                    })}
-                  </Stack>
-                  <Box sx={{ flex: 1 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={priorityChartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.6)} />
-                        <XAxis dataKey="priority" />
-                        <YAxis allowDecimals={false} />
-                        <RechartsTooltip
-                          formatter={(value, name, props) => [`${value}`, 'Follow-ups']}
-                          contentStyle={{
-                            borderRadius: 12,
-                            border: `1px solid ${theme.palette.divider}`,
-                            boxShadow: theme.shadows[6]
-                          }}
-                        />
-                        <Bar dataKey="total" name="Follow-ups" radius={[8, 8, 0, 0]}>
-                          {priorityChartData.map((entry) => (
-                            <Cell
-                              key={entry.priority}
-                              fill={priorityFillMap[entry.priority] || theme.palette.primary.main}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+
+
 
         <Grid item xs={12} lg={5}>
           <Card sx={{ borderRadius: 3, height: '100%' }}>
@@ -771,7 +596,7 @@ function TelecallerDashboard() {
                   Workload Aging
                 </Typography>
               }
-              subheader="Track how long pending follow-ups have been waiting"
+              subheader="Pending calls by date (Last 5 active days)"
             />
             <CardContent>
               {workloadAging.length === 0 ? (
@@ -782,34 +607,30 @@ function TelecallerDashboard() {
                 </Box>
               ) : (
                 <Stack spacing={2}>
-                  {workloadAging.map((bucket) => {
-                    const percentage =
-                      workloadAgingTotal === 0 ? 0 : Math.round((bucket.total / workloadAgingTotal) * 100);
-                    return (
-                      <Box key={bucket.key}>
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {bucket.label}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            label={`${bucket.total} • ${percentage}%`}
-                            color={bucket.key.includes('overdue') ? 'error' : 'info'}
-                            variant="outlined"
-                          />
-                        </Stack>
-                        <LinearProgress
-                          variant="determinate"
-                          value={percentage}
-                          sx={{
-                            height: 8,
-                            borderRadius: 12,
-                            [`& .MuiLinearProgress-bar`]: { borderRadius: 12 }
-                          }}
+                  {workloadAging.map((item, index) => (
+                    <Box key={item.date || index}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {item.formattedDate}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${item.total}`}
+                          color="primary"
+                          variant="outlined"
                         />
-                      </Box>
-                    );
-                  })}
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={item.percentage}
+                        sx={{
+                          height: 8,
+                          borderRadius: 12,
+                          [`& .MuiLinearProgress-bar`]: { borderRadius: 12 }
+                        }}
+                      />
+                    </Box>
+                  ))}
                 </Stack>
               )}
             </CardContent>
@@ -1124,63 +945,7 @@ function TelecallerDashboard() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} lg={5}>
-          <Card sx={{ borderRadius: 3, height: '100%' }}>
-            <CardHeader
-              title={<Typography variant="h6" sx={{ fontWeight: 700 }}>Engagement Alerts</Typography>}
-              subheader="Potential risks and items that need your attention"
-            />
-            <CardContent>
-              {engagementAlerts.length === 0 ? (
-                <Box sx={{ py: 5, textAlign: 'center' }}>
-                  <Typography color="text.secondary">
-                    All clear for now. Alerts will appear here when follow-ups need special attention.
-                  </Typography>
-                </Box>
-              ) : (
-                <List sx={{ maxHeight: 360, overflow: 'auto', px: 0 }}>
-                  {engagementAlerts.map((alert) => (
-                    <Fragment key={`${alert.type}-${alert.taskId}`}>
-                      <ListItem sx={{ alignItems: 'flex-start', px: 2 }}>
-                        <ListItemAvatar>
-                          <Avatar
-                            sx={{
-                              bgcolor:
-                                alert.severity === 'warning'
-                                  ? alpha(theme.palette.warning.main, 0.15)
-                                  : alpha(theme.palette.info.main, 0.15),
-                              color:
-                                alert.severity === 'warning'
-                                  ? theme.palette.warning.main
-                                  : theme.palette.info.main
-                            }}
-                          >
-                            <NotificationImportantIcon />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                              {alert.message}
-                            </Typography>
-                          }
-                          secondary={
-                            alert.dueDate ? (
-                              <Typography variant="body2" color="text.secondary">
-                                Due {formatDistanceToNow(new Date(alert.dueDate), { addSuffix: true })}
-                              </Typography>
-                            ) : null
-                          }
-                        />
-                      </ListItem>
-                      <Divider component="li" variant="inset" />
-                    </Fragment>
-                  ))}
-                </List>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+
 
         <Grid item xs={12} lg={5}>
           <Card sx={{ borderRadius: 3, height: '100%' }}>
