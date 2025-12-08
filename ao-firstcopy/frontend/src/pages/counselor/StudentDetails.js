@@ -144,6 +144,16 @@ const DOCUMENT_TYPES = [
 ];
 
 const formatDate = (dateString, includeTime = false) => {
+  if (!dateString) return '';
+  try {
+    const formatStr = includeTime ? 'MMM d, yyyy \u2014 hh:mm a' : 'MMM d, yyyy';
+    return format(new Date(dateString), formatStr);
+  } catch (error) {
+    console.error('Invalid date:', dateString);
+    return '';
+  }
+};
+
 // Phase requirements for documents
 // Required documents for Document Collection: PASSPORT, ACADEMIC_TRANSCRIPT, RECOMMENDATION_LETTER, STATEMENT_OF_PURPOSE, CV_RESUME
 const PHASE_REQUIREMENTS = {
@@ -157,17 +167,6 @@ const PHASE_REQUIREMENTS = {
   'CAS_VISA': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'],
   'VISA_APPLICATION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'],
   'ENROLLMENT': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
-};
-
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  try {
-    const formatStr = includeTime ? 'MMM d, yyyy \u2014 hh:mm a' : 'MMM d, yyyy';
-    return format(new Date(dateString), formatStr);
-  } catch (error) {
-    console.error('Invalid date:', dateString);
-    return '';
-  }
 };
 
 // Format student name with marketing owner name (telecaller, marketing, or b2b_marketing) if available
@@ -2021,6 +2020,9 @@ function StudentDetails() {
           {/* Enhanced Search and Filters */}
           <Box sx={{ mb: 3 }}>
             <Grid container spacing={2} alignItems="center">
+            </Grid>
+          </Box>
+
       {/* Upload Dialog */}
       <Dialog
         open={openUploadDialog}
@@ -2063,6 +2065,56 @@ function StudentDetails() {
               </Box>
             )}
             <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                  sx={{ borderRadius: 2 }}
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="ALL">All Status</MenuItem>
+                  <MenuItem value="APPROVED">Approved</MenuItem>
+                  <MenuItem value="PENDING">Pending</MenuItem>
+                  <MenuItem value="REJECTED">Rejected</MenuItem>
+                  <MenuItem value="EXPIRED">Expired</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<FilterIcon />}
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  size="small"
+                  sx={{ borderRadius: 2 }}
+                >
+                  {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+          </DialogContent>
+        </Dialog>
+
+          {/* Enhanced Search and Filters */}
+          <Box sx={{ mb: 3 }}>
+            <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -4062,9 +4114,6 @@ function StudentDetails() {
                 />
               </Box>
 
-              <Alert
-                severity="info"
-                sx={{
               {/* Interview Status Selection - Show for Interview phase */}
               {phaseConfirmDialog.phase?.key === 'INTERVIEW' && (
                 <Box sx={{ mb: 3 }}>
