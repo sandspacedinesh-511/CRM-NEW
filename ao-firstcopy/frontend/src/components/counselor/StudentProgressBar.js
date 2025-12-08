@@ -16,7 +16,8 @@ import {
   ListItemText,
   Divider,
   useTheme,
-  Fade
+  Fade,
+  Button
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -31,7 +32,8 @@ import {
   Event as EventIcon,
   Flight as FlightIcon,
   Person as PersonIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  CloudUpload as CloudUploadIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 
@@ -41,7 +43,7 @@ const PHASES = [
     label: 'Document Collection',
     icon: <DocumentIcon />,
     color: '#2196f3',
-    requiredDocs: []
+    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']
   },
   {
     key: 'UNIVERSITY_SHORTLISTING',
@@ -108,10 +110,13 @@ const PHASES = [
   }
 ];
 
-const StudentProgressBar = ({ student, documents = [], applications = [], onPhaseClick }) => {
+const StudentProgressBar = ({ student, documents = [], applications = [], onPhaseClick, onUploadDocuments, onInterviewRetry, onInterviewStop, onCasVisaRetry, onCasVisaStop }) => {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [progressData, setProgressData] = useState([]);
+
+  // Check if student was created by telecaller/marketing/b2b_marketing
+  const isMarketingLead = !!student?.marketingOwnerId;
 
   useEffect(() => {
     calculateProgress();
@@ -119,6 +124,7 @@ const StudentProgressBar = ({ student, documents = [], applications = [], onPhas
 
   const calculateProgress = () => {
     const currentPhaseIndex = PHASES.findIndex(phase => phase.key === student?.currentPhase);
+    
     const progress = PHASES.map((phase, index) => {
       const isCompleted = index < currentPhaseIndex;
       const isCurrent = index === currentPhaseIndex;
@@ -132,7 +138,27 @@ const StudentProgressBar = ({ student, documents = [], applications = [], onPhas
       let isReady = true;
       let missingDocs = [];
       
-      if (isCurrent || isNextPhase) {
+      // Special handling for Document Collection phase
+      if (phase.key === 'DOCUMENT_COLLECTION' && isCurrent) {
+        requiredDocs = phase.requiredDocs;
+        
+        // For marketing leads, only count documents uploaded by counselor
+        // For other leads, count all documents
+        const relevantDocs = isMarketingLead
+          ? documents.filter(doc => doc.uploader?.role === 'counselor' && ['PENDING', 'APPROVED'].includes(doc.status))
+          : documents.filter(doc => ['PENDING', 'APPROVED'].includes(doc.status));
+        
+        uploadedDocs = relevantDocs.filter(doc => requiredDocs.includes(doc.type));
+        
+        // Check if all required document types are present
+        const uploadedDocTypes = uploadedDocs.map(doc => doc.type);
+        missingDocs = requiredDocs.filter(docType => !uploadedDocTypes.includes(docType));
+        
+        // Document Collection is only complete when ALL required documents are uploaded
+        isReady = missingDocs.length === 0;
+        docCompletion = requiredDocs.length > 0 ? 
+          ((requiredDocs.length - missingDocs.length) / requiredDocs.length) * 100 : 0;
+      } else if (isCurrent || isNextPhase) {
         requiredDocs = phase.requiredDocs;
         uploadedDocs = documents.filter(doc => 
           requiredDocs.includes(doc.type) && ['PENDING', 'APPROVED'].includes(doc.status)
@@ -325,19 +351,414 @@ const StudentProgressBar = ({ student, documents = [], applications = [], onPhas
                       />
                     </Box>
 
-                                         {/* Document Status - Only show for current and next phase */}
-                     {(phase.isCurrent || phase.isNextPhase) && phase.requiredDocs.length > 0 && (
-                       <Box sx={{ mt: 1 }}>
-                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                           Documents: {phase.requiredDocs.length - phase.missingDocs.length}/{phase.requiredDocs.length}
-                         </Typography>
-                         {phase.missingDocs.length > 0 && (
-                           <Typography variant="caption" color="error" sx={{ fontSize: '0.7rem' }}>
-                             Missing: {phase.missingDocs.join(', ')}
-                           </Typography>
-                         )}
-                       </Box>
-                     )}
+                    {/* Document Status - Only show for current and next phase */}
+                    {(phase.isCurrent || phase.isNextPhase) && phase.requiredDocs.length > 0 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          Documents: {phase.requiredDocs.length - phase.missingDocs.length}/{phase.requiredDocs.length}
+                        </Typography>
+                        {phase.missingDocs.length > 0 && (
+                          <Typography variant="caption" color="error" sx={{ fontSize: '0.7rem' }}>
+                            Missing: {phase.missingDocs.join(', ')}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* Selected Universities - Show for University Shortlisting phase (current or completed) */}
+                    {phase.key === 'UNIVERSITY_SHORTLISTING' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const shortlist = notes?.universityShortlist;
+                        if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Selected Universities ({shortlist.universities.length}):
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {shortlist.universities.map((uni, idx) => (
+                                  <Chip
+                                    key={uni.id || idx}
+                                    label={uni.name}
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      backgroundColor: `${phase.color}20`,
+                                      color: phase.color,
+                                      border: `1px solid ${phase.color}40`
+                                    }}
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Shortlisted Universities - Show for Application Submission phase (current or completed) */}
+                    {phase.key === 'APPLICATION_SUBMISSION' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const shortlist = notes?.universityShortlist;
+                        if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Shortlisted Universities ({shortlist.universities.length}):
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {shortlist.universities.map((uni, idx) => (
+                                  <Chip
+                                    key={uni.id || idx}
+                                    label={uni.name}
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      backgroundColor: `${phase.color}20`,
+                                      color: phase.color,
+                                      border: `1px solid ${phase.color}40`
+                                    }}
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Selected Universities - Show for Offer Received phase (current or completed) */}
+                    {phase.key === 'OFFER_RECEIVED' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const offers = notes?.universitiesWithOffers;
+                        
+                        if (offers && offers.universities && Array.isArray(offers.universities) && offers.universities.length > 0) {
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Selected Universities ({offers.universities.length}):
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {offers.universities.map((uni, idx) => (
+                                  <Chip
+                                    key={uni.id || idx}
+                                    label={uni.name || `University ${idx + 1}`}
+                                    size="small"
+                                    sx={{
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      backgroundColor: `${phase.color}20`,
+                                      color: phase.color,
+                                      border: `1px solid ${phase.color}40`
+                                    }}
+                                    icon={<CheckCircleIcon sx={{ fontSize: 14, color: phase.color }} />}
+                                  />
+                                ))}
+                              </Box>
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        console.error('Error parsing universities with offers:', e);
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Selected University - Show for Initial Payment phase (current or completed) */}
+                    {phase.key === 'INITIAL_PAYMENT' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const paymentUni = notes?.initialPaymentUniversity;
+                        if (paymentUni && paymentUni.university) {
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Selected University for Payment:
+                              </Typography>
+                              <Chip
+                                label={paymentUni.university.name}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                  backgroundColor: `${phase.color}20`,
+                                  color: phase.color,
+                                  border: `1px solid ${phase.color}40`,
+                                  fontWeight: 600
+                                }}
+                                icon={<PaymentIcon sx={{ fontSize: 14, color: phase.color }} />}
+                              />
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Interview Status Display - Show for Interview phase (current or completed) */}
+                    {phase.key === 'INTERVIEW' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const interviewStatus = notes?.interviewStatus;
+                        if (interviewStatus && interviewStatus.status) {
+                          const status = interviewStatus.status;
+                          const isApproved = status === 'APPROVED';
+                          const isRefused = status === 'REFUSED';
+                          const isStopped = status === 'STOPPED';
+                          
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Interview Status:
+                              </Typography>
+                              <Chip
+                                label={isApproved ? 'Approved' : isRefused ? 'Refused' : 'Stopped'}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                  backgroundColor: isApproved 
+                                    ? '#4caf5020' 
+                                    : isRefused 
+                                    ? '#f4433620' 
+                                    : '#ff980020',
+                                  color: isApproved 
+                                    ? '#4caf50' 
+                                    : isRefused 
+                                    ? '#f44336' 
+                                    : '#ff9800',
+                                  border: `1px solid ${isApproved ? '#4caf5040' : isRefused ? '#f4433640' : '#ff980040'}`,
+                                  fontWeight: 600,
+                                  mb: isRefused ? 1 : 0
+                                }}
+                                icon={isApproved ? <CheckCircleIcon sx={{ fontSize: 14, color: isApproved ? '#4caf50' : 'inherit' }} /> : <WarningIcon sx={{ fontSize: 14, color: isRefused ? '#f44336' : 'inherit' }} />}
+                              />
+                              {/* Retry and Stop buttons - Show only if refused */}
+                              {isRefused && onInterviewRetry && onInterviewStop && (
+                                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onInterviewRetry();
+                                    }}
+                                    sx={{
+                                      flex: 1,
+                                      fontSize: '0.7rem',
+                                      py: 0.3,
+                                      borderColor: phase.color,
+                                      color: phase.color,
+                                      '&:hover': {
+                                        borderColor: phase.color,
+                                        backgroundColor: `${phase.color}10`
+                                      }
+                                    }}
+                                  >
+                                    Retry
+                                  </Button>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onInterviewStop();
+                                    }}
+                                    sx={{
+                                      flex: 1,
+                                      fontSize: '0.7rem',
+                                      py: 0.3,
+                                      borderColor: '#ff9800',
+                                      color: '#ff9800',
+                                      '&:hover': {
+                                        borderColor: '#ff9800',
+                                        backgroundColor: '#ff980010'
+                                      }
+                                    }}
+                                  >
+                                    Stop
+                                  </Button>
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* CAS & Visa Status Display - Show for CAS & Visa phase (current or completed) */}
+                    {phase.key === 'CAS_VISA' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const casVisaStatus = notes?.casVisaStatus;
+                        if (casVisaStatus && casVisaStatus.status) {
+                          const status = casVisaStatus.status;
+                          const isApproved = status === 'APPROVED';
+                          const isRefused = status === 'REFUSED';
+                          const isStopped = status === 'STOPPED';
+                          
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                CAS & Visa Status:
+                              </Typography>
+                              <Chip
+                                label={isApproved ? 'Approved' : isRefused ? 'Refused' : 'Stopped'}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                  backgroundColor: isApproved 
+                                    ? '#4caf5020' 
+                                    : isRefused 
+                                    ? '#f4433620' 
+                                    : '#ff980020',
+                                  color: isApproved 
+                                    ? '#4caf50' 
+                                    : isRefused 
+                                    ? '#f44336' 
+                                    : '#ff9800',
+                                  border: `1px solid ${isApproved ? '#4caf5040' : isRefused ? '#f4433640' : '#ff980040'}`,
+                                  fontWeight: 600,
+                                  mb: isRefused ? 1 : 0
+                                }}
+                                icon={isApproved ? <CheckCircleIcon sx={{ fontSize: 14, color: isApproved ? '#4caf50' : 'inherit' }} /> : <WarningIcon sx={{ fontSize: 14, color: isRefused ? '#f44336' : 'inherit' }} />}
+                              />
+                              {/* Retry and Stop buttons - Show only if refused */}
+                              {isRefused && onCasVisaRetry && onCasVisaStop && (
+                                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onCasVisaRetry();
+                                    }}
+                                    sx={{
+                                      flex: 1,
+                                      fontSize: '0.7rem',
+                                      py: 0.3,
+                                      borderColor: phase.color,
+                                      color: phase.color,
+                                      '&:hover': {
+                                        borderColor: phase.color,
+                                        backgroundColor: `${phase.color}10`
+                                      }
+                                    }}
+                                  >
+                                    Retry
+                                  </Button>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onCasVisaStop();
+                                    }}
+                                    sx={{
+                                      flex: 1,
+                                      fontSize: '0.7rem',
+                                      py: 0.3,
+                                      borderColor: '#ff9800',
+                                      color: '#ff9800',
+                                      '&:hover': {
+                                        borderColor: '#ff9800',
+                                        backgroundColor: '#ff980010'
+                                      }
+                                    }}
+                                  >
+                                    Stop
+                                  </Button>
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Financial Option Display - Show for Financial & TB Test phase (current or completed) */}
+                    {phase.key === 'FINANCIAL_TB_TEST' && (phase.isCurrent || phase.isCompleted) && student?.notes && (() => {
+                      try {
+                        const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                        const financialOption = notes?.financialOption;
+                        if (financialOption && financialOption.label) {
+                          return (
+                            <Box sx={{ mt: 1.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                                Financial Option:
+                              </Typography>
+                              <Chip
+                                label={financialOption.label}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                  backgroundColor: `${phase.color}20`,
+                                  color: phase.color,
+                                  border: `1px solid ${phase.color}40`,
+                                  fontWeight: 600
+                                }}
+                                icon={<EventIcon sx={{ fontSize: 14, color: phase.color }} />}
+                              />
+                            </Box>
+                          );
+                        }
+                      } catch (e) {
+                        return null;
+                      }
+                      return null;
+                    })()}
+
+                    {/* Upload Documents Button - Show for Document Collection phase until all required documents are uploaded */}
+                    {phase.key === 'DOCUMENT_COLLECTION' && 
+                     phase.isCurrent && 
+                     phase.missingDocs && phase.missingDocs.length > 0 &&
+                     onUploadDocuments && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<CloudUploadIcon />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUploadDocuments();
+                          }}
+                          sx={{
+                            width: '100%',
+                            fontSize: '0.75rem',
+                            py: 0.5,
+                            backgroundColor: phase.color,
+                            '&:hover': {
+                              backgroundColor: phase.color,
+                              opacity: 0.9
+                            }
+                          }}
+                        >
+                          Upload Documents
+                        </Button>
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>

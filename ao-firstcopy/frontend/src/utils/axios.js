@@ -21,14 +21,37 @@ instance.interceptors.request.use(
   }
 );
 
+// Flag to prevent multiple redirects
+let isRedirecting = false;
+
 instance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      originalRequest._retry = true;
+      
+      // Don't redirect if already on login page or if already redirecting
+      const isLoginPage = window.location.pathname === '/login' || window.location.pathname === '/login/';
+      const isLoginRequest = originalRequest.url?.includes('/auth/login');
+      
+      if (!isLoginPage && !isLoginRequest && !isRedirecting) {
+        isRedirecting = true;
+        localStorage.removeItem('token');
+        
+        // Use a small delay to prevent immediate redirect loops
+        setTimeout(() => {
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/login/') {
+            window.location.href = '/login';
+          } else {
+            isRedirecting = false;
+          }
+        }, 100);
+      } else {
+        // If already on login page, just clear token and let the error propagate
+        localStorage.removeItem('token');
+      }
     }
 
     // Suppress console errors for expected 400 errors (client errors we handle gracefully)

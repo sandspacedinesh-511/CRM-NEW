@@ -4,6 +4,26 @@ const adminController = require('../controllers/adminController');
 const counselorMonitoringController = require('../controllers/counselorMonitoringController');
 const { auth, checkRole } = require('../middlewares/auth');
 const { cacheMiddleware, cacheInvalidation } = require('../middlewares/performance');
+const multer = require('multer');
+
+// Configure multer for Excel file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) are allowed'), false);
+    }
+  }
+});
 
 // Apply authentication and role middleware to all routes
 router.use(auth);
@@ -63,6 +83,7 @@ router.patch('/students/:id/assign-counselor', adminController.assignLeadToCouns
 
 router.get('/universities', cacheMiddleware(1800), adminController.getUniversities); // 30 minutes cache
 router.post('/universities', cacheInvalidation(['api:admin/universities*']), adminController.addUniversity);
+router.post('/universities/bulk-import', upload.single('file'), cacheInvalidation(['api:admin/universities*']), adminController.bulkImportUniversities);
 router.put('/universities/:id', cacheInvalidation(['api:admin/universities*']), adminController.updateUniversity);
 router.delete('/universities/:id', cacheInvalidation(['api:admin/universities*']), adminController.deleteUniversity);
 router.get('/analytics', cacheMiddleware(600), adminController.getAnalytics); // 10 minutes cache
