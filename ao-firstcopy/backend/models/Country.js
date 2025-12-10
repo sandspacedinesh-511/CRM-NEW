@@ -41,8 +41,7 @@ module.exports = (sequelize) => {
     tableName: 'countries',
     timestamps: true,
     indexes: [
-      { fields: ['name'] },
-      { fields: ['code'] },
+      // Only index isActive since name and code already have unique constraints (which create indexes)
       { fields: ['isActive'] }
     ]
   });

@@ -8,7 +8,8 @@ const {
   Activity,
   Task,
   TelecallerImportedTask,
-  Notification
+  Notification,
+  ApplicationCountry
 } = require('../models');
 const { Sequelize, Op } = require('sequelize');
 const { createObjectCsvStringifier } = require('csv-writer');
@@ -621,6 +622,52 @@ exports.getStudents = async (req, res) => {
   }
 };
 
+// Helper function to auto-create country profiles from targetCountries
+async function autoCreateCountryProfilesFromTargetCountries(studentId, targetCountries) {
+  if (!targetCountries) return;
+
+  // Parse comma-separated countries
+  const countries = targetCountries
+    .split(',')
+    .map(c => c.trim())
+    .filter(c => c.length > 0);
+
+  if (countries.length === 0) return;
+
+  // Create country profiles for each country
+  for (const country of countries) {
+    try {
+      // Check if profile already exists
+      const existing = await ApplicationCountry.findOne({
+        where: { studentId, country }
+      });
+
+      if (!existing) {
+        await ApplicationCountry.create({
+          studentId,
+          country,
+          currentPhase: 'DOCUMENT_COLLECTION',
+          totalApplications: 0,
+          primaryApplications: 0,
+          backupApplications: 0,
+          acceptedApplications: 0,
+          rejectedApplications: 0,
+          pendingApplications: 0,
+          totalApplicationFees: 0,
+          totalScholarshipAmount: 0,
+          visaRequired: true,
+          visaStatus: 'NOT_STARTED',
+          preferredCountry: false,
+          notes: `Country profile auto-created from target countries: ${country}. Application progress starts from beginning.`
+        });
+      }
+    } catch (error) {
+      // Log but don't fail - country profile creation is not critical
+      console.error(`Error creating country profile for ${country}:`, error.message);
+    }
+  }
+}
+
 // Add new student
 exports.addStudent = async (req, res) => {
   try {
@@ -648,6 +695,11 @@ exports.addStudent = async (req, res) => {
       ...req.body,
       counselorId: req.user.id
     });
+
+    // Auto-create country profiles from targetCountries
+    if (req.body.targetCountries) {
+      await autoCreateCountryProfilesFromTargetCountries(student.id, req.body.targetCountries);
+    }
     
     // Clear dashboard cache to ensure stats update
     const cacheKey = `dashboard:${req.user.id}`;
@@ -706,6 +758,11 @@ exports.getStudentDetails = async (req, res) => {
           as: 'marketingOwner',
           attributes: ['id', 'name', 'email', 'role'],
           required: false
+        },
+        {
+          model: ApplicationCountry,
+          as: 'countryProfiles',
+          required: false
         }
       ]
     });
@@ -714,6 +771,19 @@ exports.getStudentDetails = async (req, res) => {
       return res.status(404).json({ 
         success: false,
         message: 'Student not found' 
+      });
+    }
+
+    // Auto-create country profiles from targetCountries if they don't exist
+    if (student.targetCountries) {
+      await autoCreateCountryProfilesFromTargetCountries(student.id, student.targetCountries);
+      // Reload student to get the newly created country profiles
+      await student.reload({
+        include: [{
+          model: ApplicationCountry,
+          as: 'countryProfiles',
+          required: false
+        }]
       });
     }
 
@@ -808,7 +878,13 @@ exports.updateStudent = async (req, res) => {
       }
     }
 
+    const previousTargetCountries = student.targetCountries;
     await student.update(req.body);
+
+    // Auto-create country profiles if targetCountries changed
+    if (req.body.targetCountries && req.body.targetCountries !== previousTargetCountries) {
+      await autoCreateCountryProfilesFromTargetCountries(student.id, req.body.targetCountries);
+    }
 
     // Create activity for phase change
     if (req.body.currentPhase && req.body.currentPhase !== student.currentPhase) {
@@ -835,7 +911,7 @@ exports.updateStudent = async (req, res) => {
             'INTERVIEW': 'Interview',
             'FINANCIAL_TB_TEST': 'Financial & TB Test',
             'CAS_VISA': 'CAS & Visa',
-            'VISA_APPLICATION': 'Visa Application',
+            'VISA_APPLICATION': 'Visa Process',
             'ENROLLMENT': 'Enrollment'
           };
 
@@ -1432,27 +1508,122 @@ exports.getStudentApplications = async (req, res) => {
 // Get all applications
 exports.getApplications = async (req, res) => {
   try {
-    const applications = await StudentUniversityApplication.findAll({
+    const { 
+      search, 
+      status, 
+      studentId, 
+      universityId, 
+      sort = 'deadline_asc', 
+      page = 1, 
+      limit = 10 
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build where clause
+    const whereClause = {};
+    
+    if (status && status !== 'ALL') {
+      whereClause.applicationStatus = status;
+    }
+    
+    if (studentId && studentId !== 'ALL') {
+      whereClause.studentId = studentId;
+    }
+    
+    if (universityId && universityId !== 'ALL') {
+      whereClause.universityId = universityId;
+    }
+
+    // Build order clause
+    let orderClause = [['applicationDeadline', 'ASC']];
+    if (sort) {
+      const [field, direction] = sort.split('_');
+      switch (field) {
+        case 'deadline':
+          orderClause = [['applicationDeadline', direction.toUpperCase()]];
+          break;
+        case 'created':
+          orderClause = [['createdAt', direction.toUpperCase()]];
+          break;
+        case 'student':
+          orderClause = [[{ model: Student, as: 'student' }, 'firstName', direction.toUpperCase()]];
+          break;
+        case 'university':
+          orderClause = [[{ model: University, as: 'university' }, 'name', direction.toUpperCase()]];
+          break;
+        default:
+          orderClause = [['applicationDeadline', 'ASC']];
+      }
+    }
+
+    // Build search conditions
+    let searchConditions = {};
+    if (search) {
+      searchConditions = {
+        [Op.or]: [
+          { courseName: { [Op.like]: `%${search}%` } },
+          { notes: { [Op.like]: `%${search}%` } },
+          { '$student.firstName$': { [Op.like]: `%${search}%` } },
+          { '$student.lastName$': { [Op.like]: `%${search}%` } },
+          { '$university.name$': { [Op.like]: `%${search}%` } }
+        ]
+      };
+    }
+
+    const { count, rows: applications } = await StudentUniversityApplication.findAndCountAll({
+      where: {
+        ...whereClause,
+        ...searchConditions
+      },
       include: [
         {
           model: Student,
           as: 'student',
           where: { counselorId: req.user.id },
-          attributes: ['id', 'firstName', 'lastName']
+          attributes: ['id', 'firstName', 'lastName', 'email'],
+          required: true
         },
         {
           model: University,
           as: 'university',
-          attributes: ['id', 'name']
+          attributes: ['id', 'name', 'country'],
+          required: true
         }
       ],
-      order: [['applicationDeadline', 'ASC']]
+      order: orderClause,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      distinct: true
     });
 
-    res.json(applications);
+    // Map applicationStatus to status for frontend compatibility
+    const mappedApplications = applications.map(app => {
+      const appData = app.toJSON();
+      return {
+        ...appData,
+        status: appData.applicationStatus, // Map applicationStatus to status
+        // Keep applicationStatus for backward compatibility
+        applicationStatus: appData.applicationStatus
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        applications: mappedApplications,
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
+    });
   } catch (error) {
     console.error('Error fetching applications:', error);
-    res.status(500).json({ message: 'Error fetching applications' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching applications' 
+    });
   }
 };
 
@@ -1665,6 +1836,272 @@ exports.deleteApplication = async (req, res) => {
   } catch (error) {
     console.error('Error deleting application:', error);
     res.status(500).json({ message: 'Error deleting application' });
+  }
+};
+
+// Get country profiles for student
+exports.getStudentCountryProfiles = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const studentId = parseInt(id, 10);
+
+    if (isNaN(studentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid student ID format'
+      });
+    }
+
+    // Verify student belongs to counselor
+    const student = await Student.findOne({
+      where: { id: studentId, counselorId: req.user.id }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or you do not have access to this student'
+      });
+    }
+
+    // Get all country profiles for this student
+    const countryProfiles = await ApplicationCountry.findAll({
+      where: { studentId },
+      order: [['preferredCountry', 'DESC'], ['country', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: countryProfiles
+    });
+  } catch (error) {
+    console.error('Error fetching country profiles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching country profiles',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Auto-create country profiles from selected countries/universities
+exports.autoCreateCountryProfiles = async (req, res) => {
+  try {
+    const { studentId, countries } = req.body;
+
+    if (!studentId || !countries || !Array.isArray(countries) || countries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student ID and countries array are required'
+      });
+    }
+
+    const studentIdInt = parseInt(studentId, 10);
+    if (isNaN(studentIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid student ID format'
+      });
+    }
+
+    // Verify student belongs to counselor
+    const student = await Student.findOne({
+      where: { id: studentIdInt, counselorId: req.user.id }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or you do not have access to this student'
+      });
+    }
+
+    const createdProfiles = [];
+    const existingProfiles = [];
+
+    // Get existing country profiles
+    const existingCountries = await ApplicationCountry.findAll({
+      where: { studentId: studentIdInt },
+      attributes: ['country']
+    });
+    const existingCountrySet = new Set(existingCountries.map(c => c.country));
+
+    // Create profiles for new countries
+    for (const country of countries) {
+      if (existingCountrySet.has(country)) {
+        existingProfiles.push(country);
+        continue;
+      }
+
+      const countryProfile = await ApplicationCountry.create({
+        studentId: studentIdInt,
+        country,
+        totalApplications: 0,
+        primaryApplications: 0,
+        backupApplications: 0,
+        acceptedApplications: 0,
+        rejectedApplications: 0,
+        pendingApplications: 0,
+        totalApplicationFees: 0,
+        totalScholarshipAmount: 0,
+        visaRequired: true,
+        visaStatus: 'NOT_STARTED',
+        preferredCountry: false,
+        notes: `Country profile auto-created for ${country}. Application progress starts from beginning.`
+      });
+
+      createdProfiles.push(countryProfile);
+
+      // Log activity
+      await Activity.create({
+        type: 'COUNTRY_PROFILE_CREATED',
+        description: `Auto-created country profile for ${country}`,
+        studentId: studentIdInt,
+        userId: req.user.id,
+        metadata: {
+          country: country,
+          autoCreated: true
+        }
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Created ${createdProfiles.length} new country profile(s)`,
+      data: {
+        created: createdProfiles,
+        existing: existingProfiles,
+        totalCreated: createdProfiles.length,
+        totalExisting: existingProfiles.length
+      }
+    });
+  } catch (error) {
+    console.error('Error auto-creating country profiles:', error);
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more country profiles already exist'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error auto-creating country profiles',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Create country profile for student
+exports.createCountryProfile = async (req, res) => {
+  try {
+    const { studentId, country } = req.body;
+
+    console.log('Received request to create country profile:', { studentId, country, body: req.body });
+
+    if (!studentId || !country) {
+      console.log('Validation failed - missing studentId or country:', { studentId, country });
+      return res.status(400).json({
+        success: false,
+        message: 'Student ID and country are required',
+        received: { studentId, country }
+      });
+    }
+
+    // Convert studentId to integer if it's a string
+    const studentIdInt = parseInt(studentId, 10);
+    if (isNaN(studentIdInt)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid student ID format'
+      });
+    }
+
+    // Verify student belongs to counselor
+    const student = await Student.findOne({
+      where: { id: studentIdInt, counselorId: req.user.id }
+    });
+
+    if (!student) {
+      console.log('Student not found:', { studentId: studentIdInt, counselorId: req.user.id });
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or you do not have access to this student'
+      });
+    }
+
+    // Check if country profile already exists
+    const existingCountry = await ApplicationCountry.findOne({
+      where: { studentId: studentIdInt, country }
+    });
+
+    if (existingCountry) {
+      return res.status(400).json({
+        success: false,
+        message: `Country profile for ${country} already exists for this student`
+      });
+    }
+
+    // Create new country profile - starts from beginning (DOCUMENT_COLLECTION phase)
+    const countryProfile = await ApplicationCountry.create({
+      studentId: studentIdInt,
+      country,
+      totalApplications: 0,
+      primaryApplications: 0,
+      backupApplications: 0,
+      acceptedApplications: 0,
+      rejectedApplications: 0,
+      pendingApplications: 0,
+      totalApplicationFees: 0,
+      totalScholarshipAmount: 0,
+      visaRequired: true,
+      visaStatus: 'NOT_STARTED',
+      preferredCountry: false,
+      notes: `Country profile created for ${country}. Application progress starts from beginning.`
+    });
+
+    // Log activity
+    await Activity.create({
+      type: 'COUNTRY_PROFILE_CREATED',
+      description: `Created country profile for ${country}`,
+      studentId: studentIdInt,
+      userId: req.user.id,
+      metadata: {
+        country: country
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Country profile for ${country} created successfully`,
+      data: countryProfile
+    });
+  } catch (error) {
+    console.error('Error creating country profile:', error);
+    
+    // Handle Sequelize unique constraint error
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: `Country profile for ${req.body.country} already exists for this student`
+      });
+    }
+
+    // Handle Sequelize validation error
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: error.errors.map(e => e.message)
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error creating country profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -2010,14 +2447,61 @@ exports.deleteGeneralTask = async (req, res) => {
 // Get universities
 exports.getUniversities = async (req, res) => {
   try {
-    const universities = await University.findAll({
-      order: [['name', 'ASC']]
+    const { country, search, sort, page = 1, limit = 10 } = req.query;
+    const { Op } = require('sequelize');
+    
+    const where = {};
+    
+    // Filter by country if provided
+    if (country && country !== 'ALL') {
+      where.country = country;
+    }
+    
+    // Search filter
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { city: { [Op.like]: `%${search}%` } },
+        { country: { [Op.like]: `%${search}%` } }
+      ];
+    }
+    
+    // Only show active universities for counselors
+    where.active = true;
+    
+    // Build order clause
+    let order = [['name', 'ASC']];
+    if (sort) {
+      const [field, direction] = sort.split('_');
+      const validFields = ['name', 'country', 'ranking', 'acceptanceRate', 'createdAt'];
+      const validDirections = ['ASC', 'DESC'];
+      if (validFields.includes(field) && validDirections.includes(direction.toUpperCase())) {
+        order = [[field, direction.toUpperCase()]];
+      }
+    }
+    
+    const universities = await University.findAndCountAll({
+      where,
+      order,
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
     });
 
-    res.json(universities);
+    res.json({
+      success: true,
+      data: {
+        universities: universities.rows,
+        total: universities.count,
+        page: parseInt(page),
+        totalPages: Math.ceil(universities.count / parseInt(limit))
+      }
+    });
   } catch (error) {
     console.error('Error fetching universities:', error);
-    res.status(500).json({ message: 'Error fetching universities' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching universities' 
+    });
   }
 };
 
@@ -2179,8 +2663,38 @@ exports.exportApplications = async (req, res) => {
 exports.updateStudentPhase = async (req, res) => {
   try {
     const { id } = req.params;
-    const { currentPhase, remarks } = req.body;
+    const { currentPhase, remarks, country } = req.body; // Add country parameter
     const counselorId = req.user.id;
+
+    // Helper function to safely parse notes (handles both JSON strings and plain text)
+    const safeParseNotes = (notes) => {
+      if (!notes) return {};
+      
+      // If it's already an object, return it
+      if (typeof notes === 'object' && notes !== null) {
+        return notes;
+      }
+      
+      // If it's a string, try to parse as JSON
+      if (typeof notes === 'string') {
+        const trimmed = notes.trim();
+        // Check if it looks like JSON (starts with { or [)
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          try {
+            return JSON.parse(notes);
+          } catch (e) {
+            console.error('Error parsing notes as JSON:', e);
+            // If parsing fails, return empty object
+            return {};
+          }
+        } else {
+          // It's a plain string, return empty object (we can't merge with plain text)
+          return {};
+        }
+      }
+      
+      return {};
+    };
 
     // Validate phase
     const validPhases = [
@@ -2251,7 +2765,7 @@ exports.updateStudentPhase = async (req, res) => {
         'INTERVIEW': 'Interview preparation requires all previous documents plus financial verification.',
         'FINANCIAL_TB_TEST': 'Visa preparation requires medical examination and TB test results.',
         'CAS_VISA': 'CAS and visa processing requires complete medical and financial documentation.',
-        'VISA_APPLICATION': 'Visa application requires all supporting documents including medical certificates.',
+        'VISA_APPLICATION': 'Visa Process requires all supporting documents including medical certificates.',
         'ENROLLMENT': 'Final enrollment requires complete documentation package.'
       };
 
@@ -2357,8 +2871,30 @@ Need help? Contact your counselor for assistance.`;
       }
     }
 
-    const previousPhase = student.currentPhase;
-    await student.update({ currentPhase });
+    let previousPhase = student.currentPhase;
+    let countryProfile = null;
+    
+    // If country is provided, update country-specific phase
+    if (country) {
+      countryProfile = await ApplicationCountry.findOne({
+        where: { studentId: id, country }
+      });
+
+      if (!countryProfile) {
+        return res.status(404).json({
+          message: `Country profile for ${country} not found. Please create a country profile first.`
+        });
+      }
+
+      previousPhase = countryProfile.currentPhase;
+      await countryProfile.update({ 
+        currentPhase,
+        lastUpdated: new Date()
+      });
+    } else {
+      // Backward compatibility: update global student phase if no country specified
+      await student.update({ currentPhase });
+    }
 
     // If moving to University Shortlisting phase, save selected universities
     if (currentPhase === 'UNIVERSITY_SHORTLISTING' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
@@ -2379,8 +2915,7 @@ Need help? Contact your counselor for assistance.`;
         });
       }
 
-      // Create shortlist entries (we can store this in a separate table or in student notes)
-      // For now, we'll store it in the student's notes as JSON
+      // Create shortlist entries grouped by country
       const shortlistData = {
         universities: validUniversities.map(u => ({
           id: u.id,
@@ -2391,23 +2926,44 @@ Need help? Contact your counselor for assistance.`;
         selectedAt: new Date().toISOString()
       };
 
-      // Append to existing notes or create new
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
-      const updatedNotes = {
-        ...existingNotes,
-        universityShortlist: shortlistData
-      };
-      
-      await student.update({ notes: JSON.stringify(updatedNotes) });
+      // If country is specified, store shortlist in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        const updatedCountryNotes = {
+          ...countryNotes,
+          universityShortlist: shortlistData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes for backward compatibility
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          universityShortlist: shortlistData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
     }
 
-    // If moving to Offer Received phase, save selected universities with offers
-    if (currentPhase === 'OFFER_RECEIVED' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
+    // If moving to Application Submission phase, save selected universities
+    if (currentPhase === 'APPLICATION_SUBMISSION' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
       const { selectedUniversities } = req.body;
       
-      // Get existing shortlisted universities from notes
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
-      const shortlist = existingNotes?.universityShortlist;
+      // Get existing shortlisted universities - check country profile first if country is specified
+      let shortlist = null;
+      let existingNotes = {};
+      
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        shortlist = countryNotes?.universityShortlist;
+        existingNotes = countryNotes;
+      } else {
+        existingNotes = safeParseNotes(student.notes);
+        shortlist = existingNotes?.universityShortlist;
+      }
       
       if (!shortlist || !shortlist.universities || shortlist.universities.length === 0) {
         return res.status(400).json({
@@ -2421,13 +2977,96 @@ Need help? Contact your counselor for assistance.`;
       
       if (invalidSelections.length > 0) {
         return res.status(400).json({
-          message: 'Some selected universities are not in the shortlisted universities',
+          message: 'Some selected universities are not in the shortlisted universities. Please select only from shortlisted universities.',
+          invalidIds: invalidSelections
+        });
+      }
+
+      // Get full university details for selected ones from shortlist
+      const selectedUniversityData = shortlist.universities.filter(u => 
+        selectedUniversities.includes(u.id)
+      );
+
+      // Create application submission universities data
+      const applicationSubmissionData = {
+        universities: selectedUniversityData.map(u => ({
+          id: u.id,
+          name: u.name,
+          country: u.country,
+          city: u.city
+        })),
+        submittedAt: new Date().toISOString()
+      };
+
+      // If country is specified, store in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        const updatedCountryNotes = {
+          ...countryNotes,
+          applicationSubmissionUniversities: applicationSubmissionData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes for backward compatibility
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          applicationSubmissionUniversities: applicationSubmissionData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
+    }
+
+    // If moving to Offer Received phase, save selected universities with offers
+    if (currentPhase === 'OFFER_RECEIVED' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
+      const { selectedUniversities } = req.body;
+      
+      // Get existing universities from Application Submission phase first, then fallback to shortlisted
+      let applicationUniversities = null;
+      let shortlist = null;
+      let existingNotes = {};
+      
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        applicationUniversities = countryNotes?.applicationSubmissionUniversities;
+        shortlist = countryNotes?.universityShortlist;
+        existingNotes = countryNotes;
+      } else {
+        existingNotes = safeParseNotes(student.notes);
+        applicationUniversities = existingNotes?.applicationSubmissionUniversities;
+        shortlist = existingNotes?.universityShortlist;
+      }
+      
+      // Determine which universities list to use: Application Submission first, then fallback to shortlist
+      let availableUniversities = null;
+      if (applicationUniversities && applicationUniversities.universities && applicationUniversities.universities.length > 0) {
+        availableUniversities = applicationUniversities.universities;
+      } else if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
+        availableUniversities = shortlist.universities;
+      }
+      
+      if (!availableUniversities || availableUniversities.length === 0) {
+        return res.status(400).json({
+          message: 'No universities found from Application Submission phase. Please submit applications first in the Application Submission phase.'
+        });
+      }
+
+      // Verify selected universities are from the available ones
+      const availableIds = availableUniversities.map(u => u.id);
+      const invalidSelections = selectedUniversities.filter(id => !availableIds.includes(id));
+      
+      if (invalidSelections.length > 0) {
+        return res.status(400).json({
+          message: 'Some selected universities are not in the submitted applications',
           invalidIds: invalidSelections
         });
       }
 
       // Get full university details for selected ones
-      const selectedUniversityData = shortlist.universities.filter(u => 
+      const selectedUniversityData = availableUniversities.filter(u => 
         selectedUniversities.includes(u.id)
       );
 
@@ -2442,22 +3081,44 @@ Need help? Contact your counselor for assistance.`;
         receivedAt: new Date().toISOString()
       };
 
-      const updatedNotes = {
-        ...existingNotes,
-        universitiesWithOffers: offersData
-      };
-      
-      await student.update({ notes: JSON.stringify(updatedNotes) });
+      // Store in country profile if country is specified, otherwise in student notes
+      if (country && countryProfile) {
+        const updatedCountryNotes = {
+          ...existingNotes,
+          universitiesWithOffers: offersData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        const updatedNotes = {
+          ...existingNotes,
+          universitiesWithOffers: offersData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
     }
 
     // If moving to Initial Payment phase, save selected university for payment
     if (currentPhase === 'INITIAL_PAYMENT' && req.body.selectedUniversity) {
       const { selectedUniversity } = req.body;
       
-      // Get existing universities with offers from notes, or fallback to shortlisted
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
-      const offers = existingNotes?.universitiesWithOffers;
-      const shortlist = existingNotes?.universityShortlist;
+      // Get existing universities with offers - check country profile first if country is specified
+      let offers = null;
+      let shortlist = null;
+      let existingNotes = {};
+      
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        offers = countryNotes?.universitiesWithOffers;
+        shortlist = countryNotes?.universityShortlist;
+        existingNotes = countryNotes;
+      } else {
+        existingNotes = safeParseNotes(student.notes);
+        offers = existingNotes?.universitiesWithOffers;
+        shortlist = existingNotes?.universityShortlist;
+      }
       
       // Determine which universities list to use: offers first, then fallback to shortlisted
       let availableUniversities = null;
@@ -2498,15 +3159,26 @@ Need help? Contact your counselor for assistance.`;
         isFallback: isFallback // Track if this was selected from shortlist (fallback)
       };
 
-      const updatedNotes = {
-        ...existingNotes,
-        initialPaymentUniversity: paymentData
-      };
-      
-      await student.update({ notes: JSON.stringify(updatedNotes) });
+      // Store in country profile if country is specified, otherwise in student notes
+      if (country && countryProfile) {
+        const updatedCountryNotes = {
+          ...existingNotes,
+          initialPaymentUniversity: paymentData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        const updatedNotes = {
+          ...existingNotes,
+          initialPaymentUniversity: paymentData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
     }
 
-    // If moving to Interview phase, save interview status
+    // If moving to Interview phase or updating Interview status, save interview status
     if (currentPhase === 'INTERVIEW' && req.body.interviewStatus) {
       const { interviewStatus } = req.body;
       
@@ -2517,24 +3189,35 @@ Need help? Contact your counselor for assistance.`;
         });
       }
 
-      // Get existing notes
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
-      
       // Store interview status
       const interviewData = {
         status: interviewStatus,
         updatedAt: new Date().toISOString()
       };
 
-      const updatedNotes = {
-        ...existingNotes,
-        interviewStatus: interviewData
-      };
-      
-      await student.update({ notes: JSON.stringify(updatedNotes) });
+      // If country is specified, store in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        const updatedCountryNotes = {
+          ...countryNotes,
+          interviewStatus: interviewData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes for backward compatibility
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          interviewStatus: interviewData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
     }
 
-    // If moving to CAS & Visa phase, save CAS & Visa status
+    // If moving to CAS & Visa phase or updating CAS & Visa status, save CAS & Visa status
     if (currentPhase === 'CAS_VISA' && req.body.casVisaStatus) {
       const { casVisaStatus } = req.body;
       
@@ -2545,21 +3228,71 @@ Need help? Contact your counselor for assistance.`;
         });
       }
 
-      // Get existing notes
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
-      
       // Store CAS & Visa status
       const casVisaData = {
         status: casVisaStatus,
         updatedAt: new Date().toISOString()
       };
 
-      const updatedNotes = {
-        ...existingNotes,
-        casVisaStatus: casVisaData
-      };
+      // If country is specified, store in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        const updatedCountryNotes = {
+          ...countryNotes,
+          casVisaStatus: casVisaData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes for backward compatibility
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          casVisaStatus: casVisaData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
+    }
+
+    // If moving to Visa Process phase or updating Visa status, save Visa status
+    if (currentPhase === 'VISA_APPLICATION' && req.body.visaStatus) {
+      const { visaStatus } = req.body;
       
-      await student.update({ notes: JSON.stringify(updatedNotes) });
+      // Validate Visa status
+      if (!['APPROVED', 'REFUSED', 'STOPPED'].includes(visaStatus)) {
+        return res.status(400).json({
+          message: 'Invalid Visa status. Must be APPROVED, REFUSED, or STOPPED.'
+        });
+      }
+
+      // Store Visa status
+      const visaData = {
+        status: visaStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      // If country is specified, store in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        const updatedCountryNotes = {
+          ...countryNotes,
+          visaStatus: visaData
+        };
+        await countryProfile.update({ 
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes for backward compatibility
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          visaStatus: visaData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
     }
 
     // If moving to Financial & TB Test phase, save financial option
@@ -2574,7 +3307,7 @@ Need help? Contact your counselor for assistance.`;
       }
 
       // Get existing notes
-      const existingNotes = student.notes ? JSON.parse(student.notes) : {};
+      const existingNotes = safeParseNotes(student.notes);
       
       // Map values to display labels
       const financialOptionLabels = {
@@ -2600,6 +3333,8 @@ Need help? Contact your counselor for assistance.`;
 
     // Create activity log entry for phase change
     let activityDescription;
+    const countryPrefix = country ? `[${country}] ` : '';
+    
     if (previousPhase === currentPhase && currentPhase === 'INTERVIEW' && req.body.interviewStatus) {
       // Just updating interview status without changing phase
       const statusLabels = {
@@ -2608,8 +3343,8 @@ Need help? Contact your counselor for assistance.`;
         'STOPPED': 'Stopped'
       };
       activityDescription = remarks 
-        ? `Interview status updated to ${statusLabels[req.body.interviewStatus]}. Remarks: ${remarks}`
-        : `Interview status updated to ${statusLabels[req.body.interviewStatus]}`;
+        ? `${countryPrefix}Interview status updated to ${statusLabels[req.body.interviewStatus]}. Remarks: ${remarks}`
+        : `${countryPrefix}Interview status updated to ${statusLabels[req.body.interviewStatus]}`;
     } else if (previousPhase === currentPhase && currentPhase === 'CAS_VISA' && req.body.casVisaStatus) {
       // Just updating CAS & Visa status without changing phase
       const statusLabels = {
@@ -2618,13 +3353,23 @@ Need help? Contact your counselor for assistance.`;
         'STOPPED': 'Stopped'
       };
       activityDescription = remarks 
-        ? `CAS & Visa status updated to ${statusLabels[req.body.casVisaStatus]}. Remarks: ${remarks}`
-        : `CAS & Visa status updated to ${statusLabels[req.body.casVisaStatus]}`;
+        ? `${countryPrefix}CAS Process status updated to ${statusLabels[req.body.casVisaStatus]}. Remarks: ${remarks}`
+        : `${countryPrefix}CAS Process status updated to ${statusLabels[req.body.casVisaStatus]}`;
+    } else if (previousPhase === currentPhase && currentPhase === 'VISA_APPLICATION' && req.body.visaStatus) {
+      // Just updating Visa status without changing phase
+      const statusLabels = {
+        'APPROVED': 'Approved',
+        'REFUSED': 'Refused',
+        'STOPPED': 'Stopped'
+      };
+      activityDescription = remarks 
+        ? `${countryPrefix}Visa Process status updated to ${statusLabels[req.body.visaStatus]}. Remarks: ${remarks}`
+        : `${countryPrefix}Visa Process status updated to ${statusLabels[req.body.visaStatus]}`;
     } else {
       // Normal phase change
       activityDescription = remarks 
-        ? `Phase changed from ${previousPhase} to ${currentPhase}. Remarks: ${remarks}`
-        : `Phase changed from ${previousPhase} to ${currentPhase}`;
+        ? `${countryPrefix}Phase changed from ${previousPhase.replace(/_/g, ' ')} to ${currentPhase.replace(/_/g, ' ')}. Remarks: ${remarks}`
+        : `${countryPrefix}Phase changed from ${previousPhase.replace(/_/g, ' ')} to ${currentPhase.replace(/_/g, ' ')}`;
     }
     try {
       const activity = await Activity.create({
@@ -2636,6 +3381,7 @@ Need help? Contact your counselor for assistance.`;
           previousPhase,
           newPhase: currentPhase,
           remarks: remarks || null,
+          country: country || null,
           timestamp: new Date().toISOString()
         }
       });
@@ -2654,8 +3400,8 @@ Need help? Contact your counselor for assistance.`;
           'INITIAL_PAYMENT': 'Initial Payment',
           'INTERVIEW': 'Interview',
           'FINANCIAL_TB_TEST': 'Financial & TB Test',
-          'CAS_VISA': 'CAS & Visa',
-          'VISA_APPLICATION': 'Visa Application',
+          'CAS_VISA': 'CAS Process',
+          'VISA_APPLICATION': 'Visa Process',
           'ENROLLMENT': 'Enrollment'
         };
 
@@ -2663,13 +3409,14 @@ Need help? Contact your counselor for assistance.`;
           userId: student.marketingOwnerId,
           type: 'application_progress',
           title: `Application Progress Updated: ${student.firstName} ${student.lastName}`,
-          message: `Application progress has been updated from ${phaseLabels[previousPhase] || previousPhase.replace(/_/g, ' ')} to ${phaseLabels[currentPhase] || currentPhase.replace(/_/g, ' ')}.${remarks ? ` Remarks: ${remarks}` : ''}`,
+          message: `${country ? `[${country}] ` : ''}Application progress has been updated from ${phaseLabels[previousPhase] || previousPhase.replace(/_/g, ' ')} to ${phaseLabels[currentPhase] || currentPhase.replace(/_/g, ' ')}.${remarks ? ` Remarks: ${remarks}` : ''}`,
           priority: 'medium',
           leadId: student.id,
           isRead: false,
           metadata: {
             previousPhase: previousPhase,
             newPhase: currentPhase,
+            country: country || null,
             studentName: `${student.firstName} ${student.lastName}`,
             remarks: remarks || null
           }
@@ -2683,16 +3430,28 @@ Need help? Contact your counselor for assistance.`;
     // Clear dashboard cache to ensure stats update
     const cacheKey = `dashboard:${counselorId}`;
     await cacheUtils.del(cacheKey);
+    
+    // Reload country profile if it was updated
+    if (countryProfile) {
+      await countryProfile.reload();
+    }
+    
     res.json({
-      message: 'Student phase updated successfully',
+      message: country ? `Country phase updated successfully for ${country}` : 'Student phase updated successfully',
       student: {
         id: student.id,
         firstName: student.firstName,
         lastName: student.lastName,
-        currentPhase: student.currentPhase,
+        currentPhase: countryProfile ? countryProfile.currentPhase : student.currentPhase,
         status: student.status,
         updatedAt: student.updatedAt
-      }
+      },
+      country: country || null,
+      countryProfile: countryProfile ? {
+        id: countryProfile.id,
+        country: countryProfile.country,
+        currentPhase: countryProfile.currentPhase
+      } : null
     });
   } catch (error) {
     console.error('Error updating student phase:', error);

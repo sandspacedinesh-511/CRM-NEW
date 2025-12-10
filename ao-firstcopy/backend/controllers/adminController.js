@@ -1761,7 +1761,19 @@ exports.downloadLeadDocuments = async (req, res) => {
 
 exports.getUniversities = async (req, res) => {
   try {
+    const { country, page = 1, limit = 10 } = req.query;
+    
+    const where = {};
+    if (country && country !== 'ALL') {
+      where.country = country;
+    }
+
+    // Get total count
+    const totalCount = await University.count({ where });
+
+    // Get universities with pagination (simplified - without studentCount for now)
     const universities = await University.findAll({
+      where,
       attributes: [
         'id',
         'name',
@@ -1774,42 +1786,48 @@ exports.getUniversities = async (req, res) => {
         'requirements',
         'active',
         'createdAt',
-        'updatedAt',
-        [
-          Sequelize.fn('COUNT', Sequelize.col('applications.id')),
-          'studentCount'
-        ]
+        'updatedAt'
       ],
-      include: [{
-        model: StudentUniversityApplication,
-        as: 'applications',
-        attributes: [],
-        required: false
-      }],
-      group: [
-        'University.id',
-        'University.name',
-        'University.country',
-        'University.city',
-        'University.website',
-        'University.ranking',
-        'University.acceptanceRate',
-        'University.description',
-        'University.requirements',
-        'University.active',
-        'University.createdAt',
-        'University.updatedAt'
-      ],
-      order: [['name', 'ASC']]
+      order: [['name', 'ASC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
     });
 
+    // Get student counts separately for the fetched universities
+    const universityIds = universities.map(u => u.id);
+    let studentCountsMap = {};
+    
+    try {
+      if (universityIds.length > 0) {
+        // Use a simpler approach - count for each university
+        const counts = await Promise.all(
+          universityIds.map(async (uniId) => {
+            const count = await StudentUniversityApplication.count({
+              where: { universityId: uniId }
+            });
+            return { universityId: uniId, count };
+          })
+        );
+        
+        counts.forEach(({ universityId, count }) => {
+          studentCountsMap[universityId] = count;
+        });
+      }
+    } catch (countError) {
+      console.error('Error fetching student counts:', countError);
+      // Continue without student counts if there's an error
+    }
+    
     res.json({
       success: true,
       message: 'Universities fetched successfully',
       data: universities.map(uni => ({
         ...uni.get({ plain: true }),
-        studentCount: parseInt(uni.getDataValue('studentCount') || 0)
-      }))
+        studentCount: studentCountsMap[uni.id] || 0
+      })),
+      total: totalCount,
+      page: parseInt(page),
+      totalPages: Math.ceil(totalCount / parseInt(limit))
     });
   } catch (error) {
     console.error('Error fetching universities:', error);
@@ -2004,6 +2022,9 @@ exports.bulkImportUniversities = async (req, res) => {
       });
     }
 
+    // Get country from request body (if provided, it will override country from Excel)
+    const selectedCountry = req.body.country ? String(req.body.country).trim() : null;
+
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const firstSheetName = workbook.SheetNames[0];
 
@@ -2038,11 +2059,21 @@ exports.bulkImportUniversities = async (req, res) => {
       }
     });
 
-    // Check for required fields
-    if (columnMapping['name'] === undefined || columnMapping['country'] === undefined) {
+    // Check for required fields - if country is provided in request, only name is required from Excel
+    if (columnMapping['name'] === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Excel file must contain "University Name" (or "Name") and "University Country" (or "Country") columns.',
+        message: 'Excel file must contain "University Name" (or "Name") column.',
+        availableColumns: headerRow,
+        mappedColumns: Object.keys(columnMapping)
+      });
+    }
+
+    // If country is not provided in request, check if it's in Excel
+    if (!selectedCountry && columnMapping['country'] === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either provide a country in the upload form, or Excel file must contain "University Country" (or "Country") column.',
         availableColumns: headerRow,
         mappedColumns: Object.keys(columnMapping)
       });
@@ -2072,9 +2103,12 @@ exports.bulkImportUniversities = async (req, res) => {
 
       try {
         // Extract data based on column mapping
+        // Use selectedCountry from request if provided, otherwise use country from Excel
+        const countryValue = selectedCountry || (columnMapping['country'] !== undefined && row[columnMapping['country']] ? String(row[columnMapping['country']]).trim() : null);
+        
         const universityData = {
           name: row[columnMapping['name']] ? String(row[columnMapping['name']]).trim() : null,
-          country: row[columnMapping['country']] ? String(row[columnMapping['country']]).trim() : null,
+          country: countryValue,
           city: columnMapping['city'] !== undefined ? (row[columnMapping['city']] ? String(row[columnMapping['city']]).trim() : null) : null,
           website: columnMapping['website'] !== undefined ? (row[columnMapping['website']] ? String(row[columnMapping['website']]).trim() : null) : null,
           ranking: columnMapping['ranking'] !== undefined ? (row[columnMapping['ranking']] ? parseInt(row[columnMapping['ranking']]) || null : null) : null,

@@ -70,6 +70,10 @@ Note.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 Student.hasMany(Activity, { foreignKey: 'studentId', as: 'activities' });
 Activity.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 
+// ApplicationCountry associations
+Student.hasMany(ApplicationCountry, { foreignKey: 'studentId', as: 'countryProfiles' });
+ApplicationCountry.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
 // University associations
 University.hasMany(StudentUniversityApplication, { foreignKey: 'universityId', as: 'applications' });
 StudentUniversityApplication.belongsTo(University, { foreignKey: 'universityId', as: 'university' });

@@ -49,7 +49,8 @@ import {
   AccountBoxOutlinedAlt as AccountBoxOutlinedAltIcon, AccountBalanceOutlinedAlt as AccountBalanceOutlinedAltIcon,
   AccountBalanceWalletOutlinedAlt as AccountBalanceWalletOutlinedAltIcon, AccountTreeOutlinedAlt as AccountTreeOutlinedAltIcon,
   Speed as SpeedIcon, Star as StarIcon, Bolt as BoltIcon, MoreVert as MoreVertIcon, ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon, Close as CloseIcon, Download as DownloadIcon, Upload as UploadIcon
+  ExpandLess as ExpandLessIcon, Close as CloseIcon, Download as DownloadIcon, Upload as UploadIcon,
+  Flag as FlagIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -99,6 +100,9 @@ function StudentList() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [pendingSharedLeads, setPendingSharedLeads] = useState([]);
+  const [countryDialogOpen, setCountryDialogOpen] = useState(false);
+  const [selectedStudentForCountry, setSelectedStudentForCountry] = useState(null);
+  const [countryLoading, setCountryLoading] = useState(false);
 
   const navigate = useNavigate();
   const theme = useTheme();
@@ -173,6 +177,54 @@ function StudentList() {
     setShareTargetCounselorId('');
     setShareDialogOpen(true);
     fetchShareCounselors();
+  };
+
+  const handleOpenCountryDialog = (student) => {
+    setSelectedStudentForCountry(student);
+    setCountryDialogOpen(true);
+  };
+
+  const handleCreateCountryProfile = async (country) => {
+    if (!selectedStudentForCountry) {
+      setError('No student selected');
+      return;
+    }
+
+    if (!country) {
+      setError('No country selected');
+      return;
+    }
+
+    try {
+      setCountryLoading(true);
+      setError(null);
+      
+      const payload = {
+        studentId: parseInt(selectedStudentForCountry.id, 10),
+        country: country
+      };
+
+      console.log('Creating country profile with payload:', payload);
+      console.log('Selected student:', selectedStudentForCountry);
+
+      const response = await axiosInstance.post('/counselor/students/country-profile', payload);
+
+      if (response.data.success) {
+        setCountryDialogOpen(false);
+        setSelectedStudentForCountry(null);
+        setSuccess(`Country profile for ${country} created successfully! Application progress starts from the beginning.`);
+        setTimeout(() => setSuccess(null), 5000);
+        fetchStudents();
+      } else {
+        setError(response.data.message || 'Failed to create country profile');
+      }
+    } catch (error) {
+      console.error('Error creating country profile:', error);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to create country profile. Please try again.';
+      setError(errorMsg);
+    } finally {
+      setCountryLoading(false);
+    }
   };
 
   const handleShareLead = async () => {
@@ -883,6 +935,7 @@ Need help? Contact your counselor for assistance.`;
                       onViewDetails={handleViewStudentDetails}
                       onEditStudent={handleEditStudent}
                       onShareLead={handleOpenShareDialog}
+                      onCreateCountryProfile={handleOpenCountryDialog}
                     />
                   </Grid>
                 ))}
@@ -1034,6 +1087,18 @@ Need help? Contact your counselor for assistance.`;
                                   onClick={() => handleEditStudent(student.id)}
                                 >
                                   <EditIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Add Country Profile">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCountryDialog(student);
+                                  }}
+                                >
+                                  <AddIcon />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Delete Student">
@@ -1251,6 +1316,106 @@ Need help? Contact your counselor for assistance.`;
               disabled={!shareTargetCounselorId || shareLoading}
             >
               {shareLoading ? 'Sharing…' : 'Share Lead'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Country Profile Selection Dialog */}
+        <Dialog
+          open={countryDialogOpen}
+          onClose={() => {
+            if (!countryLoading) {
+              setCountryDialogOpen(false);
+              setSelectedStudentForCountry(null);
+            }
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            pb: 2
+          }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.main
+            }}>
+              <FlagIcon />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Create Country Profile
+              </Typography>
+              {selectedStudentForCountry && (
+                <Typography variant="body2" color="textSecondary">
+                  For {selectedStudentForCountry.firstName} {selectedStudentForCountry.lastName}
+                </Typography>
+              )}
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+              Select a country to create a new profile. The application progress will start from the beginning (Document Collection phase).
+            </Typography>
+            <Grid container spacing={2}>
+              {['USA', 'UK', 'Canada', 'Australia', 'Italy', 'Germany', 'France', 'Ireland'].map((country) => (
+                <Grid item xs={6} sm={4} key={country}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => handleCreateCountryProfile(country)}
+                    disabled={countryLoading}
+                    sx={{
+                      py: 2,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                      },
+                      transition: 'all 0.2s ease-in-out'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      <FlagIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {country}
+                      </Typography>
+                    </Box>
+                  </Button>
+                </Grid>
+              ))}
+            </Grid>
+            {countryLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                if (!countryLoading) {
+                  setCountryDialogOpen(false);
+                  setSelectedStudentForCountry(null);
+                }
+              }}
+              disabled={countryLoading}
+            >
+              Cancel
             </Button>
           </DialogActions>
         </Dialog>

@@ -303,6 +303,35 @@ exports.createLead = async (req, res) => {
       notes: JSON.stringify(notesPayload)
     });
 
+    // Auto-create country profiles from selected countries
+    if (Array.isArray(countries) && countries.length > 0) {
+      const { ApplicationCountry } = require('../models');
+      for (const country of countries) {
+        try {
+          await ApplicationCountry.create({
+            studentId: student.id,
+            country: country.trim(),
+            currentPhase: 'DOCUMENT_COLLECTION',
+            totalApplications: 0,
+            primaryApplications: 0,
+            backupApplications: 0,
+            acceptedApplications: 0,
+            rejectedApplications: 0,
+            pendingApplications: 0,
+            totalApplicationFees: 0,
+            totalScholarshipAmount: 0,
+            visaRequired: true,
+            visaStatus: 'NOT_STARTED',
+            preferredCountry: false,
+            notes: `Country profile auto-created from lead: ${country.trim()}. Application progress starts from beginning.`
+          });
+        } catch (error) {
+          // Log but don't fail - country profile creation is not critical
+          console.error(`Error creating country profile for ${country}:`, error.message);
+        }
+      }
+    }
+
     // Log marketing activity for this new lead
     await Activity.create({
       type: 'LEAD_CREATED',

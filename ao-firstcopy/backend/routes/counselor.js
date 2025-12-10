@@ -69,6 +69,11 @@ router.post('/applications', counselorController.createApplication);
 router.put('/applications/:id', counselorController.updateApplication);
 router.delete('/applications/:id', counselorController.deleteApplication);
 
+// Country profile routes
+router.get('/students/:id/country-profiles', counselorController.getStudentCountryProfiles);
+router.post('/students/country-profile', counselorController.createCountryProfile);
+router.post('/students/auto-create-country-profiles', counselorController.autoCreateCountryProfiles);
+
 // Student notes routes
 router.get('/students/:id/notes', counselorController.getStudentNotes);
 router.post('/students/:id/notes', counselorController.addNote);
