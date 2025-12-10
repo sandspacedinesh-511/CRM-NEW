@@ -1159,20 +1159,7 @@ function StudentDetails() {
     try {
       const response = await axiosInstance.get(`/counselor/students/${id}/country-profiles`);
       const profiles = response.data.success ? response.data.data : [];
-
-      // Clean up country names if they are JSON strings or contain quotes
-      // We use a robust cleanup to remove all brackets and quotes [ ] " which are artifacts of JSON stringification
-      const cleanedProfiles = profiles.map(profile => {
-        let cleanCountry = profile.country;
-        if (typeof cleanCountry === 'string') {
-          // Robust cleanup: remove all instances of [, ], and "
-          // This handles ["Canada"], "USA", ["Germany"] etc.
-          cleanCountry = cleanCountry.replace(/[\[\]"]/g, '');
-        }
-        return { ...profile, country: cleanCountry };
-      });
-
-      setCountryProfiles(cleanedProfiles);
+      setCountryProfiles(profiles);
 
       // Auto-select first profile if available and none selected
       if (cleanedProfiles.length > 0 && !selectedCountry) {
@@ -2654,13 +2641,13 @@ function StudentDetails() {
           </Box>
 
           {/* Upload Dialog */}
-          <Dialog
+        <Dialog
             open={openUploadDialog}
             onClose={() => setOpenUploadDialog(false)}
             maxWidth="sm"
             fullWidth
           >
-            <DialogTitle>Upload Document</DialogTitle>
+          <DialogTitle>Upload Document</DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
                 {/* Missing Documents Section */}
@@ -2689,55 +2676,62 @@ function StudentDetails() {
                         );
                       })}
                     </Box>
+
+
+                    
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          placeholder="Search documents..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          InputProps={{
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                          }}
+                          sx={{ borderRadius: 2 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="Status"
+                          value={filterStatus}
+                          onChange={(e) => setFilterStatus(e.target.value)}
+                          sx={{ borderRadius: 2 }}
+                        >
+                          <MenuItem value="ALL">All Status</MenuItem>
+                          <MenuItem value="APPROVED">Approved</MenuItem>
+                          <MenuItem value="PENDING">Pending</MenuItem>
+                          <MenuItem value="REJECTED">Rejected</MenuItem>
+                          <MenuItem value="EXPIRED">Expired</MenuItem>
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          startIcon={<FilterIcon />}
+                          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                          size="small"
+                          sx={{ borderRadius: 2 }}
+                        >
+                          {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                        </Button>
+                      </Grid>
+                    </Grid>
                   </Box>
                 )}
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Search documents..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                      }}
-                      sx={{ borderRadius: 2 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      label="Status"
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <MenuItem value="ALL">All Status</MenuItem>
-                      <MenuItem value="APPROVED">Approved</MenuItem>
-                      <MenuItem value="PENDING">Pending</MenuItem>
-                      <MenuItem value="REJECTED">Rejected</MenuItem>
-                      <MenuItem value="EXPIRED">Expired</MenuItem>
-                    </TextField>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<FilterIcon />}
-                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                      size="small"
-                      sx={{ borderRadius: 2 }}
-                    >
-                      {showAdvancedFilters ? 'Hide' : 'Show'} Filters
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Box>
+              </Box>  
+
+         
             </DialogContent>
-          </Dialog>
+        </Dialog>
+
 
           {/* Enhanced Search and Filters */}
           <Box sx={{ mb: 3 }}>

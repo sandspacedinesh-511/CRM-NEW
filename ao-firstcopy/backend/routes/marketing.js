@@ -15,6 +15,7 @@ router.post('/leads/:id/documents/upload', documentController.upload.single('fil
 router.post('/leads/reminder', marketingController.saveReminder);
 router.post('/leads/remarks', marketingController.saveRemarks);
 router.get('/leads/:id/applications', marketingController.getLeadApplications);
+router.get('/leads/:id/country-profiles', marketingController.getLeadCountryProfiles);
 router.get('/leads/:id', marketingController.getLeadDetails);
 router.get('/leads', marketingController.getLeads);
 router.get('/activities', marketingController.getActivities);

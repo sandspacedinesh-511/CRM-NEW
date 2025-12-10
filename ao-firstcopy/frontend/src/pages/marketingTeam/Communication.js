@@ -34,7 +34,11 @@ import {
   StepContent,
   Badge,
   LinearProgress,
-  Snackbar
+  Snackbar,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -86,6 +90,7 @@ function MarketingCommunication() {
   const [loadingLeadDetails, setLoadingLeadDetails] = useState(false);
   const [leadDocuments, setLeadDocuments] = useState([]);
   const [leadApplications, setLeadApplications] = useState([]);
+  const [countryProfiles, setCountryProfiles] = useState([]);
   const [uploadingDocuments, setUploadingDocuments] = useState({
     idCard: false,
     enrollmentLetter: false,
@@ -115,6 +120,7 @@ function MarketingCommunication() {
   const [savingReminder, setSavingReminder] = useState(false);
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -300,11 +306,12 @@ function MarketingCommunication() {
     try {
       setLoadingLeadDetails(true);
       
-      // Fetch lead details, documents, and applications in parallel
-      const [leadResponse, documentsResponse, applicationsResponse] = await Promise.all([
+      // Fetch lead details, documents, applications, and country profiles in parallel
+      const [leadResponse, documentsResponse, applicationsResponse, countryProfilesResponse] = await Promise.all([
         axiosInstance.get(`/marketing/leads/${leadId}`).catch(() => null),
         axiosInstance.get(`/marketing/leads/${leadId}/documents`).catch(() => ({ data: { success: true, data: [] } })),
-        axiosInstance.get(`/marketing/leads/${leadId}/applications`).catch(() => ({ data: { success: true, data: [] } }))
+        axiosInstance.get(`/marketing/leads/${leadId}/applications`).catch(() => ({ data: { success: true, data: [] } })),
+        axiosInstance.get(`/marketing/leads/${leadId}/country-profiles`).catch(() => ({ data: { success: true, data: [] } }))
       ]);
 
       // Set lead details
@@ -366,6 +373,13 @@ function MarketingCommunication() {
       } else {
         setLeadApplications([]);
       }
+
+      // Set country profiles
+      if (countryProfilesResponse?.data?.success) {
+        setCountryProfiles(countryProfilesResponse.data.data || []);
+      } else {
+        setCountryProfiles([]);
+      }
     } catch (err) {
       console.error('Error loading lead details:', err);
       // Fallback to lead data we already have
@@ -385,6 +399,7 @@ function MarketingCommunication() {
     setMessage('');
     setLeadDocuments([]);
     setLeadApplications([]);
+    setCountryProfiles([]);
     setDocumentFiles({
       idCard: null,
       enrollmentLetter: null,
@@ -406,6 +421,7 @@ function MarketingCommunication() {
       text: ''
     });
     setRemarks('');
+    setSelectedCountry(null);
   };
 
   const handleFileSelect = (type, event) => {
@@ -1061,24 +1077,124 @@ function MarketingCommunication() {
             </Box>
           ) : (
             <Box>
-              {/* Application Progress Section */}
+              {/* Application Progress Section - Display for selected country */}
               {selectedLeadDetails && (
                 <Box sx={{ mb: 4 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                    Application Progress
-                  </Typography>
-                  <StudentProgressBar
-                    student={{
-                      id: selectedLeadDetails.id,
-                      firstName: selectedLeadDetails.firstName,
-                      lastName: selectedLeadDetails.lastName,
-                      currentPhase: selectedLeadDetails.currentPhase,
-                      status: selectedLeadDetails.status,
-                      ...selectedLeadDetails
-                    }}
-                    documents={leadDocuments || []}
-                    applications={leadApplications || []}
-                  />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Application Progress
+                    </Typography>
+                    {countryProfiles && countryProfiles.length > 0 && (
+                      <FormControl size="small" sx={{ minWidth: 250 }}>
+                        <InputLabel>Select Country</InputLabel>
+                        <Select
+                          value={selectedCountry || ''}
+                          onChange={(e) => setSelectedCountry(e.target.value)}
+                          label="Select Country"
+                        >
+                          <MenuItem value="">
+                            <em>All Countries</em>
+                          </MenuItem>
+                          {countryProfiles.map((profile) => (
+                            <MenuItem key={profile.id || profile.country} value={profile.country}>
+                              {profile.country}
+                              {profile.preferredCountry && ' ⭐'}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
+                  {countryProfiles && countryProfiles.length > 0 ? (
+                    selectedCountry ? (
+                      // Show progress for selected country
+                      (() => {
+                        const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
+                        if (!countryProfile) {
+                          return (
+                            <Typography variant="body2" color="text.secondary">
+                              Country profile not found.
+                            </Typography>
+                          );
+                        }
+                        return (
+                          <Box>
+                            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                {countryProfile.country}
+                              </Typography>
+                              {countryProfile.preferredCountry && (
+                                <Chip 
+                                  label="Preferred" 
+                                  size="small" 
+                                  color="primary" 
+                                  variant="outlined"
+                                />
+                              )}
+                              <Chip 
+                                label={`Phase: ${countryProfile.currentPhase?.replace(/_/g, ' ') || 'Not Started'}`} 
+                                size="small" 
+                                color="secondary"
+                                variant="outlined"
+                              />
+                            </Box>
+                            <StudentProgressBar
+                              student={{
+                                id: selectedLeadDetails.id,
+                                firstName: selectedLeadDetails.firstName,
+                                lastName: selectedLeadDetails.lastName,
+                                currentPhase: countryProfile.currentPhase || selectedLeadDetails.currentPhase,
+                                status: selectedLeadDetails.status,
+                                marketingOwnerId: selectedLeadDetails.marketingOwnerId,
+                                ...selectedLeadDetails
+                              }}
+                              documents={leadDocuments || []}
+                              applications={leadApplications || []}
+                              countryProfiles={[countryProfile]}
+                              selectedCountry={selectedCountry}
+                            />
+                          </Box>
+                        );
+                      })()
+                    ) : (
+                      // Show overall progress when "All Countries" is selected
+                      <StudentProgressBar
+                        student={{
+                          id: selectedLeadDetails.id,
+                          firstName: selectedLeadDetails.firstName,
+                          lastName: selectedLeadDetails.lastName,
+                          currentPhase: selectedLeadDetails.currentPhase,
+                          status: selectedLeadDetails.status,
+                          marketingOwnerId: selectedLeadDetails.marketingOwnerId,
+                          ...selectedLeadDetails
+                        }}
+                        documents={leadDocuments || []}
+                        applications={leadApplications || []}
+                        countryProfiles={countryProfiles}
+                        selectedCountry={null}
+                      />
+                    )
+                  ) : (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        No country profiles found. Showing overall progress.
+                      </Typography>
+                      <StudentProgressBar
+                        student={{
+                          id: selectedLeadDetails.id,
+                          firstName: selectedLeadDetails.firstName,
+                          lastName: selectedLeadDetails.lastName,
+                          currentPhase: selectedLeadDetails.currentPhase,
+                          status: selectedLeadDetails.status,
+                          marketingOwnerId: selectedLeadDetails.marketingOwnerId,
+                          ...selectedLeadDetails
+                        }}
+                        documents={leadDocuments || []}
+                        applications={leadApplications || []}
+                        countryProfiles={[]}
+                      />
+                    </Box>
+                  )}
                 </Box>
               )}
 
