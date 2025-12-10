@@ -1,5 +1,5 @@
 const { Op, fn, col, literal } = require('sequelize');
-const { Student, Activity, User, Document, StudentUniversityApplication, University, Notification } = require('../models');
+const { Student, Activity, User, Document, StudentUniversityApplication, University, Notification, ApplicationCountry } = require('../models');
 const { performanceLogger, errorLogger } = require('../utils/logger');
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1739,6 +1739,56 @@ exports.getLeadApplications = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch lead applications',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get country profiles for lead
+exports.getLeadCountryProfiles = async (req, res) => {
+  const timer = performanceLogger.startTimer('marketing_lead_country_profiles');
+
+  try {
+    // First, verify the lead belongs to this marketing user
+    const lead = await Student.findOne({
+      where: {
+        id: req.params.id,
+        marketingOwnerId: req.user.id
+      }
+    });
+
+    if (!lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    // Get all country profiles for this lead
+    const countryProfiles = await ApplicationCountry.findAll({
+      where: { studentId: req.params.id },
+      order: [['preferredCountry', 'DESC'], ['country', 'ASC']]
+    });
+
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/country-profiles`, duration, 200, req.user.id);
+
+    res.json({
+      success: true,
+      data: countryProfiles
+    });
+  } catch (error) {
+    const duration = timer.end();
+    performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/country-profiles`, duration, 500, req.user.id);
+    errorLogger.logError(error, {
+      scope: 'marketing_lead_country_profiles',
+      userId: req.user.id,
+      leadId: req.params.id
+    });
+    console.error('Error fetching lead country profiles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lead country profiles',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
