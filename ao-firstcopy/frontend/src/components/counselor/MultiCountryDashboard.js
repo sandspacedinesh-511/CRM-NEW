@@ -7,6 +7,7 @@ import {
   Typography,
   Grid,
   Chip,
+  LinearProgress,
   Table,
   TableBody,
   TableCell,
@@ -182,6 +183,7 @@ const MultiCountryDashboard = () => {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -231,6 +233,48 @@ const MultiCountryDashboard = () => {
       'Germany': '🇩🇪'
     };
     return flagMap[country] || '🏳️';
+  };
+
+  // Get statistics for each country
+  const getCountryStatistics = () => {
+    const countryMap = new Map();
+
+    students.forEach(student => {
+      student.countries?.forEach(countryData => {
+        const country = countryData.country;
+        if (!countryMap.has(country)) {
+          countryMap.set(country, {
+            country,
+            studentCount: 0,
+            totalProgress: 0,
+            students: []
+          });
+        }
+        const stats = countryMap.get(country);
+        stats.studentCount += 1;
+        stats.totalProgress += countryData.progress || 0;
+        stats.students.push(student);
+      });
+    });
+
+    return Array.from(countryMap.values()).map(stats => ({
+      ...stats,
+      avgProgress: stats.studentCount > 0 ? Math.round(stats.totalProgress / stats.studentCount) : 0
+    })).sort((a, b) => b.studentCount - a.studentCount);
+  };
+
+  // Filter students by selected country
+  const getFilteredStudents = () => {
+    if (!selectedCountry) return students;
+
+    return students.filter(student =>
+      student.countries?.some(c => c.country === selectedCountry)
+    );
+  };
+
+  // Handle country card click
+  const handleCountryClick = (country) => {
+    setSelectedCountry(selectedCountry === country ? null : country);
   };
 
   const handleViewStudentDetails = (student) => {
@@ -287,10 +331,10 @@ const MultiCountryDashboard = () => {
             <Typography variant="h6">
               {student.firstName} {student.lastName}
             </Typography>
-            <Chip 
-              label={`${countries.length} countries`} 
-              color="primary" 
-              size="small" 
+            <Chip
+              label={`${countries.length} countries`}
+              color="primary"
+              size="small"
               sx={{ ml: 2 }}
             />
           </Box>
@@ -302,18 +346,39 @@ const MultiCountryDashboard = () => {
               </Typography>
               <Typography variant="h6">{totalApplications}</Typography>
             </Grid>
-            <Grid item xs={12} md={3}>
-              <Typography variant="subtitle2" color="textSecondary">
-                Countries Applied
+            <Grid item xs={12} md={7}>
+              <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 1 }}>
+                Country Progress
               </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                {countries.map(country => (
-                  <Chip
-                    key={country}
-                    label={country}
-                    size="small"
-                    icon={<span>{getCountryFlag(country)}</span>}
-                  />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {student.countries?.map((countryData, index) => (
+                  <Box key={countryData.country || index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ width: 140, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span style={{ fontSize: '1.2rem' }}>{getCountryFlag(countryData.country)}</span>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {countryData.country}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={countryData.progress || 0}
+                        sx={{
+                          flex: 1,
+                          height: 8,
+                          borderRadius: 4,
+                          bgcolor: 'grey.200',
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 4,
+                            background: (theme) => `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                          }
+                        }}
+                      />
+                      <Typography variant="body2" color="textSecondary" sx={{ minWidth: 40, textAlign: 'right' }}>
+                        {Math.round(countryData.progress || 0)}%
+                      </Typography>
+                    </Box>
+                  </Box>
                 ))}
               </Box>
             </Grid>
@@ -398,24 +463,24 @@ const MultiCountryDashboard = () => {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="primary"
                               onClick={() => handleViewStudentDetails(student)}
                               title="View Details"
                             >
                               <VisibilityIcon />
                             </IconButton>
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="secondary"
                               onClick={() => handleEditApplication(app)}
                               title="Edit Application"
                             >
                               <EditIcon />
                             </IconButton>
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => handleDeleteApplication(app)}
                               title="Delete Application"
@@ -439,7 +504,7 @@ const MultiCountryDashboard = () => {
   const renderStatistics = () => {
     const totalStudents = students.length;
     const totalApplications = students.reduce((sum, student) => sum + (student.applications?.length || 0), 0);
-    const totalCountries = new Set(students.flatMap(student => 
+    const totalCountries = new Set(students.flatMap(student =>
       student.applications?.map(app => app.university?.country).filter(Boolean) || []
     )).size;
 
@@ -522,10 +587,11 @@ const MultiCountryDashboard = () => {
       <Typography variant="h4" gutterBottom>
         Multi-Country Applications Dashboard
       </Typography>
-      
+
+
       {renderStatistics()}
 
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ mt: 3, mb: 2 }}>
         Students with Multiple Country Applications
       </Typography>
 
@@ -562,7 +628,7 @@ const MultiCountryDashboard = () => {
         <DialogTitle>Edit Application</DialogTitle>
         <DialogContent>
           {selectedApplication && (
-            <ApplicationEditForm 
+            <ApplicationEditForm
               application={selectedApplication}
               onSave={handleSaveApplication}
               onCancel={() => setEditDialogOpen(false)}

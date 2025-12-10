@@ -52,7 +52,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Sort as SortIcon,
   Refresh as RefreshIcon,
   Clear as ClearIcon,
@@ -126,7 +125,7 @@ function Applications() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -147,7 +146,6 @@ function Applications() {
   const [universityFilter, setUniversityFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('deadline_asc');
   const [selectedApplications, setSelectedApplications] = useState([]);
-  const [showFilters, setShowFilters] = useState(false);
   const [bulkActionDialog, setBulkActionDialog] = useState(false);
   const [bulkAction, setBulkAction] = useState('');
   const [tabValue, setTabValue] = useState(0);
@@ -196,7 +194,7 @@ function Applications() {
           limit: rowsPerPage
         }
       });
-      
+
       if (response.data.success) {
         setApplications(response.data.data?.applications || []);
         setTotalCount(response.data.data?.total || 0);
@@ -221,13 +219,13 @@ function Applications() {
         axiosInstance.get('/counselor/students'),
         axiosInstance.get('/counselor/universities')
       ]);
-      
+
       if (studentsRes.data.success) {
         setStudents(studentsRes.data.data?.students || []);
       } else {
         setStudents(studentsRes.data.rows || []);
       }
-      
+
       if (universitiesRes.data.success) {
         setUniversities(universitiesRes.data.data?.universities || []);
       } else {
@@ -255,7 +253,7 @@ function Applications() {
   const getUpcomingDeadlines = (apps) => {
     const now = new Date();
     const thirtyDaysFromNow = addDays(now, 30);
-    
+
     return apps
       .filter(app => {
         const deadline = new Date(app.deadline);
@@ -339,9 +337,9 @@ function Applications() {
     if (!isConnected) return;
 
     const cleanupApplicationUpdate = onEvent('application_status_changed', (data) => {
-      setApplications(prev => 
-        prev.map(app => 
-          app.id === data.applicationId 
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === data.applicationId
             ? { ...app, status: data.status, applicationStatus: data.status, updatedAt: data.timestamp }
             : app
         )
@@ -462,7 +460,7 @@ function Applications() {
           status: 'NEXT_STATUS' // You can add a status selector
         });
       }
-      
+
       setSelectedApplications([]);
       setBulkActionDialog(false);
       setBulkAction('');
@@ -482,8 +480,8 @@ function Applications() {
   };
 
   const handleSelectApplication = (applicationId) => {
-    setSelectedApplications(prev => 
-      prev.includes(applicationId) 
+    setSelectedApplications(prev =>
+      prev.includes(applicationId)
         ? prev.filter(id => id !== applicationId)
         : [...prev, applicationId]
     );
@@ -537,7 +535,7 @@ function Applications() {
     const accepted = applications.filter(a => getStatus(a) === 'ACCEPTED').length;
     const rejected = applications.filter(a => getStatus(a) === 'REJECTED').length;
     const overdue = applications.filter(a => isOverdue(a.applicationDeadline) && getStatus(a) === 'PENDING').length;
-    
+
     return { total, pending, submitted, underReview, accepted, rejected, overdue };
   };
 
@@ -579,19 +577,19 @@ function Applications() {
       <Box sx={{ py: 4 }}>
         {/* Header */}
         <Fade in={true} timeout={600}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             mb: 4,
             flexWrap: 'wrap',
             gap: 2
           }}>
             <Box>
-              <Typography 
-                variant="h3" 
-                component="h1" 
-                sx={{ 
+              <Typography
+                variant="h3"
+                component="h1"
+                sx={{
                   fontWeight: 700,
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                   backgroundClip: 'text',
@@ -619,7 +617,7 @@ function Applications() {
               >
                 Refresh
               </Button>
-              
+
               <Button
                 variant={showAnalytics ? "contained" : "outlined"}
                 startIcon={<AnalyticsIcon />}
@@ -672,11 +670,11 @@ function Applications() {
         {/* Multi-Country Application Tabs */}
         <Fade in={true} timeout={1000}>
           <Box sx={{ mb: 4 }}>
-            <Tabs 
-              value={tabValue} 
+            <Tabs
+              value={tabValue}
               onChange={(e, newValue) => setTabValue(newValue)}
-              sx={{ 
-                borderBottom: 1, 
+              sx={{
+                borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
                   textTransform: 'none',
@@ -703,13 +701,13 @@ function Applications() {
                 <AnalyticsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                 Application Analytics
               </Typography>
-              
+
               <Grid container spacing={3}>
                 {/* Statistics Cards */}
                 <Grid item xs={12} md={8}>
                   <Grid container spacing={2}>
                     <Grid item xs={6} sm={3}>
-                      <Card sx={{ 
+                      <Card sx={{
                         background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
                         border: `1px solid ${theme.palette.primary[200]}`,
                         borderRadius: 3,
@@ -728,9 +726,9 @@ function Applications() {
                         </Box>
                       </Card>
                     </Grid>
-                    
+
                     <Grid item xs={6} sm={3}>
-                      <Card sx={{ 
+                      <Card sx={{
                         background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
                         border: `1px solid ${theme.palette.warning[200]}`,
                         borderRadius: 3,
@@ -749,9 +747,9 @@ function Applications() {
                         </Box>
                       </Card>
                     </Grid>
-                    
+
                     <Grid item xs={6} sm={3}>
-                      <Card sx={{ 
+                      <Card sx={{
                         background: `linear-gradient(135deg, ${theme.palette.info[50]} 0%, ${theme.palette.info[100]} 100%)`,
                         border: `1px solid ${theme.palette.info[200]}`,
                         borderRadius: 3,
@@ -770,9 +768,9 @@ function Applications() {
                         </Box>
                       </Card>
                     </Grid>
-                    
+
                     <Grid item xs={6} sm={3}>
-                      <Card sx={{ 
+                      <Card sx={{
                         background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
                         border: `1px solid ${theme.palette.success[200]}`,
                         borderRadius: 3,
@@ -1026,521 +1024,346 @@ function Applications() {
             </Fade>
 
             {/* Stats Cards */}
-        <Fade in={true} timeout={800}>
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
-                border: `1px solid ${theme.palette.primary[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
-                    {stats.total}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Total Applications
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
-                border: `1px solid ${theme.palette.warning[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
-                    {stats.pending}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Pending
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.info[50]} 0%, ${theme.palette.info[100]} 100%)`,
-                border: `1px solid ${theme.palette.info[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.info.main }}>
-                    {stats.submitted}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Submitted
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
-                border: `1px solid ${theme.palette.primary[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
-                    {stats.underReview}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Under Review
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
-                border: `1px solid ${theme.palette.success[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
-                    {stats.accepted}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Accepted
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Card sx={{ 
-                background: `linear-gradient(135deg, ${theme.palette.error[50]} 0%, ${theme.palette.error[100]} 100%)`,
-                border: `1px solid ${theme.palette.error[200]}`
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
-                    {stats.rejected}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Rejected
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Fade>
-
-        {error && (
-          <Fade in={true} timeout={800}>
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 2,
-                '& .MuiAlert-icon': {
-                  fontSize: '1.5rem'
-                }
-              }}
-              onClose={() => setError(null)}
-            >
-              {error}
-            </Alert>
-          </Fade>
-        )}
-
-        {/* Filters */}
-        <Fade in={true} timeout={1000}>
-          <Card sx={{ 
-            mb: 3,
-            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-            border: `1px solid ${theme.palette.divider}`
-          }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Filters & Search
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button
-                    size="small"
-                    startIcon={<FilterIcon />}
-                    onClick={() => setShowFilters(!showFilters)}
-                    variant={showFilters ? "contained" : "outlined"}
-                  >
-                    {showFilters ? 'Hide' : 'Show'} Filters
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<ClearIcon />}
-                    onClick={clearFilters}
-                    variant="outlined"
-                  >
-                    Clear All
-                  </Button>
-                </Box>
-              </Box>
-
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search applications..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{ borderRadius: 2 }}
-                  />
+            <Fade in={true} timeout={800}>
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
+                    border: `1px solid ${theme.palette.primary[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
+                        {stats.total}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Total Applications
+                      </Typography>
+                    </CardContent>
+                  </Card>
                 </Grid>
-                
-                {showFilters && (
-                  <>
-                    <Grid item xs={12} md={2}>
-                      <FormControl fullWidth>
-                        <InputLabel>Status</InputLabel>
-                        <Select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                          label="Status"
-                        >
-                          {STATUS_OPTIONS.map((status) => (
-                            <MenuItem key={status.value} value={status.value}>
-                              {status.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={2}>
-                      <FormControl fullWidth>
-                        <InputLabel>Student</InputLabel>
-                        <Select
-                          value={studentFilter}
-                          onChange={(e) => setStudentFilter(e.target.value)}
-                          label="Student"
-                        >
-                          <MenuItem value="ALL">All Students</MenuItem>
-                          {students.map((student) => (
-                            <MenuItem key={student.id} value={student.id}>
-                              {student.firstName} {student.lastName}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={2}>
-                      <FormControl fullWidth>
-                        <InputLabel>University</InputLabel>
-                        <Select
-                          value={universityFilter}
-                          onChange={(e) => setUniversityFilter(e.target.value)}
-                          label="University"
-                        >
-                          <MenuItem value="ALL">All Universities</MenuItem>
-                          {universities.map((university) => (
-                            <MenuItem key={university.id} value={university.id}>
-                              {university.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={2}>
-                      <FormControl fullWidth>
-                        <InputLabel>Sort By</InputLabel>
-                        <Select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value)}
-                          label="Sort By"
-                        >
-                          {SORT_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  </>
-                )}
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.warning[50]} 0%, ${theme.palette.warning[100]} 100%)`,
+                    border: `1px solid ${theme.palette.warning[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
+                        {stats.pending}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Pending
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.info[50]} 0%, ${theme.palette.info[100]} 100%)`,
+                    border: `1px solid ${theme.palette.info[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.info.main }}>
+                        {stats.submitted}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Submitted
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.primary[50]} 0%, ${theme.palette.primary[100]} 100%)`,
+                    border: `1px solid ${theme.palette.primary[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
+                        {stats.underReview}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Under Review
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.success[50]} 0%, ${theme.palette.success[100]} 100%)`,
+                    border: `1px solid ${theme.palette.success[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
+                        {stats.accepted}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Accepted
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card sx={{
+                    background: `linear-gradient(135deg, ${theme.palette.error[50]} 0%, ${theme.palette.error[100]} 100%)`,
+                    border: `1px solid ${theme.palette.error[200]}`
+                  }}>
+                    <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
+                        {stats.rejected}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Rejected
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
               </Grid>
-            </CardContent>
-          </Card>
-        </Fade>
+            </Fade>
 
-        {/* Bulk Actions */}
-        {selectedApplications.length > 0 && (
-          <Fade in={true} timeout={800}>
-            <Card sx={{ mb: 3, backgroundColor: theme.palette.primary[50] }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Typography variant="body2">
-                    {selectedApplications.length} application(s) selected
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => setBulkActionDialog(true)}
-                    >
-                      Bulk Actions
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => setSelectedApplications([])}
-                    >
-                      Clear Selection
-                    </Button>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Fade>
-        )}
-
-        {/* Applications View */}
-        <Grow in={true} timeout={1200}>
-          {viewMode === 'table' ? (
-            <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-              <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={selectedApplications.length === applications.length && applications.length > 0}
-                        indeterminate={selectedApplications.length > 0 && selectedApplications.length < applications.length}
-                        onChange={handleSelectAll}
-                      />
-                    </TableCell>
-                    <TableCell>Application</TableCell>
-                    <TableCell>Student</TableCell>
-                    <TableCell>University</TableCell>
-                    <TableCell>Course</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Deadline</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {applications.map((application) => {
-                    // Use included data from backend if available, otherwise fallback to separate arrays
-                    const student = application.student || students.find(s => s.id === application.studentId);
-                    const university = application.university || universities.find(u => u.id === application.universityId);
-                    const isOverdueApp = isOverdue(application.applicationDeadline);
-                    const isDueSoonApp = isDueSoon(application.applicationDeadline);
-                    
-                    return (
-                      <TableRow 
-                        key={application.id} 
-                        hover
-                        sx={{
-                          backgroundColor: isOverdueApp ? theme.palette.error[50] : 
-                                          isDueSoonApp ? theme.palette.warning[50] : 'transparent'
-                        }}
-                      >
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={selectedApplications.includes(application.id)}
-                            onChange={() => handleSelectApplication(application.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Avatar sx={{ 
-                              bgcolor: isOverdueApp ? theme.palette.error.main : 
-                                       isDueSoonApp ? theme.palette.warning.main : 
-                                       theme.palette.primary.main 
-                            }}>
-                              <AssignmentIcon />
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                #{application.id}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                {format(new Date(application.createdAt), 'MMM d, yyyy')}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          {student ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <PersonIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                              <Typography variant="body2">
-                                {student.firstName} {student.lastName}
-                              </Typography>
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              N/A
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {university ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <SchoolIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                              <Typography variant="body2">
-                                {university.name}
-                              </Typography>
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" color="textSecondary">
-                              N/A
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {application.courseName}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={APPLICATION_STATUS.find(s => s.value === (application.status || application.applicationStatus))?.label}
-                            color={getStatusColor(application.status || application.applicationStatus)}
-                            size="small"
-                            icon={
-                              (application.status || application.applicationStatus) === 'ACCEPTED' ? <CheckCircleIcon /> :
-                              (application.status || application.applicationStatus) === 'PENDING' ? <WarningIcon /> :
-                              (application.status || application.applicationStatus) === 'REJECTED' ? <ErrorIcon /> : null
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <CalendarIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                            <Typography 
-                              variant="body2"
-                              sx={{ 
-                                color: isOverdueApp ? theme.palette.error.main : 
-                                      isDueSoonApp ? theme.palette.warning.main : 'inherit'
-                              }}
-                            >
-                              {format(new Date(application.applicationDeadline), 'MMM d, yyyy')}
-                            </Typography>
-                          </Box>
-                          {(isOverdueApp || isDueSoonApp) && (
-                            <Chip
-                              label={isOverdueApp ? 'OVERDUE' : `Due in ${differenceInDays(new Date(application.applicationDeadline), new Date())} days`}
-                              color={isOverdueApp ? 'error' : 'warning'}
-                              size="small"
-                              sx={{ mt: 0.5 }}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="View Details">
-                              <IconButton size="small">
-                                <ViewIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleOpenDialog('edit', application)}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDelete(application.id)}
-                                sx={{ color: theme.palette.error.main }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {applications.length === 0 && !loading && (
-              <Box sx={{ 
-                textAlign: 'center', 
-                py: 8,
-                color: theme.palette.text.secondary
-              }}>
-                <AssignmentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  No applications found
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 3 }}>
-                  {searchQuery || statusFilter !== 'ALL' || studentFilter !== 'ALL' 
-                    ? 'Try adjusting your filters or search terms'
-                    : 'Start by adding your first application'
-                  }
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenDialog('add')}
+            {error && (
+              <Fade in={true} timeout={800}>
+                <Alert
+                  severity="error"
+                  sx={{
+                    mb: 3,
+                    borderRadius: 2,
+                    '& .MuiAlert-icon': {
+                      fontSize: '1.5rem'
+                    }
+                  }}
+                  onClose={() => setError(null)}
                 >
-                  Add Application
-                </Button>
-              </Box>
+                  {error}
+                </Alert>
+              </Fade>
             )}
 
-            <TablePagination
-              component="div"
-              count={totalCount}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-            />
-          </Paper>
-          ) : (
-            <Box>
-              <ApplicationCardView
-                applications={applications}
-                onEdit={handleEditApplication}
-                onDelete={handleDeleteApplication}
-                onView={handleViewApplication}
-                getApplicationStatusColor={getApplicationStatusColor}
-                getApplicationStatusIcon={getApplicationStatusIcon}
-                getPriorityColor={getPriorityColor}
-                getPriorityIcon={getPriorityIcon}
-              />
-              
-              {applications.length === 0 && !loading && (
-                <Box sx={{ 
-                  textAlign: 'center', 
-                  py: 8,
-                  color: theme.palette.text.secondary
-                }}>
-                  <AssignmentIcon sx={{ fontSize: '4rem', mb: 2, opacity: 0.5 }} />
-                  <Typography variant="h6" sx={{ mb: 1 }}>
-                    No applications found
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 3 }}>
-                    {searchQuery || statusFilter !== 'ALL' || studentFilter !== 'ALL' 
-                      ? 'Try adjusting your filters or search terms'
-                      : 'Start by adding your first application'
-                    }
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleOpenDialog('add')}
-                  >
-                    Add Application
-                  </Button>
-                </Box>
-              )}
-            </Box>
-          )}
-        </Grow>
+
+
+            {/* Bulk Actions */}
+            {selectedApplications.length > 0 && (
+              <Fade in={true} timeout={800}>
+                <Card sx={{ mb: 3, backgroundColor: theme.palette.primary[50] }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">
+                        {selectedApplications.length} application(s) selected
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setBulkActionDialog(true)}
+                        >
+                          Bulk Actions
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setSelectedApplications([])}
+                        >
+                          Clear Selection
+                        </Button>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Fade>
+            )}
+
+            {/* Applications View */}
+            {applications.length > 0 && (
+              <Grow in={true} timeout={1200}>
+                {viewMode === 'table' ? (
+                  <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: theme.palette.grey[50] }}>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={selectedApplications.length === applications.length && applications.length > 0}
+                                indeterminate={selectedApplications.length > 0 && selectedApplications.length < applications.length}
+                                onChange={handleSelectAll}
+                              />
+                            </TableCell>
+                            <TableCell>Application</TableCell>
+                            <TableCell>Student</TableCell>
+                            <TableCell>University</TableCell>
+                            <TableCell>Course</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Deadline</TableCell>
+                            <TableCell>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {applications.map((application) => {
+                            // Use included data from backend if available, otherwise fallback to separate arrays
+                            const student = application.student || students.find(s => s.id === application.studentId);
+                            const university = application.university || universities.find(u => u.id === application.universityId);
+                            const isOverdueApp = isOverdue(application.applicationDeadline);
+                            const isDueSoonApp = isDueSoon(application.applicationDeadline);
+
+                            return (
+                              <TableRow
+                                key={application.id}
+                                hover
+                                sx={{
+                                  backgroundColor: isOverdueApp ? theme.palette.error[50] :
+                                    isDueSoonApp ? theme.palette.warning[50] : 'transparent'
+                                }}
+                              >
+                                <TableCell padding="checkbox">
+                                  <Checkbox
+                                    checked={selectedApplications.includes(application.id)}
+                                    onChange={() => handleSelectApplication(application.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar sx={{
+                                      bgcolor: isOverdueApp ? theme.palette.error.main :
+                                        isDueSoonApp ? theme.palette.warning.main :
+                                          theme.palette.primary.main
+                                    }}>
+                                      <AssignmentIcon />
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                        #{application.id}
+                                      </Typography>
+                                      <Typography variant="caption" color="textSecondary">
+                                        {format(new Date(application.createdAt), 'MMM d, yyyy')}
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  {student ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <PersonIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+                                      <Typography variant="body2">
+                                        {student.firstName} {student.lastName}
+                                      </Typography>
+                                    </Box>
+                                  ) : (
+                                    <Typography variant="body2" color="textSecondary">
+                                      N/A
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {university ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <SchoolIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+                                      <Typography variant="body2">
+                                        {university.name}
+                                      </Typography>
+                                    </Box>
+                                  ) : (
+                                    <Typography variant="body2" color="textSecondary">
+                                      N/A
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">
+                                    {application.courseName}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={APPLICATION_STATUS.find(s => s.value === (application.status || application.applicationStatus))?.label}
+                                    color={getStatusColor(application.status || application.applicationStatus)}
+                                    size="small"
+                                    icon={
+                                      (application.status || application.applicationStatus) === 'ACCEPTED' ? <CheckCircleIcon /> :
+                                        (application.status || application.applicationStatus) === 'PENDING' ? <WarningIcon /> :
+                                          (application.status || application.applicationStatus) === 'REJECTED' ? <ErrorIcon /> : null
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CalendarIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: isOverdueApp ? theme.palette.error.main :
+                                          isDueSoonApp ? theme.palette.warning.main : 'inherit'
+                                      }}
+                                    >
+                                      {format(new Date(application.applicationDeadline), 'MMM d, yyyy')}
+                                    </Typography>
+                                  </Box>
+                                  {(isOverdueApp || isDueSoonApp) && (
+                                    <Chip
+                                      label={isOverdueApp ? 'OVERDUE' : `Due in ${differenceInDays(new Date(application.applicationDeadline), new Date())} days`}
+                                      color={isOverdueApp ? 'error' : 'warning'}
+                                      size="small"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Tooltip title="View Details">
+                                      <IconButton size="small">
+                                        <ViewIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleOpenDialog('edit', application)}
+                                      >
+                                        <EditIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleDelete(application.id)}
+                                        sx={{ color: theme.palette.error.main }}
+                                      >
+                                        <DeleteIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    <TablePagination
+                      component="div"
+                      count={totalCount}
+                      page={page}
+                      onPageChange={handleChangePage}
+                      rowsPerPage={rowsPerPage}
+                      onRowsPerPageChange={handleChangeRowsPerPage}
+                      rowsPerPageOptions={[5, 10, 25, 50]}
+                    />
+                  </Paper>
+                ) : (
+                  <Box>
+                    <ApplicationCardView
+                      applications={applications}
+                      onEdit={handleEditApplication}
+                      onDelete={handleDeleteApplication}
+                      onView={handleViewApplication}
+                      getApplicationStatusColor={getApplicationStatusColor}
+                      getApplicationStatusIcon={getApplicationStatusIcon}
+                      getPriorityColor={getPriorityColor}
+                      getPriorityIcon={getPriorityIcon}
+                    />
+                  </Box>
+                )
+                }
+              </Grow>
+            )}
           </Box>
         )}
 
@@ -1570,187 +1393,187 @@ function Applications() {
                 ))}
               </Select>
             </FormControl>
-            
+
             {selectedStudentForMultiCountry && (
               <MultiCountryApplicationManager studentId={selectedStudentForMultiCountry} />
             )}
           </Box>
         )}
 
-      {/* Add/Edit Application Dialog */}
-      <Dialog 
-        open={openDialog} 
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {dialogMode === 'add' ? 'Add New Application' : 'Edit Application'}
-        </DialogTitle>
-        <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Student</InputLabel>
-                  <Select
-                    value={formData.studentId}
-                    onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                    label="Student"
+        {/* Add/Edit Application Dialog */}
+        <Dialog
+          open={openDialog}
+          onClose={handleCloseDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {dialogMode === 'add' ? 'Add New Application' : 'Edit Application'}
+          </DialogTitle>
+          <DialogContent>
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Student</InputLabel>
+                    <Select
+                      value={formData.studentId}
+                      onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                      label="Student"
+                      required
+                    >
+                      {students.map((student) => (
+                        <MenuItem key={student.id} value={student.id}>
+                          {student.firstName} {student.lastName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>University</InputLabel>
+                    <Select
+                      value={formData.universityId}
+                      onChange={(e) => setFormData({ ...formData, universityId: e.target.value })}
+                      label="University"
+                      required
+                    >
+                      {universities.map((university) => (
+                        <MenuItem key={university.id} value={university.id}>
+                          {university.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Course Name"
+                    value={formData.courseName}
+                    onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
                     required
-                  >
-                    {students.map((student) => (
-                      <MenuItem key={student.id} value={student.id}>
-                        {student.firstName} {student.lastName}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>University</InputLabel>
-                  <Select
-                    value={formData.universityId}
-                    onChange={(e) => setFormData({ ...formData, universityId: e.target.value })}
-                    label="University"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Application Deadline"
+                    type="date"
+                    value={formData.applicationDeadline}
+                    onChange={(e) => setFormData({ ...formData, applicationDeadline: e.target.value })}
                     required
-                  >
-                    {universities.map((university) => (
-                      <MenuItem key={university.id} value={university.id}>
-                        {university.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      label="Status"
+                    >
+                      {APPLICATION_STATUS.map((status) => (
+                        <MenuItem key={status.value} value={status.value}>
+                          {status.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Application Fee"
+                    value={formData.applicationFee}
+                    onChange={(e) => setFormData({ ...formData, applicationFee: e.target.value })}
+                    type="number"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Interview Date"
+                    type="date"
+                    value={formData.interviewDate}
+                    onChange={(e) => setFormData({ ...formData, interviewDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Offer Deadline"
+                    type="date"
+                    value={formData.offerDeadline}
+                    onChange={(e) => setFormData({ ...formData, offerDeadline: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Documents Required"
+                    value={formData.documentsRequired}
+                    onChange={(e) => setFormData({ ...formData, documentsRequired: e.target.value })}
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    multiline
+                    rows={3}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Course Name"
-                  value={formData.courseName}
-                  onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Application Deadline"
-                  type="date"
-                  value={formData.applicationDeadline}
-                  onChange={(e) => setFormData({ ...formData, applicationDeadline: e.target.value })}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    label="Status"
-                  >
-                    {APPLICATION_STATUS.map((status) => (
-                      <MenuItem key={status.value} value={status.value}>
-                        {status.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Application Fee"
-                  value={formData.applicationFee}
-                  onChange={(e) => setFormData({ ...formData, applicationFee: e.target.value })}
-                  type="number"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Interview Date"
-                  type="date"
-                  value={formData.interviewDate}
-                  onChange={(e) => setFormData({ ...formData, interviewDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Offer Deadline"
-                  type="date"
-                  value={formData.offerDeadline}
-                  onChange={(e) => setFormData({ ...formData, offerDeadline: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Documents Required"
-                  value={formData.documentsRequired}
-                  onChange={(e) => setFormData({ ...formData, documentsRequired: e.target.value })}
-                  multiline
-                  rows={2}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  multiline
-                  rows={3}
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {dialogMode === 'add' ? 'Add Application' : 'Update Application'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button onClick={handleSubmit} variant="contained">
+              {dialogMode === 'add' ? 'Add Application' : 'Update Application'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-      {/* Bulk Action Dialog */}
-      <Dialog open={bulkActionDialog} onClose={() => setBulkActionDialog(false)}>
-        <DialogTitle>Bulk Actions</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            What would you like to do with {selectedApplications.length} selected application(s)?
-          </Typography>
-          <FormControl fullWidth>
-            <InputLabel>Action</InputLabel>
-            <Select
-              value={bulkAction}
-              onChange={(e) => setBulkAction(e.target.value)}
-              label="Action"
+        {/* Bulk Action Dialog */}
+        <Dialog open={bulkActionDialog} onClose={() => setBulkActionDialog(false)}>
+          <DialogTitle>Bulk Actions</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              What would you like to do with {selectedApplications.length} selected application(s)?
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Action</InputLabel>
+              <Select
+                value={bulkAction}
+                onChange={(e) => setBulkAction(e.target.value)}
+                label="Action"
+              >
+                <MenuItem value="status">Change Status</MenuItem>
+                <MenuItem value="delete">Delete Applications</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleBulkAction}
+              variant="contained"
+              color={bulkAction === 'delete' ? 'error' : 'primary'}
+              disabled={!bulkAction}
             >
-              <MenuItem value="status">Change Status</MenuItem>
-              <MenuItem value="delete">Delete Applications</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBulkActionDialog(false)}>Cancel</Button>
-          <Button 
-            onClick={handleBulkAction} 
-            variant="contained" 
-            color={bulkAction === 'delete' ? 'error' : 'primary'}
-            disabled={!bulkAction}
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   );

@@ -1162,8 +1162,8 @@ function StudentDetails() {
       setCountryProfiles(profiles);
 
       // Auto-select first profile if available and none selected
-      if (profiles.length > 0 && !selectedCountry) {
-        setSelectedCountry(profiles[0].country);
+      if (cleanedProfiles.length > 0 && !selectedCountry) {
+        setSelectedCountry(cleanedProfiles[0].country);
       }
     } catch (error) {
       console.error('Error fetching country profiles:', error);
@@ -2274,7 +2274,17 @@ function StudentDetails() {
                     Array.isArray(student?.targetCountries)
                       ? student.targetCountries.join(', ')
                       : typeof student?.targetCountries === 'string'
-                        ? student.targetCountries.replace(/,/g, ', ')
+                        ? (() => {
+                          try {
+                            // Try to parse if it's a JSON string like ["Canada", "Germany"]
+                            const parsed = JSON.parse(student.targetCountries);
+                            if (Array.isArray(parsed)) return parsed.join(', ');
+                            return parsed; // If it's just a string in quotes
+                          } catch (e) {
+                            // If parse fails, just clean up manually
+                            return student.targetCountries.replace(/[\[\]"]/g, '').replace(/,/g, ', ');
+                          }
+                        })()
                         : 'Not provided'
                   }
                 />

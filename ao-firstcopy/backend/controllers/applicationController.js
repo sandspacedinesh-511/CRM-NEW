@@ -1,10 +1,11 @@
-const { 
-  Student, 
-  University, 
-  StudentUniversityApplication, 
+const {
+  Student,
+  University,
+  StudentUniversityApplication,
   ApplicationCountry,
   User,
-  Activity 
+  Activity,
+  Document
 } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 const sequelize = require('../config/database');
@@ -169,10 +170,10 @@ exports.getStudentApplicationsByCountry = async (req, res) => {
           totalScholarshipAmount: 0
         };
       }
-      
+
       acc[country].applications.push(app);
       acc[country].totalApplications++;
-      
+
       if (app.isPrimaryChoice) acc[country].primaryApplications++;
       if (app.isBackupChoice) acc[country].backupApplications++;
       if (app.applicationStatus === 'ACCEPTED') acc[country].acceptedApplications++;
@@ -180,10 +181,10 @@ exports.getStudentApplicationsByCountry = async (req, res) => {
       if (['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(app.applicationStatus)) {
         acc[country].pendingApplications++;
       }
-      
+
       if (app.applicationFee) acc[country].totalApplicationFees += parseFloat(app.applicationFee);
       if (app.scholarshipAmount) acc[country].totalScholarshipAmount += parseFloat(app.scholarshipAmount);
-      
+
       return acc;
     }, {});
 
@@ -350,92 +351,176 @@ exports.getStudentsWithMultipleCountries = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    // First, get students with multiple countries by querying StudentUniversityApplication
-    const studentsWithMultipleCountries = await StudentUniversityApplication.findAll({
-      attributes: [
-        'studentId',
-        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('university.country'))), 'countryCount'],
-        [sequelize.fn('GROUP_CONCAT', sequelize.fn('DISTINCT', sequelize.col('university.country'))), 'countries']
-      ],
+    // Get all country profiles for this counselor's students
+    const allCountryProfiles = await ApplicationCountry.findAll({
       include: [
         {
           model: Student,
           as: 'student',
           where: { counselorId: req.user.id },
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'currentPhase']
-        },
-        {
-          model: University,
-          as: 'university',
-          attributes: []
+          attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'currentPhase', 'marketingOwnerId']
         }
-      ],
-      group: ['studentId'],
-      having: sequelize.literal('COUNT(DISTINCT university.country) > 1'),
-      order: [[sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('university.country'))), 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      ]
     });
 
-    // Get the student IDs
-    const studentIds = studentsWithMultipleCountries.map(item => item.studentId);
+    console.log('Total country profiles fetched:', allCountryProfiles.length);
+    console.log('Counselor ID:', req.user.id);
 
-    // Get all applications for these students
-    const applications = await StudentUniversityApplication.findAll({
-      where: {
-        studentId: { [Op.in]: studentIds }
-      },
-      include: [
-        {
-          model: University,
-          as: 'university',
-          attributes: ['id', 'name', 'country', 'city']
-        }
-      ],
-      order: [['applicationDate', 'DESC']]
-    });
-
-    // Group applications by student
-    const applicationsByStudent = {};
-    applications.forEach(app => {
-      if (!applicationsByStudent[app.studentId]) {
-        applicationsByStudent[app.studentId] = [];
+    // Group by student and count distinct countries
+    const studentCountryMap = {};
+    allCountryProfiles.forEach(profile => {
+      const studentId = profile.studentId;
+      if (!studentCountryMap[studentId]) {
+        studentCountryMap[studentId] = {
+          student: profile.student,
+          countries: new Set()
+        };
       }
-      applicationsByStudent[app.studentId].push(app);
+      if (profile.country) {
+        studentCountryMap[studentId].countries.add(profile.country);
+      }
     });
 
-    // Combine student data with their applications
-    const result = studentsWithMultipleCountries.map(item => ({
-      ...item.student.toJSON(),
-      applications: applicationsByStudent[item.studentId] || [],
-      countryCount: item.dataValues.countryCount,
-      countries: item.dataValues.countries ? item.dataValues.countries.split(',') : []
-    }));
 
-    // Get total count of students with multiple countries
-    const totalCountResult = await StudentUniversityApplication.findAll({
-      attributes: [
-        'studentId',
-        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('university.country'))), 'countryCount']
-      ],
+    // Filter students with more than 1 country
+    const multiCountryStudents = Object.entries(studentCountryMap)
+      .filter(([_, data]) => data.countries.size > 1)
+      .map(([studentId, data]) => ({
+        studentId: parseInt(studentId),
+        countryCount: data.countries.size,
+        student: data.student
+      }))
+      .sort((a, b) => b.countryCount - a.countryCount);
+
+    console.log('Multi-country students found:', multiCountryStudents.length);
+    console.log('Student details:', multiCountryStudents.map(s => ({ id: s.studentId, name: s.student?.firstName, countries: s.countryCount })));
+
+    // Apply pagination
+    const paginatedStudents = multiCountryStudents.slice(offset, offset + parseInt(limit));
+    const studentIds = paginatedStudents.map(item => item.studentId);
+
+    // If no students found, return empty result
+    if (studentIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: parseInt(limit)
+        }
+      });
+    }
+
+    // Fetch details for these students to calculate progress
+    const studentDetails = await Student.findAll({
+      where: { id: { [Op.in]: studentIds } },
       include: [
         {
-          model: Student,
-          as: 'student',
-          where: { counselorId: req.user.id },
-          attributes: ['id']
+          model: ApplicationCountry,
+          as: 'countryProfiles'
         },
         {
-          model: University,
-          as: 'university',
-          attributes: []
+          model: Document,
+          as: 'documents',
+          where: { status: { [Op.in]: ['PENDING', 'APPROVED'] } },
+          required: false,
+        },
+        {
+          model: StudentUniversityApplication,
+          as: 'applications',
+          include: [
+            {
+              model: University,
+              as: 'university',
+              attributes: ['country']
+            }
+          ]
         }
-      ],
-      group: ['studentId'],
-      having: sequelize.literal('COUNT(DISTINCT university.country) > 1')
+      ]
     });
 
-    const totalCount = totalCountResult.length;
+    // Map details for easy access
+    const studentsMap = studentDetails.reduce((acc, student) => {
+      acc[student.id] = student;
+      return acc;
+    }, {});
+
+    // Helper to calculate progress (simplified version of frontend logic)
+    const calculateProgress = (student, country) => {
+      try {
+        const PHASES = [
+          'DOCUMENT_COLLECTION',
+          'UNIVERSITY_SHORTLISTING',
+          'APPLICATION_SUBMISSION',
+          'OFFER_RECEIVED',
+          'INITIAL_PAYMENT',
+          'INTERVIEW',
+          'FINANCIAL_TB_TEST',
+          'CAS_VISA',
+          'VISA_APPLICATION',
+          'ENROLLMENT'
+        ];
+
+        const profile = student.countryProfiles?.find(p => p.country === country);
+        const currentPhase = profile?.currentPhase || student.currentPhase;
+        const phaseIndex = PHASES.indexOf(currentPhase);
+
+        if (phaseIndex === -1) return 0;
+
+        // Base progress from completed phases (10% per phase)
+        let progress = (phaseIndex / PHASES.length) * 100;
+
+        // Add granular progress for current phase
+        if (currentPhase === 'DOCUMENT_COLLECTION') {
+          const requiredDocs = ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'];
+
+
+          // Count unique uploaded document types
+          const uploadedTypes = (student.documents || [])
+            .filter(d => requiredDocs.includes(d.type))
+            .map(d => d.type);
+
+          const uniqueUploaded = new Set(uploadedTypes).size;
+          const docProgress = (uniqueUploaded / requiredDocs.length) * 10;
+          progress += (docProgress || 0);
+        } else {
+          progress += 5;
+        }
+
+        return Math.min(Math.round(progress), 100);
+      } catch (err) {
+        console.error(`Error calculating progress for student ${student.id || 'unknown'} country ${country}:`, err);
+        return 0;
+      }
+    };
+
+    // Construct result with calculated progress using ApplicationCountry data
+    const result = paginatedStudents.map(item => {
+      const student = studentsMap[item.studentId];
+      if (!student) return null;
+
+      // Get countries from countryProfiles
+      const countries = (student.countryProfiles || []).map(profile => ({
+        country: profile.country,
+        progress: calculateProgress(student, profile.country)
+      }));
+
+      return {
+        studentId: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        studentName: `${student.firstName} ${student.lastName}`,
+        countries,
+        countryCount: countries.length,
+        applications: student.applications || [],
+      };
+    }).filter(Boolean);
+
+    // Get total count from the filtered list
+    const totalCount = multiCountryStudents.length;
 
     res.json({
       success: true,
@@ -447,8 +532,12 @@ exports.getStudentsWithMultipleCountries = async (req, res) => {
         itemsPerPage: parseInt(limit)
       }
     });
+
   } catch (error) {
     console.error('Error fetching students with multiple countries:', error);
+    if (error.original) console.error('Original SQL Error:', error.original);
+    if (error.errors) console.error('Validation Errors:', error.errors);
+
     res.status(500).json({
       success: false,
       message: 'Failed to fetch students with multiple countries'
