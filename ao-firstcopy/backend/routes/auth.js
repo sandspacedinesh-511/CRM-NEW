@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { auth } = require('../middlewares/auth');
 const { upload } = require('../config/storage.config');
+const { trackActivity } = require('../services/activityTracker');
 const path = require('path');
 const fs = require('fs');
 
@@ -44,6 +45,17 @@ router.post('/login', async (req, res) => {
 
     // Update last login
     await user.update({ lastLogin: new Date() });
+
+    // Track activity for counselors
+    if (user.role === 'counselor') {
+      const sessionId = `session_${user.id}_${Date.now()}`;
+      await trackActivity(user.id, 'LOGIN', 'User logged in', {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        sessionId,
+        loginTime: new Date()
+      });
+    }
 
     res.json({
       token,

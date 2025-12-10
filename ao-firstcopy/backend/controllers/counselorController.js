@@ -19,22 +19,23 @@ const { cacheUtils } = require('../config/redis');
 const websocketService = require('../services/websocketService');
 const { performanceLogger, realTimeLogger } = require('../utils/logger');
 const emailService = require('../services/emailService');
+const { trackActivity } = require('../services/activityTracker');
 
 // Check if email is available for new student
 exports.checkEmailAvailability = async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
-      return res.status(400).json({ 
-        message: 'Email parameter is required' 
+      return res.status(400).json({
+        message: 'Email parameter is required'
       });
     }
 
     // Check cache first
     const cacheKey = `email_check:${email.toLowerCase()}`;
     const cachedResult = await cacheUtils.get(cacheKey);
-    
+
     if (cachedResult !== null) {
       performanceLogger.logCacheOperation('get', cacheKey, true);
       return res.json(cachedResult);
@@ -46,15 +47,15 @@ exports.checkEmailAvailability = async (req, res) => {
     });
 
     if (existingStudent) {
-      const result = { 
-        available: false, 
-        message: 'A student with this email already exists' 
+      const result = {
+        available: false,
+        message: 'A student with this email already exists'
       };
-      
+
       // Cache result for 5 minutes
       await cacheUtils.set(cacheKey, result, 300);
       performanceLogger.logCacheOperation('set', cacheKey, false);
-      
+
       return res.json(result);
     }
 
@@ -64,23 +65,23 @@ exports.checkEmailAvailability = async (req, res) => {
     });
 
     if (existingUser) {
-      const result = { 
-        available: false, 
-        message: 'This email is already registered as a user account' 
+      const result = {
+        available: false,
+        message: 'This email is already registered as a user account'
       };
-      
+
       // Cache result for 5 minutes
       await cacheUtils.set(cacheKey, result, 300);
       performanceLogger.logCacheOperation('set', cacheKey, false);
-      
+
       return res.json(result);
     }
 
-    const result = { 
-      available: true, 
-      message: 'Email is available' 
+    const result = {
+      available: true,
+      message: 'Email is available'
     };
-    
+
     // Cache result for 5 minutes
     await cacheUtils.set(cacheKey, result, 300);
     performanceLogger.logCacheOperation('set', cacheKey, false);
@@ -89,8 +90,8 @@ exports.checkEmailAvailability = async (req, res) => {
 
   } catch (error) {
     console.error('Error checking email availability:', error);
-    res.status(500).json({ 
-      message: 'Error checking email availability' 
+    res.status(500).json({
+      message: 'Error checking email availability'
     });
   }
 };
@@ -100,7 +101,7 @@ exports.getDashboardStats = async (req, res) => {
   try {
     const counselorId = req.user.id;
     const cacheKey = `dashboard:${counselorId}`;
-    
+
     // Try to get from cache first
     const cachedData = await cacheUtils.get(cacheKey);
     if (cachedData) {
@@ -223,7 +224,7 @@ exports.getDashboardStats = async (req, res) => {
           deadline: app.applicationDeadline
         }))
       ].sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-       .slice(0, 5);
+        .slice(0, 5);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       tasks = [];
@@ -311,7 +312,7 @@ exports.getDashboardStats = async (req, res) => {
     res.json(dashboardData);
   } catch (error) {
     console.error('Error fetching counsellor dashboard stats:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error fetching dashboard statistics',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -523,7 +524,7 @@ exports.getStudents = async (req, res) => {
 
     // Build cache key based on query parameters
     const cacheKey = `students:${counselorId}:${search || 'all'}:${phase || 'all'}:${sort || 'default'}:${page}:${limit}`;
-    
+
     // Try to get from cache first
     const cachedData = await cacheUtils.get(cacheKey);
     if (cachedData) {
@@ -615,7 +616,7 @@ exports.getStudents = async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error fetching students:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error fetching students',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -673,10 +674,10 @@ exports.addStudent = async (req, res) => {
   try {
     // Validate required fields
     const { firstName, lastName, email } = req.body;
-    
+
     if (!firstName || !lastName || !email) {
-      return res.status(400).json({ 
-        message: 'First name, last name, and email are required' 
+      return res.status(400).json({
+        message: 'First name, last name, and email are required'
       });
     }
 
@@ -686,8 +687,8 @@ exports.addStudent = async (req, res) => {
     });
 
     if (existingStudent) {
-      return res.status(409).json({ 
-        message: 'A student with this email already exists' 
+      return res.status(409).json({
+        message: 'A student with this email already exists'
       });
     }
 
@@ -704,6 +705,12 @@ exports.addStudent = async (req, res) => {
     // Clear dashboard cache to ensure stats update
     const cacheKey = `dashboard:${req.user.id}`;
     await cacheUtils.del(cacheKey);
+
+    await trackActivity(req.user.id, 'STUDENT_CREATE', `Added new student: ${student.firstName} ${student.lastName}`, {
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`
+    });
+
     res.status(201).json({
       success: true,
       message: 'Student added successfully',
@@ -711,23 +718,23 @@ exports.addStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Error adding student:', error);
-    
+
     // Handle Sequelize validation errors
     if (error.name === 'SequelizeValidationError') {
       const validationErrors = error.errors.map(err => err.message);
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: validationErrors 
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: validationErrors
       });
     }
-    
+
     // Handle unique constraint violations
     if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ 
-        message: 'A student with this email already exists' 
+      return res.status(409).json({
+        message: 'A student with this email already exists'
       });
     }
-    
+
     res.status(500).json({ message: 'Error adding student. Please try again.' });
   }
 };
@@ -768,9 +775,9 @@ exports.getStudentDetails = async (req, res) => {
     });
 
     if (!student) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Student not found' 
+        message: 'Student not found'
       });
     }
 
@@ -816,7 +823,7 @@ exports.updateStudent = async (req, res) => {
     if (req.body.currentPhase && req.body.currentPhase !== student.currentPhase) {
       const currentPhase = student.currentPhase;
       const newPhase = req.body.currentPhase;
-      
+
       // Define required documents for each phase (logical progression)
       const phaseRequirements = {
         'DOCUMENT_COLLECTION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'],
@@ -939,6 +946,20 @@ exports.updateStudent = async (req, res) => {
     // Clear dashboard cache to ensure stats update
     const cacheKey = `dashboard:${req.user.id}`;
     await cacheUtils.del(cacheKey);
+
+    // Track activity
+    if (req.body.currentPhase && req.body.currentPhase !== student.currentPhase) {
+      await trackActivity(req.user.id, 'PHASE_CHANGE', `Changed phase for ${student.firstName} ${student.lastName} to ${req.body.currentPhase}`, {
+        studentId: student.id,
+        oldPhase: student.currentPhase, // access from closure or verify student obj is not updated in place? sequelize updates instance.
+        newPhase: req.body.currentPhase
+      });
+    } else {
+      await trackActivity(req.user.id, 'STUDENT_EDIT', `Updated details for student: ${student.firstName} ${student.lastName}`, {
+        studentId: student.id
+      });
+    }
+
     res.json(student);
   } catch (error) {
     console.error('Error updating student:', error);
@@ -974,7 +995,7 @@ exports.deleteStudent = async (req, res) => {
 exports.getStudentDocuments = async (req, res) => {
   try {
     const { type, status } = req.query;
-    
+
     // First, verify the student belongs to this counselor
     const student = await Student.findOne({
       where: {
@@ -984,9 +1005,9 @@ exports.getStudentDocuments = async (req, res) => {
     });
 
     if (!student) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Student not found' 
+        message: 'Student not found'
       });
     }
 
@@ -994,7 +1015,7 @@ exports.getStudentDocuments = async (req, res) => {
     const whereClause = {
       studentId: req.params.id
     };
-    
+
     if (type) {
       whereClause.type = type;
     }
@@ -1018,9 +1039,9 @@ exports.getStudentDocuments = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching student documents:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching student documents' 
+      message: 'Error fetching student documents'
     });
   }
 };
@@ -1137,12 +1158,12 @@ exports.downloadDocument = async (req, res) => {
 
       // Convert to JSON string
       const jsonContent = JSON.stringify(documentData, null, 2);
-      
+
       // Set headers for JSON download
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="${document.name}.json"`);
       res.setHeader('Content-Length', Buffer.byteLength(jsonContent, 'utf8'));
-      
+
       // Send the JSON content
       res.send(jsonContent);
       return;
@@ -1151,7 +1172,7 @@ exports.downloadDocument = async (req, res) => {
     // Check if file exists for physical files
     const fs = require('fs');
     const path = require('path');
-    
+
     // Handle file path - try multiple possible locations
     let filePath = null;
     const possiblePaths = [
@@ -1162,18 +1183,18 @@ exports.downloadDocument = async (req, res) => {
       path.join(__dirname, '..', 'uploads', path.basename(document.path)), // Fallback to uploads
       path.join(process.cwd(), 'uploads', path.basename(document.path)) // Fallback from project root
     ];
-    
+
     for (const testPath of possiblePaths) {
       if (fs.existsSync(testPath)) {
         filePath = testPath;
         break;
       }
     }
-    
+
     if (!filePath) {
       console.error('File not found for document:', document.id, 'Path:', document.path);
       console.error('Tried paths:', possiblePaths);
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'Document file is not available locally. This may be because the file was uploaded to a different server environment.',
         errorType: 'FILE_NOT_FOUND_LOCALLY'
       });
@@ -1182,7 +1203,7 @@ exports.downloadDocument = async (req, res) => {
     // Set appropriate headers for download
     res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
-    
+
     // Get file stats for content length
     const stats = fs.statSync(filePath);
     res.setHeader('Content-Length', stats.size);
@@ -1236,7 +1257,7 @@ exports.previewDocument = async (req, res) => {
     // Check if file exists for physical files
     const fs = require('fs');
     const path = require('path');
-    
+
     // Handle file path - try multiple possible locations
     let filePath = null;
     const possiblePaths = [
@@ -1247,18 +1268,18 @@ exports.previewDocument = async (req, res) => {
       path.join(__dirname, '..', 'uploads', path.basename(document.path)), // Fallback to uploads
       path.join(process.cwd(), 'uploads', path.basename(document.path)) // Fallback from project root
     ];
-    
+
     for (const testPath of possiblePaths) {
       if (fs.existsSync(testPath)) {
         filePath = testPath;
         break;
       }
     }
-    
+
     if (!filePath) {
       console.error('File not found for document:', document.id, 'Path:', document.path);
       console.error('Tried paths:', possiblePaths);
-      
+
       // Return document metadata instead of 404 for missing files
       return res.json({
         previewable: false,
@@ -1279,12 +1300,12 @@ exports.previewDocument = async (req, res) => {
 
     // Check if file type is previewable
     const previewableTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    
+
     if (previewableTypes.includes(document.mimeType)) {
       // Set appropriate headers for preview
       res.setHeader('Content-Type', document.mimeType);
       res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
-      
+
       // Get file stats for content length
       const stats = fs.statSync(filePath);
       res.setHeader('Content-Length', stats.size);
@@ -1352,9 +1373,9 @@ exports.updateDocument = async (req, res) => {
     });
 
     if (!document) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Document not found' 
+        message: 'Document not found'
       });
     }
 
@@ -1391,9 +1412,9 @@ exports.updateDocument = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating document:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Failed to update document. Please try again later.' 
+      message: 'Failed to update document. Please try again later.'
     });
   }
 };
@@ -1446,7 +1467,7 @@ exports.getAllDocuments = async (req, res) => {
     let filteredDocuments = documents.rows;
     if (search) {
       const searchLower = search.toLowerCase();
-      filteredDocuments = documents.rows.filter(doc => 
+      filteredDocuments = documents.rows.filter(doc =>
         doc.name.toLowerCase().includes(searchLower) ||
         doc.student.firstName.toLowerCase().includes(searchLower) ||
         doc.student.lastName.toLowerCase().includes(searchLower) ||
@@ -1466,9 +1487,9 @@ exports.getAllDocuments = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching documents:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Failed to load documents. Please try again later.' 
+      message: 'Failed to load documents. Please try again later.'
     });
   }
 };
@@ -1498,9 +1519,9 @@ exports.getStudentApplications = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching student applications:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching student applications' 
+      message: 'Error fetching student applications'
     });
   }
 };
@@ -1662,8 +1683,8 @@ exports.createApplication = async (req, res) => {
 
     // Validate required fields
     if (!applicationData.universityId || !applicationData.courseName || !applicationData.applicationDeadline) {
-      return res.status(400).json({ 
-        message: 'University, course name, and application deadline are required' 
+      return res.status(400).json({
+        message: 'University, course name, and application deadline are required'
       });
     }
 
@@ -1688,9 +1709,9 @@ exports.createApplication = async (req, res) => {
     res.status(201).json(newApplication);
   } catch (error) {
     console.error('Error creating application:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error creating application',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -1763,7 +1784,7 @@ exports.updateApplication = async (req, res) => {
     // Check if application status changed and notify marketing owner
     const oldStatus = application.applicationStatus;
     const newStatus = updatedApplication.applicationStatus;
-    
+
     if (oldStatus !== newStatus && updatedApplication.student?.marketingOwnerId) {
       try {
         const statusLabels = {
@@ -1802,9 +1823,9 @@ exports.updateApplication = async (req, res) => {
     res.json(updatedApplication);
   } catch (error) {
     console.error('Error updating application:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error updating application',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -2125,9 +2146,9 @@ exports.getStudentNotes = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching student notes:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error fetching student notes' 
+      message: 'Error fetching student notes'
     });
   }
 };
@@ -2221,7 +2242,7 @@ exports.getStudentActivities = async (req, res) => {
         message: 'Student not found or access denied'
       });
     }
-    
+
     // Fetch activities with LEFT JOIN for user (to handle missing users)
     const activities = await Activity.findAll({
       where: { studentId: req.params.id },
@@ -2242,7 +2263,7 @@ exports.getStudentActivities = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching student activities:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Error fetching student activities',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -2551,7 +2572,7 @@ exports.exportStudents = async (req, res) => {
     }));
 
     const csvData = csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(records);
-    
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=students.csv');
     res.send(csvData);
@@ -2595,7 +2616,7 @@ exports.exportDocuments = async (req, res) => {
     }));
 
     const csvData = csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(records);
-    
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=documents.csv');
     res.send(csvData);
@@ -2649,7 +2670,7 @@ exports.exportApplications = async (req, res) => {
     }));
 
     const csvData = csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(records);
-    
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=applications.csv');
     res.send(csvData);
@@ -2730,7 +2751,7 @@ exports.updateStudentPhase = async (req, res) => {
     if (currentPhase !== student.currentPhase) {
       const previousPhase = student.currentPhase;
       const newPhase = currentPhase;
-      
+
       // Define required documents for each phase with detailed descriptions
       const phaseRequirements = {
         'DOCUMENT_COLLECTION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'],
@@ -2785,7 +2806,7 @@ exports.updateStudentPhase = async (req, res) => {
           const missingDocs = docCollectionRequired.filter(docType => !uploadedDocTypes.includes(docType));
 
           if (missingDocs.length > 0) {
-            const missingDocsList = missingDocs.map(docType => 
+            const missingDocsList = missingDocs.map(docType =>
               `• ${docType.replace(/_/g, ' ')}: ${documentDescriptions[docType] || 'Required document'}`
             ).join('\n');
 
@@ -2834,14 +2855,14 @@ Need help? Contact your counselor for assistance.`;
 
         if (missingDocs.length > 0) {
           // Create detailed missing documents list
-          const missingDocsList = missingDocs.map(docType => 
+          const missingDocsList = missingDocs.map(docType =>
             `• ${docType.replace(/_/g, ' ')}: ${documentDescriptions[docType] || 'Required document'}`
           ).join('\n');
 
           // Create comprehensive error message
           const phaseName = newPhase.replace(/_/g, ' ');
           const phaseDescription = phaseDescriptions[newPhase] || '';
-          
+
           const detailedMessage = `Cannot proceed to ${phaseName} phase
 
 ${phaseDescription}
@@ -2899,7 +2920,7 @@ Need help? Contact your counselor for assistance.`;
     // If moving to University Shortlisting phase, save selected universities
     if (currentPhase === 'UNIVERSITY_SHORTLISTING' && req.body.selectedUniversities && Array.isArray(req.body.selectedUniversities)) {
       const { selectedUniversities } = req.body;
-      
+
       // Verify all university IDs exist
       const validUniversities = await University.findAll({
         where: {
@@ -2974,7 +2995,7 @@ Need help? Contact your counselor for assistance.`;
       // Verify selected universities are from the shortlisted ones
       const shortlistedIds = shortlist.universities.map(u => u.id);
       const invalidSelections = selectedUniversities.filter(id => !shortlistedIds.includes(id));
-      
+
       if (invalidSelections.length > 0) {
         return res.status(400).json({
           message: 'Some selected universities are not in the shortlisted universities. Please select only from shortlisted universities.',
@@ -3123,7 +3144,7 @@ Need help? Contact your counselor for assistance.`;
       // Determine which universities list to use: offers first, then fallback to shortlisted
       let availableUniversities = null;
       let isFallback = false;
-      
+
       if (offers && offers.universities && offers.universities.length > 0) {
         availableUniversities = offers.universities;
         isFallback = false;
@@ -3131,7 +3152,7 @@ Need help? Contact your counselor for assistance.`;
         availableUniversities = shortlist.universities;
         isFallback = true;
       }
-      
+
       if (!availableUniversities || availableUniversities.length === 0) {
         return res.status(400).json({
           message: 'No universities found. Please shortlist universities first in the University Shortlisting phase.'
@@ -3140,7 +3161,7 @@ Need help? Contact your counselor for assistance.`;
 
       // Verify selected university is from the available universities list
       const selectedUniversityData = availableUniversities.find(u => u.id === selectedUniversity);
-      
+
       if (!selectedUniversityData) {
         return res.status(400).json({
           message: 'Selected university is not in the available universities list'
@@ -3181,7 +3202,7 @@ Need help? Contact your counselor for assistance.`;
     // If moving to Interview phase or updating Interview status, save interview status
     if (currentPhase === 'INTERVIEW' && req.body.interviewStatus) {
       const { interviewStatus } = req.body;
-      
+
       // Validate interview status
       if (!['APPROVED', 'REFUSED', 'STOPPED'].includes(interviewStatus)) {
         return res.status(400).json({
@@ -3220,7 +3241,7 @@ Need help? Contact your counselor for assistance.`;
     // If moving to CAS & Visa phase or updating CAS & Visa status, save CAS & Visa status
     if (currentPhase === 'CAS_VISA' && req.body.casVisaStatus) {
       const { casVisaStatus } = req.body;
-      
+
       // Validate CAS & Visa status
       if (!['APPROVED', 'REFUSED', 'STOPPED'].includes(casVisaStatus)) {
         return res.status(400).json({
@@ -3298,7 +3319,7 @@ Need help? Contact your counselor for assistance.`;
     // If moving to Financial & TB Test phase, save financial option
     if (currentPhase === 'FINANCIAL_TB_TEST' && req.body.financialOption) {
       const { financialOption } = req.body;
-      
+
       // Validate financial option
       if (!['LOAN', 'SELF_AMOUNT', 'OTHERS'].includes(financialOption)) {
         return res.status(400).json({
@@ -3315,7 +3336,7 @@ Need help? Contact your counselor for assistance.`;
         'SELF_AMOUNT': 'Self amount',
         'OTHERS': 'Others'
       };
-      
+
       // Store financial option
       const financialData = {
         option: financialOption,
@@ -3327,7 +3348,7 @@ Need help? Contact your counselor for assistance.`;
         ...existingNotes,
         financialOption: financialData
       };
-      
+
       await student.update({ notes: JSON.stringify(updatedNotes) });
     }
 
@@ -3455,12 +3476,12 @@ Need help? Contact your counselor for assistance.`;
     });
   } catch (error) {
     console.error('Error updating student phase:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error updating student phase',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-}; 
+};
 
 // Get all tasks for the logged-in counselor
 exports.getCounselorTasks = async (req, res) => {
@@ -3518,13 +3539,13 @@ exports.getCounselorTasks = async (req, res) => {
       message: 'Failed to load tasks. Please try again later.'
     });
   }
-}; 
+};
 
 // Get counselor profile
 exports.getProfile = async (req, res) => {
   try {
     const counselorId = req.user.id;
-    
+
     // Get basic user data
     const user = await User.findByPk(counselorId, {
       attributes: ['id', 'name', 'email', 'role', 'active', 'lastLogin', 'createdAt', 'phone', 'specialization', 'bio', 'location', 'experience', 'education', 'avatar', 'certifications', 'languages', 'preferences']
@@ -3650,13 +3671,13 @@ exports.updateProfile = async (req, res) => {
       message: 'Failed to update profile. Please try again later.'
     });
   }
-}; 
+};
 
 // Upload avatar
 exports.uploadAvatar = async (req, res) => {
   try {
     const counselorId = req.user.id;
-    
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -3695,17 +3716,17 @@ exports.uploadAvatar = async (req, res) => {
     const timestamp = Date.now();
     const fileExtension = req.file.originalname.split('.').pop();
     const fileName = `avatar_${counselorId}_${timestamp}.${fileExtension}`;
-    
+
     // Create avatars directory if it doesn't exist
     const avatarsDir = path.join(__dirname, '../uploads/avatars');
     if (!fs.existsSync(avatarsDir)) {
       fs.mkdirSync(avatarsDir, { recursive: true });
     }
-    
+
     // Move file to avatars directory
     const newPath = path.join(avatarsDir, fileName);
     fs.renameSync(req.file.path, newPath);
-    
+
     // Save file path to database
     const avatarPath = `/uploads/avatars/${fileName}`;
     await user.update({ avatar: avatarPath });
@@ -3724,14 +3745,14 @@ exports.uploadAvatar = async (req, res) => {
       message: 'Failed to upload avatar. Please try again later.'
     });
   }
-}; 
+};
 
 // Manual cache clearing for testing
 exports.clearDashboardCache = async (req, res) => {
   try {
     const counselorId = req.user.id;
     const cacheKey = `dashboard:${counselorId}`;
-    
+
     await cacheUtils.del(cacheKey);
     res.json({
       success: true,
@@ -3745,7 +3766,7 @@ exports.clearDashboardCache = async (req, res) => {
       message: 'Error clearing dashboard cache'
     });
   }
-}; 
+};
 
 // Send email to student
 exports.sendEmailToStudent = async (req, res) => {
@@ -3763,9 +3784,9 @@ exports.sendEmailToStudent = async (req, res) => {
     });
 
     if (!student) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Student not found or access denied' 
+        message: 'Student not found or access denied'
       });
     }
 

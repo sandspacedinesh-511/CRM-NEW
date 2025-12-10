@@ -2,64 +2,12 @@ const { User, CounselorActivity, Student, Document, Application, Note } = requir
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { format, subDays, startOfDay, endOfDay, differenceInSeconds } = require('date-fns');
-
-// Track counselor activity
-const trackActivity = async (counselorId, activityType, description = null, metadata = {}) => {
-  try {
-    const activityData = {
-      counselorId,
-      activityType,
-      description,
-      metadata,
-      status: 'ACTIVE'
-    };
-
-    // Handle login activity
-    if (activityType === 'LOGIN') {
-      activityData.loginTime = metadata.loginTime || new Date();
-      activityData.ipAddress = metadata.ipAddress;
-      activityData.userAgent = metadata.userAgent;
-      activityData.sessionId = metadata.sessionId;
-    }
-
-    // Handle logout activity
-    if (activityType === 'LOGOUT') {
-      activityData.logoutTime = metadata.logoutTime || new Date();
-      activityData.ipAddress = metadata.ipAddress;
-      activityData.userAgent = metadata.userAgent;
-      activityData.sessionId = metadata.sessionId;
-      
-      // Find and update the corresponding login activity
-      const loginActivity = await CounselorActivity.findOne({
-        where: {
-          counselorId,
-          activityType: 'LOGIN',
-          sessionId: metadata.sessionId,
-          status: 'ACTIVE'
-        },
-        order: [['createdAt', 'DESC']]
-      });
-
-      if (loginActivity) {
-        const sessionDuration = Math.floor((new Date(activityData.logoutTime) - new Date(loginActivity.loginTime)) / 1000);
-        await loginActivity.update({
-          logoutTime: activityData.logoutTime,
-          sessionDuration,
-          status: 'COMPLETED'
-        });
-      }
-    }
-
-    await CounselorActivity.create(activityData);
-  } catch (error) {
-    console.error('Error tracking counselor activity:', error);
-  }
-};
+const { trackActivity } = require('../services/activityTracker');
 
 // Get counselor monitoring dashboard data
 const getCounselorMonitoringData = async (req, res) => {
   try {
-    const { 
+    const {
       startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd'),
       endDate = format(new Date(), 'yyyy-MM-dd'),
       counselorId = null,
@@ -162,12 +110,37 @@ const getCounselorMonitoringData = async (req, res) => {
       }
     });
 
+
+    // Get completed students count per counselor
+    const completedStudentsCounts = await Student.findAll({
+      where: {
+        [Op.or]: [
+          { status: 'COMPLETED' },
+          { currentPhase: 'ENROLLMENT' }
+        ],
+        counselorId: { [Op.not]: null }
+      },
+      attributes: ['counselorId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      group: ['counselorId']
+    });
+
+    const completedStudentsMap = {};
+    completedStudentsCounts.forEach(stat => {
+      completedStudentsMap[stat.counselorId] = parseInt(stat.get('count'));
+    });
+
+    // Merge completed students into sessionStats
+    const sessionStatsWithStudents = sessionStats.map(stat => ({
+      ...stat.toJSON(),
+      completedStudents: completedStudentsMap[stat.counselorId] || 0
+    }));
+
     res.json({
       success: true,
       data: {
         counselors,
         activityStats,
-        sessionStats,
+        sessionStats: sessionStatsWithStudents,
         recentActivities,
         summary: {
           totalActivities,
@@ -192,7 +165,7 @@ const getCounselorMonitoringData = async (req, res) => {
 const getCounselorActivityDetails = async (req, res) => {
   try {
     const { counselorId } = req.params;
-    const { 
+    const {
       startDate = format(subDays(new Date(), 7), 'yyyy-MM-dd'),
       endDate = format(new Date(), 'yyyy-MM-dd'),
       activityType = null
@@ -211,7 +184,7 @@ const getCounselorActivityDetails = async (req, res) => {
 
     // Get counselor details
     const counselor = await User.findByPk(counselorId, {
-      attributes: ['id', 'name', 'email', 'active', 'createdAt'],
+      attributes: ['id', 'name', 'email', 'active', 'createdAt', 'lastLogin'],
       include: [
         {
           model: Student,
@@ -284,21 +257,30 @@ const getCounselorActivityDetails = async (req, res) => {
     const sessionStats = {
       totalSessions: sessions.length,
       totalDuration: sessions.reduce((sum, session) => sum + (session.sessionDuration || 0), 0),
-      avgDuration: sessions.length > 0 ? 
+      avgDuration: sessions.length > 0 ?
         sessions.reduce((sum, session) => sum + (session.sessionDuration || 0), 0) / sessions.length : 0,
-      firstLogin: sessions.length > 0 ? Math.min(...sessions.map(s => s.loginTime || s.createdAt)) : null,
-      lastLogin: sessions.length > 0 ? Math.max(...sessions.map(s => s.loginTime || s.createdAt)) : null,
-      lastLogout: logoutActivities.length > 0 ? Math.max(...logoutActivities.map(s => s.logoutTime || s.createdAt)) : null,
+      lastLogin: counselor.lastLogin || (sessions.length > 0 ? Math.max(...sessions.map(s => s.loginTime || s.createdAt)) : null),
       activeSessions: sessions.filter(s => s.status === 'ACTIVE').length,
-      completedSessions: sessions.filter(s => s.status === 'COMPLETED').length
     };
 
     // Calculate current session duration for active sessions
     const activeSessions = sessions.filter(s => s.status === 'ACTIVE');
-    const currentSessionDuration = activeSessions.length > 0 ? 
+    const currentSessionDuration = activeSessions.length > 0 ?
       Math.floor((new Date() - new Date(activeSessions[0].loginTime || activeSessions[0].createdAt)) / 1000) : 0;
-    
+
     sessionStats.currentSessionDuration = currentSessionDuration;
+
+    // Get completed students count
+    const completedStudentsCount = await Student.count({
+      where: {
+        counselorId,
+        [Op.or]: [
+          { status: 'COMPLETED' },
+          { currentPhase: 'ENROLLMENT' }
+        ]
+      }
+    });
+    sessionStats.completedStudents = completedStudentsCount;
 
     res.json({
       success: true,
@@ -356,7 +338,7 @@ const getRealTimeActivityFeed = async (req, res) => {
 // Export counselor activity data
 const exportCounselorActivity = async (req, res) => {
   try {
-    const { 
+    const {
       startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd'),
       endDate = format(new Date(), 'yyyy-MM-dd'),
       counselorId = null

@@ -139,7 +139,7 @@ const formatTimeAgo = (dateString) => {
   const now = new Date();
   const date = new Date(dateString);
   const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-  
+
   if (diffInMinutes < 1) return 'Just now';
   if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
   if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
@@ -149,7 +149,7 @@ const formatTimeAgo = (dateString) => {
 function CounselorMonitoring() {
   const navigate = useNavigate();
   const theme = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tabValue, setTabValue] = useState(0);
@@ -158,13 +158,13 @@ function CounselorMonitoring() {
   const [counselorDetails, setCounselorDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  
+
   // Filters
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedCounselorId, setSelectedCounselorId] = useState('');
   const [selectedActivityType, setSelectedActivityType] = useState('');
-  
+
   // Real-time updates
   const [realTimeActivities, setRealTimeActivities] = useState([]);
   const [realTimeLoading, setRealTimeLoading] = useState(false);
@@ -174,7 +174,7 @@ function CounselorMonitoring() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         startDate,
         endDate,
@@ -276,7 +276,7 @@ function CounselorMonitoring() {
     setSelectedCounselor(counselor);
     fetchCounselorDetails(counselor.id);
   };
-  
+
   if (loading) {
     return (
       <Container maxWidth="xl">
@@ -324,9 +324,9 @@ function CounselorMonitoring() {
               </Typography>
             </Breadcrumbs>
 
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: 2
@@ -334,7 +334,7 @@ function CounselorMonitoring() {
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
                 Counselor Monitoring
               </Typography>
-              
+
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Button
                   startIcon={<DownloadIcon />}
@@ -372,7 +372,7 @@ function CounselorMonitoring() {
               <FilterIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
               Filters
             </Typography>
-            
+
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
@@ -432,63 +432,63 @@ function CounselorMonitoring() {
               </Grid>
             </Grid>
           </CardContent>
-                 </Card>
+        </Card>
 
-         {/* Summary Statistics */}
-         {monitoringData && (
-           <Card sx={{ mb: 3, borderRadius: 3 }}>
-             <CardContent sx={{ p: 3 }}>
-               <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                 <AnalyticsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                 Summary Statistics
-               </Typography>
-               <Grid container spacing={3}>
-                 <Grid item xs={12} sm={6} md={3}>
-                   <Box sx={{ textAlign: 'center' }}>
-                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                       {monitoringData.summary?.totalActivities || 0}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Total Activities
-                     </Typography>
-                   </Box>
-                 </Grid>
-                 <Grid item xs={12} sm={6} md={3}>
-                   <Box sx={{ textAlign: 'center' }}>
-                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                       {monitoringData.summary?.uniqueCounselors || 0}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Active Counselors
-                     </Typography>
-                   </Box>
-                 </Grid>
-                 <Grid item xs={12} sm={6} md={3}>
-                   <Box sx={{ textAlign: 'center' }}>
-                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                       {monitoringData.summary?.activeSessions || 0}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Active Sessions
-                     </Typography>
-                   </Box>
-                 </Grid>
-                 <Grid item xs={12} sm={6} md={3}>
-                   <Box sx={{ textAlign: 'center' }}>
-                     <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main' }}>
-                       {monitoringData.counselors?.length || 0}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Total Counselors
-                     </Typography>
-                   </Box>
-                 </Grid>
-               </Grid>
-             </CardContent>
-           </Card>
-         )}
+        {/* Summary Statistics */}
+        {monitoringData && (
+          <Card sx={{ mb: 3, borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                <AnalyticsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Summary Statistics
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                      {monitoringData.summary?.totalActivities || 0}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Activities
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
+                      {monitoringData.summary?.uniqueCounselors || 0}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Active Counselors
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main' }}>
+                      {monitoringData.summary?.activeSessions || 0}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Active Sessions
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main' }}>
+                      {monitoringData.counselors?.length || 0}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Counselors
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
 
-         {/* Tabs */}
+        {/* Tabs */}
         <Card sx={{ mb: 3 }}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="monitoring tabs">
@@ -524,7 +524,7 @@ function CounselorMonitoring() {
                 {error}
               </Alert>
             )}
-            
+
             {monitoringData ? (
               <Box>
                 <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
@@ -533,44 +533,44 @@ function CounselorMonitoring() {
                 <Grid container spacing={3}>
                   {/* Counselor Cards */}
                   {monitoringData.counselors?.map((counselor) => (
-                  <Grid item xs={12} sm={6} md={4} key={counselor.id}>
-                    <Card sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                          <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
-                            <PersonIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="h6">{counselor.name}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {counselor.email}
-                            </Typography>
+                    <Grid item xs={12} sm={6} md={4} key={counselor.id}>
+                      <Card sx={{ height: '100%' }}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
+                              <PersonIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6">{counselor.name}</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {counselor.email}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Box>
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Chip
-                            label={counselor.active ? 'Active' : 'Inactive'}
-                            color={counselor.active ? 'success' : 'default'}
+
+                          <Box sx={{ mb: 2 }}>
+                            <Chip
+                              label={counselor.active ? 'Active' : 'Inactive'}
+                              color={counselor.active ? 'success' : 'default'}
+                              size="small"
+                            />
+                          </Box>
+
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            Activities: {counselor.activities?.length || 0}
+                          </Typography>
+
+                          <Button
                             size="small"
-                          />
-                        </Box>
-                        
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          Activities: {counselor.activities?.length || 0}
-                        </Typography>
-                        
-                        <Button
-                          size="small"
-                          startIcon={<VisibilityIcon />}
-                          onClick={() => handleViewCounselorDetails(counselor)}
-                        >
-                          View Details
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => handleViewCounselorDetails(counselor)}
+                          >
+                            View Details
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
                 </Grid>
               </Box>
             ) : (
@@ -592,7 +592,7 @@ function CounselorMonitoring() {
                 Refresh
               </Button>
             </Box>
-            
+
             {realTimeActivities.length > 0 ? (
               <List>
                 {realTimeActivities.map((activity, index) => (
@@ -620,7 +620,13 @@ function CounselorMonitoring() {
                       }
                       secondary={
                         <Typography variant="body2" color="text.secondary">
-                          {activity.description || 'No description'} • {formatTimeAgo(activity.createdAt)}
+                          {activity.description || (
+                            activity.activityType === 'LOGIN' ? 'User logged in' :
+                              activity.activityType === 'LOGOUT' ? 'User logged out' :
+                                activity.activityType === 'DOCUMENT_UPLOAD' ? 'Uploaded a document' :
+                                  activity.activityType === 'STUDENT_CREATE' ? 'Added a new student' :
+                                    activity.activityType?.replace(/_/g, ' ').toLowerCase()
+                          )} • {formatTimeAgo(activity.createdAt)}
                         </Typography>
                       }
                     />
@@ -632,73 +638,78 @@ function CounselorMonitoring() {
             )}
           </TabPanel>
 
-                     <TabPanel value={tabValue} index={2}>
-             {/* Performance Tab */}
-             <Typography variant="h6" sx={{ mb: 2 }}>Performance Analytics</Typography>
-             {monitoringData?.sessionStats && (
-               <Grid container spacing={3}>
-                 {monitoringData.sessionStats.map((stat) => (
-                   <Grid item xs={12} sm={6} md={4} key={stat.counselorId}>
-                     <Card>
-                       <CardContent>
-                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                           <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
-                             <PersonIcon />
-                           </Avatar>
-                           <Box>
-                             <Typography variant="h6">{stat.counselor?.name}</Typography>
-                             <Typography variant="body2" color="text.secondary">
-                               {stat.counselor?.email}
-                             </Typography>
-                           </Box>
-                         </Box>
-                         
-                         <Grid container spacing={1}>
-                           <Grid item xs={6}>
-                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                               Login Count: {stat.loginCount || 0}
-                             </Typography>
-                           </Grid>
-                           <Grid item xs={6}>
-                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                               Total Time: {stat.totalSessionDuration ? 
-                                 `${Math.round(stat.totalSessionDuration / 60)} min` : 'N/A'}
-                             </Typography>
-                           </Grid>
-                           <Grid item xs={6}>
-                             <Typography variant="body2" color="text.secondary">
-                               Avg Session: {stat.avgSessionDuration ? 
-                                 `${Math.round(stat.avgSessionDuration / 60)} min` : 'N/A'}
-                             </Typography>
-                           </Grid>
-                           <Grid item xs={6}>
-                             <Typography variant="body2" color="text.secondary">
-                               Last Login: {stat.lastLogin ? 
-                                 new Date(stat.lastLogin).toLocaleDateString() : 'N/A'}
-                             </Typography>
-                           </Grid>
-                         </Grid>
-                         
-                         <Button
-                           size="small"
-                           startIcon={<VisibilityIcon />}
-                           onClick={() => {
-                             const counselor = monitoringData.counselors?.find(c => c.id === stat.counselorId);
-                             if (counselor) {
-                               handleViewCounselorDetails(counselor);
-                             }
-                           }}
-                           sx={{ mt: 2 }}
-                         >
-                           View Details
-                         </Button>
-                       </CardContent>
-                     </Card>
-                   </Grid>
-                 ))}
-               </Grid>
-             )}
-           </TabPanel>
+          <TabPanel value={tabValue} index={2}>
+            {/* Performance Tab */}
+            <Typography variant="h6" sx={{ mb: 2 }}>Performance Analytics</Typography>
+            {monitoringData?.sessionStats && (
+              <Grid container spacing={3}>
+                {monitoringData.sessionStats.map((stat) => (
+                  <Grid item xs={12} sm={6} md={4} key={stat.counselorId}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
+                            <PersonIcon />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="h6">{stat.counselor?.name}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {stat.counselor?.email}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Grid container spacing={1}>
+                          <Grid item xs={6}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Login Count: {stat.loginCount || 0}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Total Time: {stat.totalSessionDuration ?
+                                `${Math.round(stat.totalSessionDuration / 60)} min` : 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="body2" color="text.secondary">
+                              Avg Session: {stat.avgSessionDuration ?
+                                `${Math.round(stat.avgSessionDuration / 60)} min` : 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="body2" color="text.secondary">
+                              Last Login: {stat.lastLogin ?
+                                new Date(stat.lastLogin).toLocaleDateString() : 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                              Students Completed: {stat.completedStudents || 0}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+
+                        <Button
+                          size="small"
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => {
+                            const counselor = monitoringData.counselors?.find(c => c.id === stat.counselorId);
+                            if (counselor) {
+                              handleViewCounselorDetails(counselor);
+                            }
+                          }}
+                          sx={{ mt: 2 }}
+                        >
+                          View Details
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </TabPanel>
         </Card>
 
         {/* Export Actions */}
@@ -723,7 +734,7 @@ function CounselorMonitoring() {
             </Box>
           </CardContent>
         </Card>
-        
+
         {/* Counselor Details Dialog */}
         <Dialog
           open={detailsDialogOpen}
@@ -748,141 +759,109 @@ function CounselorMonitoring() {
               </Box>
             ) : counselorDetails ? (
               <Box>
-                <Typography variant="h6" sx={{ mb: 2 }}>Activity Summary</Typography>
-                {counselorDetails.activityBreakdown?.map((breakdown) => (
-                  <Box key={breakdown.activityType} sx={{ mb: 1 }}>
-                    <Typography variant="body2">
-                      {breakdown.activityType?.replace(/_/g, ' ')}: {breakdown.count}
-                    </Typography>
-                  </Box>
-                ))}
-                
-                <Divider sx={{ my: 2 }} />
-                
-                                 <Typography variant="h6" sx={{ mb: 2 }}>Session Statistics</Typography>
-                 <Grid container spacing={2}>
-                   <Grid item xs={12} sm={6}>
-                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                       Total Sessions: {counselorDetails.sessionStats?.totalSessions || 0}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Active: {counselorDetails.sessionStats?.activeSessions || 0} | 
-                       Completed: {counselorDetails.sessionStats?.completedSessions || 0}
-                     </Typography>
-                   </Grid>
-                   <Grid item xs={12} sm={6}>
-                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                       Total Duration: {counselorDetails.sessionStats?.totalDuration ? 
-                         `${Math.round(counselorDetails.sessionStats.totalDuration / 60)} minutes` : 'N/A'}
-                     </Typography>
-                     <Typography variant="body2" color="text.secondary">
-                       Avg: {counselorDetails.sessionStats?.avgDuration ? 
-                         `${Math.round(counselorDetails.sessionStats.avgDuration / 60)} min/session` : 'N/A'}
-                     </Typography>
-                   </Grid>
-                 </Grid>
-                 
-                 <Divider sx={{ my: 2 }} />
-                 
-                 <Typography variant="h6" sx={{ mb: 2 }}>Timing Information</Typography>
-                 <Grid container spacing={2}>
-                   <Grid item xs={12} sm={6}>
-                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                       First Login: {counselorDetails.sessionStats?.firstLogin ? 
-                         new Date(counselorDetails.sessionStats.firstLogin).toLocaleString() : 'N/A'}
-                     </Typography>
-                   </Grid>
-                   <Grid item xs={12} sm={6}>
-                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                       Last Login: {counselorDetails.sessionStats?.lastLogin ? 
-                         new Date(counselorDetails.sessionStats.lastLogin).toLocaleString() : 'N/A'}
-                     </Typography>
-                   </Grid>
-                                              <Grid item xs={12} sm={6}>
-                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                               Last Logout: {counselorDetails.sessionStats?.lastLogout ? 
-                                 new Date(counselorDetails.sessionStats.lastLogout).toLocaleString() : 'N/A'}
-                             </Typography>
-                           </Grid>
-                           {counselorDetails.sessionStats?.currentSessionDuration > 0 && (
-                             <Grid item xs={12}>
-                               <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                 Current Session: {Math.round(counselorDetails.sessionStats.currentSessionDuration / 60)} minutes
-                                 <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                   (Real-time: {Math.round((currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 60000)} min)
-                                 </Typography>
-                               </Typography>
-                             </Grid>
-                           )}
-                         </Grid>
-                 
-                 <Divider sx={{ my: 2 }} />
-                 
-                 <Typography variant="h6" sx={{ mb: 2 }}>Session Details</Typography>
-                 {counselorDetails.sessions && counselorDetails.sessions.length > 0 ? (
-                   <TableContainer component={Paper} sx={{ mb: 2 }}>
-                     <Table size="small">
-                       <TableHead>
-                         <TableRow>
-                           <TableCell>Login Time</TableCell>
-                           <TableCell>Logout Time</TableCell>
-                           <TableCell>Duration</TableCell>
-                           <TableCell>Status</TableCell>
-                           <TableCell>IP Address</TableCell>
-                         </TableRow>
-                       </TableHead>
-                       <TableBody>
-                         {counselorDetails.sessions.slice(0, 10).map((session) => (
-                           <TableRow key={session.id}>
-                             <TableCell>
-                               {session.loginTime ? 
-                                 new Date(session.loginTime).toLocaleString() : 
-                                 new Date(session.createdAt).toLocaleString()}
-                             </TableCell>
-                             <TableCell>
-                               {session.logoutTime ? 
-                                 new Date(session.logoutTime).toLocaleString() : 
-                                 'Active Session'}
-                             </TableCell>
-                             <TableCell>
-                               {session.sessionDuration ? 
-                                 `${Math.round(session.sessionDuration / 60)} min` : 
-                                 'N/A'}
-                             </TableCell>
-                             <TableCell>
-                               <Chip 
-                                 label={session.status} 
-                                 size="small"
-                                 color={session.status === 'ACTIVE' ? 'success' : 'default'}
-                               />
-                             </TableCell>
-                             <TableCell>
-                               {session.ipAddress || 'N/A'}
-                             </TableCell>
-                           </TableRow>
-                         ))}
-                       </TableBody>
-                     </Table>
-                   </TableContainer>
-                 ) : (
-                   <Typography variant="body2" color="text.secondary">
-                     No session data available for this period.
-                   </Typography>
-                 )}
-                 
-                 <Divider sx={{ my: 2 }} />
-                 
-                 <Typography variant="h6" sx={{ mb: 2 }}>Recent Activities</Typography>
-                {counselorDetails.activities?.slice(0, 10).map((activity, index) => (
-                  <Box key={activity.id || index} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+
+                <Typography variant="h6" sx={{ mb: 2 }}>Session Statistics</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {activity.activityType?.replace(/_/g, ' ')}
+                      Total Sessions: {counselorDetails.sessionStats?.totalSessions || 0}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatTimeAgo(activity.createdAt)}
+                    <Typography variant="body2" color="text.secondary">
+                      Active Sessions: {counselorDetails.sessionStats?.activeSessions || 0}
                     </Typography>
-                  </Box>
-                ))}
+                    <Typography variant="body2" color="success.main" sx={{ mt: 0.5, fontWeight: 600 }}>
+                      Students Completed: {counselorDetails.sessionStats?.completedStudents || 0}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Total Duration: {counselorDetails.sessionStats?.totalDuration !== undefined ?
+                        `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60)} minutes` : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Avg: {counselorDetails.sessionStats?.avgDuration !== undefined ?
+                        `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60 / (Math.max(counselorDetails.sessionStats.totalSessions || 0, 1) + (counselorDetails.sessionStats.currentSessionDuration === 0 && counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? 1 : 0)))} min/session` : 'N/A'}
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="h6" sx={{ mb: 2 }}>Timing Information</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">
+                      Last Login: {counselorDetails.sessionStats?.lastLogin ?
+                        format(new Date(counselorDetails.sessionStats.lastLogin), 'PPpp') : 'N/A'}
+                    </Typography>
+                  </Grid>
+                  {counselorDetails.sessionStats?.currentSessionDuration > 0 && (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                        Current Session: {Math.round(counselorDetails.sessionStats.currentSessionDuration / 60)} minutes
+                        <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                          (Real-time: {Math.round((currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 60000)} min)
+                        </Typography>
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="h6" sx={{ mb: 2 }}>Session Details</Typography>
+                {counselorDetails.sessions && counselorDetails.sessions.length > 0 ? (
+                  <TableContainer component={Paper} sx={{ mb: 2 }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Login Time</TableCell>
+                          <TableCell>Logout Time</TableCell>
+                          <TableCell>Duration</TableCell>
+                          <TableCell>Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {counselorDetails.sessions.slice(0, 10).map((session) => (
+                          <TableRow key={session.id}>
+                            <TableCell>
+                              {session.loginTime ?
+                                new Date(session.loginTime).toLocaleString() :
+                                new Date(session.createdAt).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              {session.logoutTime ?
+                                new Date(session.logoutTime).toLocaleString() :
+                                'Active Session'}
+                            </TableCell>
+                            <TableCell>
+                              {session.logoutTime ? (
+                                session.sessionDuration ? `${Math.round(session.sessionDuration / 60)} min` :
+                                  session.loginTime ? `${Math.round((new Date(session.logoutTime) - new Date(session.loginTime)) / 60000)} min` : 'N/A'
+                              ) : (
+                                session.status === 'ACTIVE' && session.loginTime && ((currentTime - new Date(session.loginTime)) / 60000) < 1440 ?
+                                  `${Math.round((currentTime - new Date(session.loginTime)) / 60000)} min` :
+                                  session.status === 'COMPLETED' ? 'N/A' : 'N/A'
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={session.status}
+                                size="small"
+                                color={session.status === 'ACTIVE' ? 'success' : 'default'}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No session data available for this period.
+                  </Typography>
+                )}
+
               </Box>
             ) : (
               <Alert severity="error">Failed to load counselor details.</Alert>
