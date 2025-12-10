@@ -118,7 +118,9 @@ const SORT_OPTIONS = [
   { value: 'student_asc', label: 'Student (A-Z)' },
   { value: 'student_desc', label: 'Student (Z-A)' },
   { value: 'university_asc', label: 'University (A-Z)' },
-  { value: 'university_desc', label: 'University (Z-A)' }
+  { value: 'university_desc', label: 'University (Z-A)' },
+  { value: 'country_asc', label: 'Country (A-Z)' },
+  { value: 'country_desc', label: 'Country (Z-A)' }
 ];
 
 function Applications() {
@@ -166,6 +168,9 @@ function Applications() {
   const [countryFilter, setCountryFilter] = useState('ALL');
   const [intakeFilter, setIntakeFilter] = useState('ALL');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [allStudentsData, setAllStudentsData] = useState([]);
+  const [countriesList, setCountriesList] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [formData, setFormData] = useState({
     studentId: '',
     universityId: '',
@@ -183,13 +188,21 @@ function Applications() {
     try {
       setLoading(true);
       setError(null);
+      
+      // Parse sortBy to extract sort field and order
+      const sortParams = sortBy.split('_');
+      const sortField = sortParams[0];
+      const sortOrder = sortParams[1] === 'desc' ? 'DESC' : 'ASC';
+      
       const response = await axiosInstance.get('/counselor/applications', {
         params: {
           search: searchQuery,
           status: statusFilter === 'ALL' ? undefined : statusFilter,
           studentId: studentFilter === 'ALL' ? undefined : studentFilter,
           universityId: universityFilter === 'ALL' ? undefined : universityFilter,
-          sort: sortBy,
+          country: countryFilter === 'ALL' ? undefined : countryFilter,
+          sortBy: sortField === 'country' ? 'country' : (sortField === 'deadline' ? 'applicationDeadline' : sortField === 'created' ? 'createdAt' : sortField === 'student' ? 'student' : sortField === 'university' ? 'university' : 'applicationDeadline'),
+          sortOrder: sortOrder,
           page: page + 1,
           limit: rowsPerPage
         }
@@ -235,6 +248,58 @@ function Applications() {
       console.error('Error fetching data:', error);
       setStudents([]);
       setUniversities([]);
+    }
+  };
+
+  // Fetch all students with their country data
+  const fetchAllStudentsWithCountries = async () => {
+    try {
+      setLoadingStudents(true);
+      const response = await axiosInstance.get('/counselor/students');
+      const studentsList = response.data.success 
+        ? (response.data.data?.students || [])
+        : (response.data.rows || []);
+
+      // Fetch country profiles for each student
+      const studentsWithCountries = await Promise.all(
+        studentsList.map(async (student) => {
+          try {
+            const countryResponse = await axiosInstance.get(`/counselor/students/${student.id}/country-profiles`);
+            const countryProfiles = countryResponse.data.success ? countryResponse.data.data : [];
+            
+            // Extract unique countries
+            const countries = countryProfiles.map(profile => profile.country);
+            
+            return {
+              ...student,
+              countries: countries,
+              countryProfiles: countryProfiles
+            };
+          } catch (error) {
+            console.error(`Error fetching countries for student ${student.id}:`, error);
+            return {
+              ...student,
+              countries: [],
+              countryProfiles: []
+            };
+          }
+        })
+      );
+
+      setAllStudentsData(studentsWithCountries);
+
+      // Extract unique countries for filter dropdown
+      const allCountries = new Set();
+      studentsWithCountries.forEach(student => {
+        student.countries.forEach(country => allCountries.add(country));
+      });
+      setCountriesList(Array.from(allCountries).sort());
+    } catch (error) {
+      console.error('Error fetching students with countries:', error);
+      setAllStudentsData([]);
+      setCountriesList([]);
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -314,7 +379,8 @@ function Applications() {
   useEffect(() => {
     fetchApplications();
     fetchStudentsAndUniversities();
-  }, [searchQuery, statusFilter, studentFilter, universityFilter, sortBy, page, rowsPerPage]);
+    fetchAllStudentsWithCountries();
+  }, [searchQuery, statusFilter, studentFilter, universityFilter, countryFilter, sortBy, page, rowsPerPage]);
 
   useEffect(() => {
     if (applications.length > 0) {
@@ -922,15 +988,16 @@ function Applications() {
 
                   <Grid item xs={12} sm={6} md={3}>
                     <FormControl fullWidth size="small">
-                      <InputLabel>Sort By</InputLabel>
+                      <InputLabel>Country</InputLabel>
                       <Select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        label="Sort By"
+                        value={countryFilter}
+                        onChange={(e) => setCountryFilter(e.target.value)}
+                        label="Country"
                       >
-                        {SORT_OPTIONS.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
+                        <MenuItem value="ALL">All Countries</MenuItem>
+                        {countriesList.map((country) => (
+                          <MenuItem key={country} value={country}>
+                            {country}
                           </MenuItem>
                         ))}
                       </Select>
@@ -964,18 +1031,17 @@ function Applications() {
 
                         <Grid item xs={12} sm={6} md={3}>
                           <FormControl fullWidth size="small">
-                            <InputLabel>Country</InputLabel>
+                            <InputLabel>Sort By</InputLabel>
                             <Select
-                              value={countryFilter}
-                              onChange={(e) => setCountryFilter(e.target.value)}
-                              label="Country"
+                              value={sortBy}
+                              onChange={(e) => setSortBy(e.target.value)}
+                              label="Sort By"
                             >
-                              <MenuItem value="ALL">All Countries</MenuItem>
-                              <MenuItem value="US">United States</MenuItem>
-                              <MenuItem value="CA">Canada</MenuItem>
-                              <MenuItem value="UK">United Kingdom</MenuItem>
-                              <MenuItem value="AU">Australia</MenuItem>
-                              <MenuItem value="DE">Germany</MenuItem>
+                              {SORT_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </MenuItem>
+                              ))}
                             </Select>
                           </FormControl>
                         </Grid>
@@ -1364,6 +1430,189 @@ function Applications() {
                 }
               </Grow>
             )}
+
+            {/* Students by Country Table */}
+            <Fade in={true} timeout={800}>
+              <Card sx={{ mt: 4, borderRadius: 3 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      <FlagIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      All Students by Country
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<RefreshIcon />}
+                      onClick={fetchAllStudentsWithCountries}
+                      disabled={loadingStudents}
+                    >
+                      Refresh
+                    </Button>
+                  </Box>
+
+                  {loadingStudents ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: theme.palette.grey[100] }}>
+                            <TableCell sx={{ fontWeight: 700 }}>Country</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Student Name</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Countries Count</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>All Countries</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Current Phase</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {allStudentsData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                                <Typography variant="body2" color="textSecondary">
+                                  No students found
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            (() => {
+                              // Group students by country
+                              const studentsByCountry = {};
+                              allStudentsData.forEach(student => {
+                                if (student.countries && student.countries.length > 0) {
+                                  student.countries.forEach(country => {
+                                    if (!studentsByCountry[country]) {
+                                      studentsByCountry[country] = [];
+                                    }
+                                    if (!studentsByCountry[country].find(s => s.id === student.id)) {
+                                      studentsByCountry[country].push(student);
+                                    }
+                                  });
+                                } else {
+                                  // Students without countries
+                                  if (!studentsByCountry['No Country']) {
+                                    studentsByCountry['No Country'] = [];
+                                  }
+                                  studentsByCountry['No Country'].push(student);
+                                }
+                              });
+
+                              // Sort countries
+                              const sortedCountries = Object.keys(studentsByCountry).sort((a, b) => {
+                                if (sortBy === 'country_asc') return a.localeCompare(b);
+                                if (sortBy === 'country_desc') return b.localeCompare(a);
+                                return a.localeCompare(b);
+                              });
+
+                              return sortedCountries.flatMap((country) =>
+                                studentsByCountry[country].map((student, index) => (
+                                  <TableRow key={`${country}-${student.id}`} hover>
+                                    {index === 0 && (
+                                      <TableCell
+                                        rowSpan={studentsByCountry[country].length}
+                                        sx={{
+                                          fontWeight: 600,
+                                          backgroundColor: theme.palette.primary[50],
+                                          verticalAlign: 'top'
+                                        }}
+                                      >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <LocationIcon sx={{ color: theme.palette.primary.main }} />
+                                          {country}
+                                        </Box>
+                                        <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+                                          {studentsByCountry[country].length} student(s)
+                                        </Typography>
+                                      </TableCell>
+                                    )}
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
+                                          {student.firstName?.charAt(0) || 'S'}
+                                        </Avatar>
+                                        <Typography variant="body2">
+                                          {student.firstName} {student.lastName}
+                                        </Typography>
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2">{student.email || 'N/A'}</Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2">{student.phone || 'N/A'}</Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={student.countries?.length || 0}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                        {student.countries && student.countries.length > 0 ? (
+                                          student.countries.map((cntry) => (
+                                            <Chip
+                                              key={cntry}
+                                              label={cntry}
+                                              size="small"
+                                              sx={{ fontSize: '0.7rem' }}
+                                            />
+                                          ))
+                                        ) : (
+                                          <Typography variant="caption" color="textSecondary">
+                                            No countries
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={student.currentPhase?.replace(/_/g, ' ') || 'Not Set'}
+                                        size="small"
+                                        color="secondary"
+                                        variant="outlined"
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={student.status || 'ACTIVE'}
+                                        size="small"
+                                        color={
+                                          student.status === 'COMPLETED' ? 'success' :
+                                          student.status === 'REJECTED' ? 'error' :
+                                          student.status === 'DEFERRED' ? 'warning' : 'default'
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => navigate(`/counselor/students/${student.id}`)}
+                                        color="primary"
+                                      >
+                                        <ViewIcon />
+                                      </IconButton>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              );
+                            })()
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </Fade>
           </Box>
         )}
 

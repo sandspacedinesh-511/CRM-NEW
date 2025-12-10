@@ -1162,8 +1162,8 @@ function StudentDetails() {
       setCountryProfiles(profiles);
 
       // Auto-select first profile if available and none selected
-      if (cleanedProfiles.length > 0 && !selectedCountry) {
-        setSelectedCountry(cleanedProfiles[0].country);
+      if (profiles.length > 0 && !selectedCountry) {
+        setSelectedCountry(profiles[0].country);
       }
     } catch (error) {
       console.error('Error fetching country profiles:', error);

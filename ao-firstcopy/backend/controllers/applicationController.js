@@ -97,10 +97,30 @@ exports.getApplications = async (req, res) => {
       };
     }
 
+    // Handle sorting by country or other fields
+    let orderClause;
+    if (sortBy === 'country') {
+      // Sort by university country
+      orderClause = [[{ model: University, as: 'university' }, 'country', sortOrder]];
+    } else if (sortBy === 'student') {
+      // Sort by student name
+      orderClause = [[{ model: Student, as: 'student' }, 'firstName', sortOrder]];
+    } else if (sortBy === 'university') {
+      // Sort by university name
+      orderClause = [[{ model: University, as: 'university' }, 'name', sortOrder]];
+    } else if (sortBy === 'applicationDeadline') {
+      orderClause = [['applicationDeadline', sortOrder]];
+    } else if (sortBy === 'createdAt') {
+      orderClause = [['createdAt', sortOrder]];
+    } else {
+      // Default sorting
+      orderClause = [[sortBy, sortOrder]];
+    }
+
     const applications = await StudentUniversityApplication.findAndCountAll({
       where: whereClause,
       include: includeClause,
-      order: [[sortBy, sortOrder]],
+      order: orderClause,
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
@@ -447,7 +467,7 @@ exports.getStudentsWithMultipleCountries = async (req, res) => {
       return acc;
     }, {});
 
-    // Helper to calculate progress (simplified version of frontend logic)
+    // Helper to calculate progress based on country-specific phase and documents
     const calculateProgress = (student, country) => {
       try {
         const PHASES = [
@@ -463,32 +483,86 @@ exports.getStudentsWithMultipleCountries = async (req, res) => {
           'ENROLLMENT'
         ];
 
+        // Get country-specific profile
         const profile = student.countryProfiles?.find(p => p.country === country);
-        const currentPhase = profile?.currentPhase || student.currentPhase;
+        if (!profile) {
+          // If no profile exists for this country, return 0
+          return 0;
+        }
+
+        // Use country-specific phase, not student's global phase
+        const currentPhase = profile.currentPhase || 'DOCUMENT_COLLECTION';
         const phaseIndex = PHASES.indexOf(currentPhase);
 
-        if (phaseIndex === -1) return 0;
+        if (phaseIndex === -1) {
+          // Phase not found, assume starting phase
+          return 0;
+        }
 
-        // Base progress from completed phases (10% per phase)
-        let progress = (phaseIndex / PHASES.length) * 100;
+        // Calculate base progress from completed phases
+        // Each phase represents 10% of total progress
+        const completedPhases = phaseIndex;
+        let progress = (completedPhases / PHASES.length) * 100;
 
-        // Add granular progress for current phase
+        // Add granular progress for current phase based on completion
         if (currentPhase === 'DOCUMENT_COLLECTION') {
           const requiredDocs = ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'];
-
-
-          // Count unique uploaded document types
+          
+          // Count unique uploaded document types that are approved or pending
           const uploadedTypes = (student.documents || [])
-            .filter(d => requiredDocs.includes(d.type))
+            .filter(d => requiredDocs.includes(d.type) && ['PENDING', 'APPROVED'].includes(d.status))
             .map(d => d.type);
 
           const uniqueUploaded = new Set(uploadedTypes).size;
-          const docProgress = (uniqueUploaded / requiredDocs.length) * 10;
-          progress += (docProgress || 0);
+          // Document collection phase progress (0-10% of total)
+          const phaseProgress = (uniqueUploaded / requiredDocs.length) * 10;
+          progress = phaseProgress; // Start from 0, progress within this phase
+        } else if (currentPhase === 'UNIVERSITY_SHORTLISTING') {
+          // Check if universities have been shortlisted (check applications for this country)
+          const countryApplications = (student.applications || []).filter(
+            app => app.university?.country === country
+          );
+          const hasShortlisted = countryApplications.length > 0;
+          // Phase is 10-20% of total, add partial if shortlisted
+          progress = 10 + (hasShortlisted ? 10 : 5);
+        } else if (currentPhase === 'APPLICATION_SUBMISSION') {
+          const countryApplications = (student.applications || []).filter(
+            app => app.university?.country === country && app.applicationStatus === 'SUBMITTED'
+          );
+          const hasSubmitted = countryApplications.length > 0;
+          // Phase is 20-30% of total
+          progress = 20 + (hasSubmitted ? 10 : 5);
+        } else if (currentPhase === 'OFFER_RECEIVED') {
+          const countryApplications = (student.applications || []).filter(
+            app => app.university?.country === country && app.applicationStatus === 'ACCEPTED'
+          );
+          const hasOffer = countryApplications.length > 0;
+          // Phase is 30-40% of total
+          progress = 30 + (hasOffer ? 10 : 5);
+        } else if (currentPhase === 'INITIAL_PAYMENT') {
+          // Phase is 40-50% of total
+          progress = 40 + 5;
+        } else if (currentPhase === 'INTERVIEW') {
+          // Phase is 50-60% of total
+          progress = 50 + 5;
+        } else if (currentPhase === 'FINANCIAL_TB_TEST') {
+          // Phase is 60-70% of total
+          progress = 60 + 5;
+        } else if (currentPhase === 'CAS_VISA') {
+          // Phase is 70-80% of total
+          progress = 70 + 5;
+        } else if (currentPhase === 'VISA_APPLICATION') {
+          // Phase is 80-90% of total
+          progress = 80 + 5;
+        } else if (currentPhase === 'ENROLLMENT') {
+          // Phase is 90-100% of total
+          progress = 90 + 5;
         } else {
-          progress += 5;
+          // Default: add 5% to indicate phase is started
+          progress = (completedPhases / PHASES.length) * 100 + 5;
         }
 
+        // Ensure progress doesn't exceed 100%
         return Math.min(Math.round(progress), 100);
       } catch (err) {
         console.error(`Error calculating progress for student ${student.id || 'unknown'} country ${country}:`, err);
@@ -501,11 +575,19 @@ exports.getStudentsWithMultipleCountries = async (req, res) => {
       const student = studentsMap[item.studentId];
       if (!student) return null;
 
-      // Get countries from countryProfiles
-      const countries = (student.countryProfiles || []).map(profile => ({
-        country: profile.country,
-        progress: calculateProgress(student, profile.country)
-      }));
+      // Get countries from countryProfiles with individual progress calculation
+      const countries = (student.countryProfiles || []).map(profile => {
+        // Calculate progress for this specific country
+        const progress = calculateProgress(student, profile.country);
+        
+        return {
+          country: profile.country,
+          progress: progress,
+          currentPhase: profile.currentPhase || 'DOCUMENT_COLLECTION',
+          preferredCountry: profile.preferredCountry || false,
+          visaStatus: profile.visaStatus || 'NOT_STARTED'
+        };
+      });
 
       return {
         studentId: student.id,

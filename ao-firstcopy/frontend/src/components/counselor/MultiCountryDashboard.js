@@ -225,14 +225,42 @@ const MultiCountryDashboard = () => {
   };
 
   const getCountryFlag = (country) => {
+    if (!country) return '🏳️';
+    
+    const normalizedCountry = country.trim().toUpperCase();
     const flagMap = {
-      'United Kingdom': '🇬🇧',
-      'United States': '🇺🇸',
-      'Canada': '🇨🇦',
-      'Australia': '🇦🇺',
-      'Germany': '🇩🇪'
+      'UNITED KINGDOM': '🇬🇧',
+      'UK': '🇬🇧',
+      'UNITED STATES': '🇺🇸',
+      'USA': '🇺🇸',
+      'US': '🇺🇸',
+      'CANADA': '🇨🇦',
+      'CA': '🇨🇦',
+      'AUSTRALIA': '🇦🇺',
+      'AU': '🇦🇺',
+      'GERMANY': '🇩🇪',
+      'DE': '🇩🇪',
+      'IRELAND': '🇮🇪',
+      'FRANCE': '🇫🇷',
+      'FR': '🇫🇷',
+      'NETHERLANDS': '🇳🇱',
+      'NL': '🇳🇱',
+      'ITALY': '🇮🇹',
+      'SPAIN': '🇪🇸',
+      'SWEDEN': '🇸🇪',
+      'DENMARK': '🇩🇰',
+      'NORWAY': '🇳🇴',
+      'FINLAND': '🇫🇮',
+      'SWITZERLAND': '🇨🇭',
+      'NEW ZEALAND': '🇳🇿',
+      'NZ': '🇳🇿',
+      'SINGAPORE': '🇸🇬',
+      'JAPAN': '🇯🇵',
+      'SOUTH KOREA': '🇰🇷',
+      'CHINA': '🇨🇳',
+      'INDIA': '🇮🇳'
     };
-    return flagMap[country] || '🏳️';
+    return flagMap[normalizedCountry] || '🏳️';
   };
 
   // Get statistics for each country
@@ -351,35 +379,56 @@ const MultiCountryDashboard = () => {
                 Country Progress
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {student.countries?.map((countryData, index) => (
-                  <Box key={countryData.country || index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ width: 140, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <span style={{ fontSize: '1.2rem' }}>{getCountryFlag(countryData.country)}</span>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {countryData.country}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={countryData.progress || 0}
-                        sx={{
-                          flex: 1,
-                          height: 8,
-                          borderRadius: 4,
-                          bgcolor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            borderRadius: 4,
-                            background: (theme) => `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
-                          }
-                        }}
-                      />
-                      <Typography variant="body2" color="textSecondary" sx={{ minWidth: 40, textAlign: 'right' }}>
-                        {Math.round(countryData.progress || 0)}%
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
+                {student.countries && student.countries.length > 0 ? (
+                  student.countries.map((countryData, index) => {
+                    const progressValue = countryData.progress || 0;
+                    const currentPhase = countryData.currentPhase || 'DOCUMENT_COLLECTION';
+                    
+                    return (
+                      <Box key={countryData.country || index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ width: 140, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span style={{ fontSize: '1.2rem' }}>{getCountryFlag(countryData.country)}</span>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {countryData.country}
+                          </Typography>
+                          {countryData.preferredCountry && (
+                            <Chip label="Preferred" size="small" color="primary" sx={{ ml: 0.5, height: 18 }} />
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={progressValue}
+                            sx={{
+                              flex: 1,
+                              height: 8,
+                              borderRadius: 4,
+                              bgcolor: 'grey.200',
+                              '& .MuiLinearProgress-bar': {
+                                borderRadius: 4,
+                                background: (theme) => `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                              }
+                            }}
+                          />
+                          <Typography variant="body2" color="textSecondary" sx={{ minWidth: 40, textAlign: 'right' }}>
+                            {Math.round(progressValue)}%
+                          </Typography>
+                          <Chip 
+                            label={currentPhase.replace(/_/g, ' ')} 
+                            size="small" 
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ fontSize: '0.7rem' }}
+                          />
+                        </Box>
+                      </Box>
+                    );
+                  })
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
+                    No country profiles available
+                  </Typography>
+                )}
               </Box>
             </Grid>
             <Grid item xs={12} md={3}>
