@@ -143,9 +143,6 @@ const DOCUMENT_TYPES = [
   'OTHER'
 ];
 
-const formatDate = (dateString, includeTime = false) => {
-// Phase requirements for documents
-// Required documents for Document Collection: PASSPORT, ACADEMIC_TRANSCRIPT, RECOMMENDATION_LETTER, STATEMENT_OF_PURPOSE, CV_RESUME
 const PHASE_REQUIREMENTS = {
   'DOCUMENT_COLLECTION': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'],
   'UNIVERSITY_SHORTLISTING': ['PASSPORT', 'ACADEMIC_TRANSCRIPT'],
@@ -159,7 +156,7 @@ const PHASE_REQUIREMENTS = {
   'ENROLLMENT': ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString, includeTime = false) => {
   if (!dateString) return '';
   try {
     const formatStr = includeTime ? 'MMM d, yyyy \u2014 hh:mm a' : 'MMM d, yyyy';
@@ -316,18 +313,18 @@ function StudentDetails() {
   // Calculate missing documents based on current phase
   const missingDocuments = useMemo(() => {
     if (!student?.currentPhase || !documents) return [];
-    
+
     const requiredDocs = PHASE_REQUIREMENTS[student.currentPhase] || [];
     if (requiredDocs.length === 0) return [];
-    
+
     // Get uploaded documents that are approved or pending
     const uploadedDocTypes = documents
       .filter(doc => ['PENDING', 'APPROVED'].includes(doc.status))
       .map(doc => doc.type);
-    
+
     // Find missing documents
     const missing = requiredDocs.filter(docType => !uploadedDocTypes.includes(docType));
-    
+
     return missing;
   }, [student?.currentPhase, documents]);
 
@@ -589,7 +586,7 @@ function StudentDetails() {
   const handlePhaseConfirm = () => {
     if (phaseConfirmDialog.phase) {
       handlePhaseChange(
-        phaseConfirmDialog.phase.key, 
+        phaseConfirmDialog.phase.key,
         phaseConfirmDialog.remarks,
         phaseConfirmDialog.selectedUniversities,
         phaseConfirmDialog.selectedUniversity,
@@ -985,7 +982,7 @@ function StudentDetails() {
         remarks: '',
         priority: 'MEDIUM'
       });
-      
+
       // Refresh student details to update missing documents list
       await fetchStudentDetails();
       showSnackbar('Document uploaded successfully', 'success');
@@ -2020,92 +2017,84 @@ function StudentDetails() {
 
           {/* Enhanced Search and Filters */}
           <Box sx={{ mb: 3 }}>
-            <Grid container spacing={2} alignItems="center">
-      {/* Upload Dialog */}
-      <Dialog
-        open={openUploadDialog}
-        onClose={() => setOpenUploadDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Upload Document</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            {/* Missing Documents Section */}
-            {missingDocuments.length > 0 && (
-              <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'warning.dark' }}>
-                  Missing Documents for {student?.currentPhase?.replace(/_/g, ' ')} Phase:
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {missingDocuments.map((docType) => {
-                    const isSelected = uploadData.type === docType;
-                    return (
-                      <Chip
-                        key={docType}
-                        label={docType.replace(/_/g, ' ')}
-                        onClick={() => setUploadData({ ...uploadData, type: docType })}
-                        color={isSelected ? 'primary' : 'default'}
-                        variant={isSelected ? 'filled' : 'outlined'}
-                        sx={{
-                          cursor: 'pointer',
-                          '&:hover': {
-                            bgcolor: isSelected ? 'primary.dark' : 'action.hover'
-                          }
-                        }}
-                      />
-                    );
-                  })}
+
+            <Box sx={{ pt: 2 }}>
+              {/* Missing Documents Section */}
+              {missingDocuments.length > 0 && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'warning.dark' }}>
+                    Missing Documents for {student?.currentPhase?.replace(/_/g, ' ')} Phase:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {missingDocuments.map((docType) => {
+                      const isSelected = uploadData.type === docType;
+                      return (
+                        <Chip
+                          key={docType}
+                          label={docType.replace(/_/g, ' ')}
+                          onClick={() => setUploadData({ ...uploadData, type: docType })}
+                          color={isSelected ? 'primary' : 'default'}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': {
+                              bgcolor: isSelected ? 'primary.dark' : 'action.hover'
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Click on a document type above to select it, or choose from the dropdown below.
+                  </Typography>
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Click on a document type above to select it, or choose from the dropdown below.
-                </Typography>
-              </Box>
-            )}
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                  }}
-                  sx={{ borderRadius: 2 }}
-                />
+              )}
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search documents..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="Status"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <MenuItem value="ALL">All Status</MenuItem>
+                    <MenuItem value="APPROVED">Approved</MenuItem>
+                    <MenuItem value="PENDING">Pending</MenuItem>
+                    <MenuItem value="REJECTED">Rejected</MenuItem>
+                    <MenuItem value="EXPIRED">Expired</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<FilterIcon />}
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    size="small"
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                  </Button>
+                </Grid>
               </Grid>
-              <Grid item xs={12} md={3}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Status"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="ALL">All Status</MenuItem>
-                  <MenuItem value="APPROVED">Approved</MenuItem>
-                  <MenuItem value="PENDING">Pending</MenuItem>
-                  <MenuItem value="REJECTED">Rejected</MenuItem>
-                  <MenuItem value="EXPIRED">Expired</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<FilterIcon />}
-                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  size="small"
-                  sx={{ borderRadius: 2 }}
-                >
-                  {showAdvancedFilters ? 'Hide' : 'Show'} Filters
-                </Button>
-              </Grid>
-            </Grid>
+            </Box>
           </Box>
 
           <List>
@@ -3556,9 +3545,9 @@ function StudentDetails() {
                   if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
                     return (
                       <Box sx={{ mb: 3 }}>
-                        <Typography variant="body2" sx={{ 
-                          fontWeight: 600, 
-                          mb: 1.5, 
+                        <Typography variant="body2" sx={{
+                          fontWeight: 600,
+                          mb: 1.5,
                           color: 'rgba(255,255,255,0.9)',
                           display: 'flex',
                           alignItems: 'center',
@@ -3567,7 +3556,7 @@ function StudentDetails() {
                           <SchoolIcon sx={{ fontSize: 18 }} />
                           Shortlisted Universities ({shortlist.universities.length})
                         </Typography>
-                        <Box sx={{ 
+                        <Box sx={{
                           background: 'rgba(255,255,255,0.1)',
                           borderRadius: 2,
                           p: 2,
@@ -3611,11 +3600,11 @@ function StudentDetails() {
                   const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
                   const offers = notes?.universitiesWithOffers;
                   const shortlist = notes?.universityShortlist;
-                  
+
                   // Determine which universities to show: offers first, then fallback to shortlisted
                   let universitiesToShow = null;
                   let isFallback = false;
-                  
+
                   if (offers && offers.universities && offers.universities.length > 0) {
                     universitiesToShow = offers.universities;
                     isFallback = false;
@@ -3623,14 +3612,14 @@ function StudentDetails() {
                     universitiesToShow = shortlist.universities;
                     isFallback = true;
                   }
-                  
+
                   if (universitiesToShow && universitiesToShow.length > 0) {
                     return (
                       <Box sx={{ mb: 3 }}>
                         {isFallback && (
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
+                          <Alert
+                            severity="info"
+                            sx={{
                               mb: 2,
                               background: 'rgba(33, 150, 243, 0.2)',
                               color: 'white',
@@ -3644,9 +3633,9 @@ function StudentDetails() {
                             </Typography>
                           </Alert>
                         )}
-                        <Typography variant="body2" sx={{ 
-                          fontWeight: 600, 
-                          mb: 1.5, 
+                        <Typography variant="body2" sx={{
+                          fontWeight: 600,
+                          mb: 1.5,
                           color: 'rgba(255,255,255,0.9)',
                           display: 'flex',
                           alignItems: 'center',
@@ -3716,9 +3705,9 @@ function StudentDetails() {
                           ) : null;
                         })()}
                         {!phaseConfirmDialog.selectedUniversity && (
-                          <Alert 
-                            severity="warning" 
-                            sx={{ 
+                          <Alert
+                            severity="warning"
+                            sx={{
                               mt: 1.5,
                               background: 'rgba(255, 193, 7, 0.2)',
                               color: 'white',
@@ -3738,9 +3727,9 @@ function StudentDetails() {
                     // No universities found at all
                     return (
                       <Box sx={{ mb: 3 }}>
-                        <Alert 
-                          severity="error" 
-                          sx={{ 
+                        <Alert
+                          severity="error"
+                          sx={{
                             background: 'rgba(244, 67, 54, 0.2)',
                             color: 'white',
                             border: '1px solid rgba(244, 67, 54, 0.4)',
@@ -3770,9 +3759,9 @@ function StudentDetails() {
                   if (shortlist && shortlist.universities && shortlist.universities.length > 0) {
                     return (
                       <Box sx={{ mb: 3 }}>
-                        <Typography variant="body2" sx={{ 
-                          fontWeight: 600, 
-                          mb: 1.5, 
+                        <Typography variant="body2" sx={{
+                          fontWeight: 600,
+                          mb: 1.5,
                           color: 'rgba(255,255,255,0.9)',
                           display: 'flex',
                           alignItems: 'center',
@@ -3870,9 +3859,9 @@ function StudentDetails() {
                           </Typography>
                         )}
                         {phaseConfirmDialog.selectedUniversities.length === 0 && (
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
+                          <Alert
+                            severity="info"
+                            sx={{
                               mt: 1.5,
                               background: 'rgba(33, 150, 243, 0.2)',
                               color: 'white',
@@ -3898,9 +3887,9 @@ function StudentDetails() {
               {/* University Selection for University Shortlisting Phase */}
               {phaseConfirmDialog.phase?.key === 'UNIVERSITY_SHORTLISTING' && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5, 
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
                     color: 'rgba(255,255,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
@@ -4008,7 +3997,7 @@ function StudentDetails() {
                   )}
                 </Box>
               )}
-              
+
               {/* Remarks Text Field */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="body2" sx={{
@@ -4062,15 +4051,12 @@ function StudentDetails() {
                 />
               </Box>
 
-              <Alert
-                severity="info"
-                sx={{
               {/* Interview Status Selection - Show for Interview phase */}
               {phaseConfirmDialog.phase?.key === 'INTERVIEW' && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5, 
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
                     color: 'rgba(255,255,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
@@ -4093,11 +4079,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.interviewStatus === 'APPROVED' 
+                        background: phaseConfirmDialog.interviewStatus === 'APPROVED'
                           ? 'linear-gradient(45deg, #4CAF50 30%, #45a049 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.interviewStatus === 'APPROVED' 
+                        border: phaseConfirmDialog.interviewStatus === 'APPROVED'
                           ? 'none'
                           : '2px solid rgba(76, 175, 80, 0.5)',
                         '&:hover': {
@@ -4124,11 +4110,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.interviewStatus === 'REFUSED' 
+                        background: phaseConfirmDialog.interviewStatus === 'REFUSED'
                           ? 'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.interviewStatus === 'REFUSED' 
+                        border: phaseConfirmDialog.interviewStatus === 'REFUSED'
                           ? 'none'
                           : '2px solid rgba(244, 67, 54, 0.5)',
                         '&:hover': {
@@ -4144,9 +4130,9 @@ function StudentDetails() {
                     </Button>
                   </Box>
                   {!phaseConfirmDialog.interviewStatus && (
-                    <Alert 
-                      severity="warning" 
-                      sx={{ 
+                    <Alert
+                      severity="warning"
+                      sx={{
                         mt: 1.5,
                         background: 'rgba(255, 193, 7, 0.2)',
                         color: 'white',
@@ -4166,9 +4152,9 @@ function StudentDetails() {
               {/* CAS & Visa Status Selection - Show for CAS & Visa phase */}
               {phaseConfirmDialog.phase?.key === 'CAS_VISA' && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5, 
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
                     color: 'rgba(255,255,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
@@ -4191,11 +4177,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.casVisaStatus === 'APPROVED' 
+                        background: phaseConfirmDialog.casVisaStatus === 'APPROVED'
                           ? 'linear-gradient(45deg, #4CAF50 30%, #45a049 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.casVisaStatus === 'APPROVED' 
+                        border: phaseConfirmDialog.casVisaStatus === 'APPROVED'
                           ? 'none'
                           : '2px solid rgba(76, 175, 80, 0.5)',
                         '&:hover': {
@@ -4222,11 +4208,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.casVisaStatus === 'REFUSED' 
+                        background: phaseConfirmDialog.casVisaStatus === 'REFUSED'
                           ? 'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.casVisaStatus === 'REFUSED' 
+                        border: phaseConfirmDialog.casVisaStatus === 'REFUSED'
                           ? 'none'
                           : '2px solid rgba(244, 67, 54, 0.5)',
                         '&:hover': {
@@ -4242,9 +4228,9 @@ function StudentDetails() {
                     </Button>
                   </Box>
                   {!phaseConfirmDialog.casVisaStatus && (
-                    <Alert 
-                      severity="warning" 
-                      sx={{ 
+                    <Alert
+                      severity="warning"
+                      sx={{
                         mt: 1.5,
                         background: 'rgba(255, 193, 7, 0.2)',
                         color: 'white',
@@ -4264,9 +4250,9 @@ function StudentDetails() {
               {/* Financial Option Selection - Show for Financial & TB Test phase */}
               {phaseConfirmDialog.phase?.key === 'FINANCIAL_TB_TEST' && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5, 
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
                     color: 'rgba(255,255,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
@@ -4319,9 +4305,9 @@ function StudentDetails() {
                     </Select>
                   </FormControl>
                   {!phaseConfirmDialog.financialOption && (
-                    <Alert 
-                      severity="warning" 
-                      sx={{ 
+                    <Alert
+                      severity="warning"
+                      sx={{
                         mt: 1.5,
                         background: 'rgba(255, 193, 7, 0.2)',
                         color: 'white',
@@ -4339,8 +4325,8 @@ function StudentDetails() {
               )}
 
               <Alert
-                severity="info" 
-                sx={{ 
+                severity="info"
+                sx={{
                   background: 'rgba(255,255,255,0.15)',
                   color: 'white',
                   border: '1px solid rgba(255,255,255,0.3)',

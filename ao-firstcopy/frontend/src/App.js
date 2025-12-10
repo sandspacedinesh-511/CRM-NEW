@@ -32,7 +32,7 @@ import MarketingTeamManagement from './pages/admin/MarketingTeamManagement';
 import B2BMarketingTeamManagement from './pages/admin/B2BMarketingTeamManagement';
 import MarketingMemberLeadsAdmin from './pages/admin/MarketingMemberLeadsAdmin';
 import B2BMarketingMemberLeadsAdmin from './pages/admin/B2BMarketingMemberLeadsAdmin';
-import AdminProfile from './pages/admin/Profile';
+
 
 // Counselor pages
 import CounselorDashboard from './pages/counselor/Dashboard';
@@ -42,7 +42,7 @@ import Documents from './pages/counselor/Documents';
 import Applications from './pages/counselor/Applications';
 import UniversityList from './pages/counselor/UniversityList';
 import Tasks from './pages/counselor/Tasks';
-import Profile from './pages/counselor/Profile';
+
 import CounselorNotifications from './pages/counselor/Notifications';
 
 // Telecaller pages
@@ -97,7 +97,7 @@ function App() {
                   <Route path="/admin/b2b-marketing-team/:id/leads" element={<B2BMarketingMemberLeadsAdmin />} />
                   <Route path="/admin/b2b-marketing-team/:id/leads" element={<B2BMarketingMemberLeadsAdmin />} />
                   <Route path="/admin/settings" element={<Settings />} />
-                  <Route path="/admin/profile" element={<AdminProfile />} />
+
                 </Route>
               </Route>
 
@@ -112,7 +112,7 @@ function App() {
                   <Route path="/counselor/applications" element={<Applications />} />
                   <Route path="/counselor/universities" element={<UniversityList />} />
                   <Route path="/counselor/tasks" element={<Tasks />} />
-                  <Route path="/counselor/profile" element={<Profile />} />
+
                   <Route path="/counselor/notifications" element={<CounselorNotifications />} />
                 </Route>
               </Route>
