@@ -1811,7 +1811,13 @@ function StudentDetails() {
                 </ListItemIcon>
                 <ListItemText
                   primary="Selected Countries"
-                  secondary={student?.targetCountries ? student.targetCountries.replace(/,/g, ', ') : 'Not provided'}
+                  secondary={
+                    Array.isArray(student?.targetCountries)
+                      ? student.targetCountries.join(', ')
+                      : typeof student?.targetCountries === 'string'
+                        ? student.targetCountries.replace(/,/g, ', ')
+                        : 'Not provided'
+                  }
                 />
               </ListItem>
             </List>

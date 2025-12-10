@@ -89,66 +89,7 @@ const ActivityLog = () => {
       )}
 
       <Stack spacing={3}>
-        <Card>
-          <CardHeader
-            title="Engagement Alerts"
-            subheader="Calls or follow-ups that require attention"
-            action={
-              <IconButton onClick={loadData}>
-                <RefreshIcon />
-              </IconButton>
-            }
-          />
-          <CardContent>
-            {engagementAlerts.length === 0 ? (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography color="text.secondary">
-                  There are no active alerts at this time.
-                </Typography>
-              </Box>
-            ) : (
-              <List sx={{ px: 0 }}>
-                {engagementAlerts.map((alert) => (
-                  <Box key={`${alert.type}-${alert.taskId}`}>
-                    <ListItem sx={{ alignItems: 'flex-start' }}>
-                      <ListItemAvatar>
-                        <Avatar
-                          sx={{
-                            bgcolor:
-                              alert.severity === 'warning'
-                                ? alpha(theme.palette.warning.main, 0.15)
-                                : alpha(theme.palette.info.main, 0.15),
-                            color:
-                              alert.severity === 'warning'
-                                ? theme.palette.warning.main
-                                : theme.palette.info.main
-                          }}
-                        >
-                          <NotificationImportantIcon />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                            {alert.message}
-                          </Typography>
-                        }
-                        secondary={
-                          alert.dueDate ? (
-                            <Typography variant="body2" color="text.secondary">
-                              Due {formatDistanceToNow(new Date(alert.dueDate), { addSuffix: true })}
-                            </Typography>
-                          ) : null
-                        }
-                      />
-                    </ListItem>
-                    <Divider component="li" />
-                  </Box>
-                ))}
-              </List>
-            )}
-          </CardContent>
-        </Card>
+
 
         <Card>
           <CardHeader

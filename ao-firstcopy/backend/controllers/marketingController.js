@@ -57,23 +57,38 @@ const formatLeadRecord = (studentInstance) => {
   const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
   const ageInDays = student.createdAt
     ? Math.max(
-        0,
-        Math.round(
-          (Date.now() - new Date(student.createdAt).getTime()) / (1000 * 60 * 60 * 24)
-        )
+      0,
+      Math.round(
+        (Date.now() - new Date(student.createdAt).getTime()) / (1000 * 60 * 60 * 24)
       )
+    )
     : null;
 
-  // Parse notes to extract consultancy name
-  let consultancyName = null;
+  // Parse notes to extract additional data
+  let notesData = {};
   try {
     if (student.notes) {
-      const notesData = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
-      consultancyName = notesData?.consultancyName || null;
+      notesData = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
     }
   } catch (e) {
-    // If notes is not valid JSON, ignore
-    console.log('Could not parse notes for consultancy name:', e);
+    console.log('Could not parse notes:', e);
+  }
+
+  // Handle targetCountries parsing (it could be a JSON string or a comma-separated string depending on legacy data)
+  let countries = [];
+  try {
+    if (student.targetCountries) {
+      if (student.targetCountries.startsWith('[')) {
+        countries = JSON.parse(student.targetCountries);
+      } else {
+        countries = student.targetCountries.split(',').filter(Boolean);
+      }
+    } else if (notesData.countries) {
+      countries = Array.isArray(notesData.countries) ? notesData.countries : [];
+    }
+  } catch (e) {
+    console.warn('Failed to parse targetCountries:', e);
+    countries = [];
   }
 
   return {
@@ -89,12 +104,18 @@ const formatLeadRecord = (studentInstance) => {
     updatedAt: student.updatedAt,
     counselor: student.counselor
       ? {
-          id: student.counselor.id,
-          name: student.counselor.name,
-          email: student.counselor.email
-        }
+        id: student.counselor.id,
+        name: student.counselor.name,
+        email: student.counselor.email
+      }
       : null,
-    consultancyName,
+    consultancyName: notesData.consultancyName || null,
+    branch: student.preferredCourse || notesData.branch || null,
+    universityName: student.preferredUniversity || notesData.universityName || null,
+    yearOfStudy: student.yearOfStudy ?? notesData.yearOfStudy ?? null,
+    completionYear: student.completionYear ?? notesData.completionYear ?? null,
+    countries: countries.join(', '), // Return as comma-separated string for frontend compatibility
+    parentsAnnualIncome: student.parentsAnnualIncome ?? notesData.parentsAnnualIncome ?? null,
     ageInDays
   };
 };
@@ -240,7 +261,7 @@ exports.createLead = async (req, res) => {
       yearOfStudy === undefined || yearOfStudy === null || yearOfStudy === ''
         ? null
         : parseInt(yearOfStudy, 10);
-    
+
     if (isNaN(normalizedYearOfStudy)) {
       return res.status(400).json({
         success: false,
@@ -252,7 +273,7 @@ exports.createLead = async (req, res) => {
       completionYear === undefined || completionYear === null || completionYear === ''
         ? null
         : parseInt(completionYear, 10);
-    
+
     if (isNaN(normalizedCompletionYear)) {
       return res.status(400).json({
         success: false,
@@ -295,7 +316,7 @@ exports.createLead = async (req, res) => {
       preferredCourse: branch,
       yearOfStudy: normalizedYearOfStudy,
       completionYear: normalizedCompletionYear,
-      targetCountries: Array.isArray(countries) ? countries.join(',') : null,
+      targetCountries: Array.isArray(countries) ? JSON.stringify(countries) : null,
       parentsAnnualIncome: normalizedParentsAnnualIncome,
       status: 'ACTIVE',
       currentPhase: 'DOCUMENT_COLLECTION',
@@ -334,22 +355,13 @@ exports.createLead = async (req, res) => {
       scope: 'marketing_create_lead',
       userId: req.user.id
     });
-    
+
     // Log request body for debugging
     console.error('Error creating marketing lead:', {
       error: error.message,
       stack: error.stack,
       requestBody: {
-        studentName,
-        consultancyName,
-        branch,
-        yearOfStudy,
-        completionYear,
-        countries,
-        universityName,
-        mobile,
-        email,
-        parentsAnnualIncome,
+        ...req.body,
         isB2B: req.user?.role === 'b2b_marketing'
       },
       userId: req.user?.id,
@@ -465,7 +477,7 @@ exports.updateLead = async (req, res) => {
       preferredCourse: isB2B ? student.preferredCourse : (branch ?? student.preferredCourse),
       yearOfStudy: normalizedYearOfStudy,
       completionYear: normalizedCompletionYear,
-      targetCountries: Array.isArray(countries) ? countries.join(',') : student.targetCountries,
+      targetCountries: Array.isArray(countries) ? JSON.stringify(countries) : student.targetCountries,
       parentsAnnualIncome: isB2B ? student.parentsAnnualIncome : normalizedParentsAnnualIncome,
       notes: JSON.stringify(notesPayload)
     });
@@ -789,16 +801,16 @@ exports.getDashboard = async (req, res) => {
       timestamp: activity.createdAt,
       student: activity.student
         ? {
-            id: activity.student.id,
-            name: `${activity.student.firstName} ${activity.student.lastName}`.trim(),
-            status: activity.student.status
-          }
+          id: activity.student.id,
+          name: `${activity.student.firstName} ${activity.student.lastName}`.trim(),
+          status: activity.student.status
+        }
         : null,
       user: activity.user
         ? {
-            id: activity.user.id,
-            name: activity.user.name
-          }
+          id: activity.user.id,
+          name: activity.user.name
+        }
         : null
     }));
 
@@ -1137,6 +1149,21 @@ exports.getActivities = async (req, res) => {
           ? activityInstance.get({ plain: true })
           : activityInstance;
 
+        let countries = [];
+        try {
+          const rawCountries = activity.student?.targetCountries;
+          if (rawCountries) {
+            if (rawCountries.startsWith('[')) {
+              countries = JSON.parse(rawCountries);
+            } else {
+              countries = rawCountries.split(',').filter(Boolean);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to parse targetCountries in activity:', e);
+          countries = [];
+        }
+
         return {
           id: activity.id,
           type: activity.type,
@@ -1144,26 +1171,26 @@ exports.getActivities = async (req, res) => {
           timestamp: activity.createdAt,
           student: activity.student
             ? {
-                id: activity.student.id,
-                firstName: activity.student.firstName,
-                lastName: activity.student.lastName,
-                name: `${activity.student.firstName || ''} ${activity.student.lastName || ''}`.trim(),
-                email: activity.student.email,
-                status: activity.student.status,
-                branch: activity.student.preferredCourse,
-                yearOfStudy: activity.student.yearOfStudy,
-                completionYear: activity.student.completionYear,
-                countries: activity.student.targetCountries,
-                universityName: activity.student.preferredUniversity,
-                parentsAnnualIncome: activity.student.parentsAnnualIncome
-              }
+              id: activity.student.id,
+              firstName: activity.student.firstName,
+              lastName: activity.student.lastName,
+              name: `${activity.student.firstName || ''} ${activity.student.lastName || ''}`.trim(),
+              email: activity.student.email,
+              status: activity.student.status,
+              branch: activity.student.preferredCourse,
+              yearOfStudy: activity.student.yearOfStudy,
+              completionYear: activity.student.completionYear,
+              countries: countries.join(', '),
+              universityName: activity.student.preferredUniversity,
+              parentsAnnualIncome: activity.student.parentsAnnualIncome
+            }
             : null,
           user: activity.user
             ? {
-                id: activity.user.id,
-                name: activity.user.name,
-                email: activity.user.email
-              }
+              id: activity.user.id,
+              name: activity.user.name,
+              email: activity.user.email
+            }
             : null,
           metadata: activity.metadata || null
         };
@@ -1218,7 +1245,7 @@ exports.getActivities = async (req, res) => {
 // Get lead details by ID
 exports.getLeadDetails = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_lead_details');
-  
+
   try {
     const lead = await Student.findOne({
       where: {
@@ -1250,7 +1277,7 @@ exports.getLeadDetails = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}`, duration, 200, req.user.id);
-    
+
     res.json({
       success: true,
       data: lead
@@ -1275,7 +1302,7 @@ exports.getLeadDetails = async (req, res) => {
 // Get lead documents
 exports.getLeadDocuments = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_lead_documents');
-  
+
   try {
     // First, verify the lead belongs to this marketing user
     const lead = await Student.findOne({
@@ -1296,7 +1323,7 @@ exports.getLeadDocuments = async (req, res) => {
     const whereClause = {
       studentId: req.params.id
     };
-    
+
     if (type) {
       whereClause.type = type;
     }
@@ -1319,7 +1346,7 @@ exports.getLeadDocuments = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/documents`, duration, 200, req.user.id);
-    
+
     res.json({
       success: true,
       data: documents
@@ -1344,7 +1371,7 @@ exports.getLeadDocuments = async (req, res) => {
 // Upload document for lead
 exports.uploadLeadDocument = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_upload_document');
-  
+
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -1374,13 +1401,13 @@ exports.uploadLeadDocument = async (req, res) => {
     // Upload to DigitalOcean Spaces (with fallback to local storage if DO is not configured)
     let uploadResult;
     const DigitalOceanStorageService = require('../services/digitalOceanStorage');
-    
+
     try {
       const storageService = new DigitalOceanStorageService();
       uploadResult = await storageService.uploadFile(req.file, 'marketing-documents');
     } catch (storageError) {
       console.error('DigitalOcean Spaces upload failed, trying local storage:', storageError);
-      
+
       // Fallback to local storage if DigitalOcean is not configured
       const fs = require('fs');
       const path = require('path');
@@ -1427,7 +1454,7 @@ exports.uploadLeadDocument = async (req, res) => {
       uploadedBy: req.user.id,
       priority: 'MEDIUM'
     });
-    
+
     console.log('Document saved to database:', {
       id: document.id,
       type: document.type,
@@ -1451,7 +1478,7 @@ exports.uploadLeadDocument = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('POST', `/api/marketing/leads/${studentId}/documents/upload`, duration, 201, req.user.id);
-    
+
     res.status(201).json({
       success: true,
       message: 'Document uploaded successfully',
@@ -1477,7 +1504,7 @@ exports.uploadLeadDocument = async (req, res) => {
 // Save reminder for lead
 exports.saveReminder = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_save_reminder');
-  
+
   try {
     const { leadId, scheduledTime, reminderText } = req.body;
 
@@ -1531,7 +1558,7 @@ exports.saveReminder = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('POST', '/api/marketing/leads/reminder', duration, 201, req.user.id);
-    
+
     res.status(201).json({
       success: true,
       message: 'Reminder saved successfully',
@@ -1557,7 +1584,7 @@ exports.saveReminder = async (req, res) => {
 // Save remarks for lead
 exports.saveRemarks = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_save_remarks');
-  
+
   try {
     const { leadId, remarks } = req.body;
 
@@ -1606,7 +1633,7 @@ exports.saveRemarks = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('POST', '/api/marketing/leads/remarks', duration, 200, req.user.id);
-    
+
     res.json({
       success: true,
       message: 'Remarks saved successfully',
@@ -1635,7 +1662,7 @@ exports.saveRemarks = async (req, res) => {
 // Get lead applications
 exports.getLeadApplications = async (req, res) => {
   const timer = performanceLogger.startTimer('marketing_lead_applications');
-  
+
   try {
     // First, verify the lead belongs to this marketing user
     const lead = await Student.findOne({
@@ -1666,7 +1693,7 @@ exports.getLeadApplications = async (req, res) => {
 
     const duration = timer.end();
     performanceLogger.logApiRequest('GET', `/api/marketing/leads/${req.params.id}/applications`, duration, 200, req.user.id);
-    
+
     res.json({
       success: true,
       data: applications

@@ -190,10 +190,16 @@ function MarketingActivities() {
                   {activities.map((activity) => {
                     const timestamp = activity.timestamp ? new Date(activity.timestamp) : null;
                     const student = activity.student || {};
-                    const countries = typeof student.countries === 'string'
-                      ? student.countries.split(',').filter(Boolean)
-                      : [];
                     const meta = activity.metadata || {};
+                    let countries = [];
+                    // Try to get countries from student object or metadata
+                    const rawCountries = student.countries || meta.countries;
+
+                    if (Array.isArray(rawCountries)) {
+                      countries = rawCountries;
+                    } else if (typeof rawCountries === 'string') {
+                      countries = rawCountries.split(',').filter(Boolean);
+                    }
 
                     const consultancyName =
                       meta.consultancyName ||
