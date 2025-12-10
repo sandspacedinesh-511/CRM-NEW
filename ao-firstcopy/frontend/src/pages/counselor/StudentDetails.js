@@ -2631,13 +2631,13 @@ function StudentDetails() {
           </Box>
 
           {/* Upload Dialog */}
-          <Dialog
+        <Dialog
             open={openUploadDialog}
             onClose={() => setOpenUploadDialog(false)}
             maxWidth="sm"
             fullWidth
           >
-            <DialogTitle>Upload Document</DialogTitle>
+          <DialogTitle>Upload Document</DialogTitle>
             <DialogContent>
               <Box sx={{ pt: 2 }}>
                 {/* Missing Documents Section */}
@@ -2668,7 +2668,7 @@ function StudentDetails() {
                     </Box>
 
 
-                    )}
+                    
 
                     <Grid container spacing={2}>
                       <Grid item xs={12} md={6}>
@@ -2715,11 +2715,12 @@ function StudentDetails() {
                       </Grid>
                     </Grid>
                   </Box>
-                  
-                </Box>  
+                )}
+              </Box>  
+
          
             </DialogContent>
-          </Dialog>
+        </Dialog>
 
 
           {/* Enhanced Search and Filters */}
