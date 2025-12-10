@@ -301,7 +301,7 @@ function StudentDetails() {
   });
   const [openFileSizeDialog, setOpenFileSizeDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
-  
+
   // Country profile state
   const [countryProfiles, setCountryProfiles] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
@@ -535,7 +535,7 @@ function StudentDetails() {
     // Only allow clicking on the next immediate phase
     const phases = [
       'DOCUMENT_COLLECTION',
-      'UNIVERSITY_SHORTLISTING', 
+      'UNIVERSITY_SHORTLISTING',
       'APPLICATION_SUBMISSION',
       'OFFER_RECEIVED',
       'INITIAL_PAYMENT',
@@ -545,15 +545,15 @@ function StudentDetails() {
       'VISA_APPLICATION',
       'ENROLLMENT'
     ];
-    
+
     // Use country-specific phase if country is selected, otherwise use global phase
     const activePhase = selectedCountry && countryProfiles.length > 0
       ? (countryProfiles.find(p => p.country === selectedCountry)?.currentPhase || student?.currentPhase)
       : student?.currentPhase;
-    
+
     const currentPhaseIndex = phases.indexOf(activePhase);
     const clickedPhaseIndex = phases.indexOf(phase.key);
-    
+
     // Check if current phase is actually complete (for Document Collection, check if all docs are uploaded)
     let effectiveCurrentPhaseIndex = currentPhaseIndex;
     if (activePhase === 'DOCUMENT_COLLECTION') {
@@ -565,26 +565,26 @@ function StudentDetails() {
         : documents.filter(doc => ['PENDING', 'APPROVED'].includes(doc.status));
       const uploadedDocTypes = relevantDocs.filter(doc => requiredDocs.includes(doc.type)).map(doc => doc.type);
       const missingDocs = requiredDocs.filter(docType => !uploadedDocTypes.includes(docType));
-      
+
       // If all documents are uploaded, consider Document Collection as complete
       if (missingDocs.length === 0) {
         effectiveCurrentPhaseIndex = currentPhaseIndex + 1; // Can move to next phase
       }
     }
-    
+
     // Allow clicking on:
     // 1. The next immediate phase (to progress forward) - this is the main use case
     // 2. Any phase that is marked as "next phase" or "can proceed" in the progress data
     const isImmediateNextPhase = clickedPhaseIndex === effectiveCurrentPhaseIndex + 1;
     const isMarkedAsNextPhase = phase.isNextPhase || phase.canProceedToNext;
-    
+
     // Allow progression if clicking on the immediate next phase OR if the phase is marked as next phase
     const canProceedToPhase = isImmediateNextPhase || isMarkedAsNextPhase;
 
     if (!canProceedToPhase) {
       const phaseName = activePhase?.replace(/_/g, ' ') || 'Unknown';
-      const nextPhaseName = currentPhaseIndex >= 0 && currentPhaseIndex < phases.length - 1 
-        ? phases[currentPhaseIndex + 1]?.replace(/_/g, ' ') 
+      const nextPhaseName = currentPhaseIndex >= 0 && currentPhaseIndex < phases.length - 1
+        ? phases[currentPhaseIndex + 1]?.replace(/_/g, ' ')
         : 'next phase';
       showSnackbar(`You can only move to the next phase. Current phase: ${phaseName}. Please click on ${nextPhaseName} to proceed.`, 'warning');
       return;
@@ -596,7 +596,7 @@ function StudentDetails() {
       // Pre-load selected universities for University Shortlisting phase
       let preloadedUniversities = [];
       let preloadedUniversity = null; // For single university selection (Initial Payment)
-      
+
       // Pre-load selected university for Initial Payment phase
       if (phase.key === 'INITIAL_PAYMENT') {
         try {
@@ -604,8 +604,8 @@ function StudentDetails() {
           if (selectedCountry && countryProfiles.length > 0) {
             const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
             if (countryProfile?.notes) {
-              const countryNotes = typeof countryProfile.notes === 'string' 
-                ? JSON.parse(countryProfile.notes) 
+              const countryNotes = typeof countryProfile.notes === 'string'
+                ? JSON.parse(countryProfile.notes)
                 : countryProfile.notes;
               const paymentUni = countryNotes?.initialPaymentUniversity;
               if (paymentUni?.university?.id) {
@@ -613,7 +613,7 @@ function StudentDetails() {
               }
             }
           }
-          
+
           // Fallback to student notes if not found in country profile
           if (!preloadedUniversity && student?.notes) {
             const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -626,7 +626,7 @@ function StudentDetails() {
           console.error('Error loading pre-selected university for Initial Payment:', e);
         }
       }
-      
+
       // Pre-load selected universities for Application Submission phase
       if (phase.key === 'APPLICATION_SUBMISSION') {
         try {
@@ -634,8 +634,8 @@ function StudentDetails() {
           if (selectedCountry && countryProfiles.length > 0) {
             const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
             if (countryProfile?.notes) {
-              const countryNotes = typeof countryProfile.notes === 'string' 
-                ? JSON.parse(countryProfile.notes) 
+              const countryNotes = typeof countryProfile.notes === 'string'
+                ? JSON.parse(countryProfile.notes)
                 : countryProfile.notes;
               const applicationUniversities = countryNotes?.applicationSubmissionUniversities;
               if (applicationUniversities?.universities && Array.isArray(applicationUniversities.universities)) {
@@ -643,7 +643,7 @@ function StudentDetails() {
               }
             }
           }
-          
+
           // Fallback to student notes if not found in country profile
           if (preloadedUniversities.length === 0 && student?.notes) {
             const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -656,14 +656,14 @@ function StudentDetails() {
           console.error('Error loading pre-selected universities for Application Submission:', e);
         }
       }
-      
+
       if (phase.key === 'UNIVERSITY_SHORTLISTING' && selectedCountry) {
         try {
           // Try to get from country profile first
           const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
           if (countryProfile?.notes) {
-            const countryNotes = typeof countryProfile.notes === 'string' 
-              ? JSON.parse(countryProfile.notes) 
+            const countryNotes = typeof countryProfile.notes === 'string'
+              ? JSON.parse(countryProfile.notes)
               : countryProfile.notes;
             const shortlist = countryNotes?.universityShortlist;
             if (shortlist?.universities && Array.isArray(shortlist.universities)) {
@@ -683,7 +683,7 @@ function StudentDetails() {
               preloadedUniversities = countryShortlist.map(u => u.id).filter(Boolean);
             }
           }
-          
+
           // Fallback to student notes if not found in country profile
           if (preloadedUniversities.length === 0 && student?.notes) {
             const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -707,7 +707,7 @@ function StudentDetails() {
           console.error('Error loading pre-selected universities:', e);
         }
       }
-      
+
       setPhaseConfirmDialog({
         open: true,
         phase: phase,
@@ -760,41 +760,41 @@ function StudentDetails() {
           showSnackbar('Please select at least one university before proceeding', 'error');
           return;
         }
-        
+
         // Validate that a country is selected
         if (!selectedCountry) {
           showSnackbar('Please select a country first', 'error');
           return;
         }
       }
-      
+
       // Validate Application Submission: require at least one university to be selected and check shortlisted universities
       if (phaseConfirmDialog.phase.key === 'APPLICATION_SUBMISSION') {
         if (!phaseConfirmDialog.selectedUniversities || phaseConfirmDialog.selectedUniversities.length === 0) {
           showSnackbar('Please select at least one university for application submission', 'error');
           return;
         }
-        
+
         // Check if universities are shortlisted for the selected country
         try {
           let hasShortlistedUniversities = false;
           let shortlist = null;
-          
+
           if (selectedCountry && countryProfiles.length > 0) {
             const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
             if (countryProfile?.notes) {
-              const countryNotes = typeof countryProfile.notes === 'string' 
-                ? JSON.parse(countryProfile.notes) 
+              const countryNotes = typeof countryProfile.notes === 'string'
+                ? JSON.parse(countryProfile.notes)
                 : countryProfile.notes;
               shortlist = countryNotes?.universityShortlist;
             }
           }
-          
+
           if (!shortlist && student?.notes) {
             const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
             shortlist = notes?.universityShortlist;
           }
-          
+
           if (shortlist?.universities && Array.isArray(shortlist.universities) && shortlist.universities.length > 0) {
             if (selectedCountry) {
               // Check if any universities match the selected country
@@ -815,7 +815,7 @@ function StudentDetails() {
               hasShortlistedUniversities = true;
             }
           }
-          
+
           if (!hasShortlistedUniversities) {
             showSnackbar('Please shortlist universities in the University Shortlisting phase first', 'error');
             return;
@@ -826,7 +826,7 @@ function StudentDetails() {
           return;
         }
       }
-      
+
       // Validate Visa Process: require status selection
       if (phaseConfirmDialog.phase.key === 'VISA_APPLICATION') {
         if (!phaseConfirmDialog.visaStatus) {
@@ -865,8 +865,8 @@ function StudentDetails() {
       if (selectedCountry && countryProfiles.length > 0) {
         const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
         if (countryProfile?.notes) {
-          const countryNotes = typeof countryProfile.notes === 'string' 
-            ? JSON.parse(countryProfile.notes) 
+          const countryNotes = typeof countryProfile.notes === 'string'
+            ? JSON.parse(countryProfile.notes)
             : countryProfile.notes;
           const interviewStatus = countryNotes?.interviewStatus;
           if (interviewStatus?.status) {
@@ -874,7 +874,7 @@ function StudentDetails() {
           }
         }
       }
-      
+
       // Fallback to student notes
       if (!currentStatus && student?.notes) {
         const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -886,7 +886,7 @@ function StudentDetails() {
     } catch (e) {
       console.error('Error loading current interview status:', e);
     }
-    
+
     const interviewPhase = { key: 'INTERVIEW', label: 'Interview' };
     setPhaseConfirmDialog({
       open: true,
@@ -912,8 +912,8 @@ function StudentDetails() {
       if (selectedCountry && countryProfiles.length > 0) {
         const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
         if (countryProfile?.notes) {
-          const countryNotes = typeof countryProfile.notes === 'string' 
-            ? JSON.parse(countryProfile.notes) 
+          const countryNotes = typeof countryProfile.notes === 'string'
+            ? JSON.parse(countryProfile.notes)
             : countryProfile.notes;
           const casVisaStatus = countryNotes?.casVisaStatus;
           if (casVisaStatus?.status) {
@@ -921,7 +921,7 @@ function StudentDetails() {
           }
         }
       }
-      
+
       // Fallback to student notes
       if (!currentStatus && student?.notes) {
         const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -933,7 +933,7 @@ function StudentDetails() {
     } catch (e) {
       console.error('Error loading current CAS Process status:', e);
     }
-    
+
     const casVisaPhase = { key: 'CAS_VISA', label: 'CAS Process' };
     setPhaseConfirmDialog({
       open: true,
@@ -961,8 +961,8 @@ function StudentDetails() {
       if (selectedCountry && countryProfiles.length > 0) {
         const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
         if (countryProfile?.notes) {
-          const countryNotes = typeof countryProfile.notes === 'string' 
-            ? JSON.parse(countryProfile.notes) 
+          const countryNotes = typeof countryProfile.notes === 'string'
+            ? JSON.parse(countryProfile.notes)
             : countryProfile.notes;
           const visaStatus = countryNotes?.visaStatus;
           if (visaStatus?.status) {
@@ -970,7 +970,7 @@ function StudentDetails() {
           }
         }
       }
-      
+
       // Fallback to student notes
       if (!currentStatus && student?.notes) {
         const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
@@ -982,7 +982,7 @@ function StudentDetails() {
     } catch (e) {
       console.error('Error loading current Visa Process status:', e);
     }
-    
+
     const visaPhase = { key: 'VISA_APPLICATION', label: 'Visa Process' };
     setPhaseConfirmDialog({
       open: true,
@@ -1159,11 +1159,24 @@ function StudentDetails() {
     try {
       const response = await axiosInstance.get(`/counselor/students/${id}/country-profiles`);
       const profiles = response.data.success ? response.data.data : [];
-      setCountryProfiles(profiles);
-      
+
+      // Clean up country names if they are JSON strings or contain quotes
+      // We use a robust cleanup to remove all brackets and quotes [ ] " which are artifacts of JSON stringification
+      const cleanedProfiles = profiles.map(profile => {
+        let cleanCountry = profile.country;
+        if (typeof cleanCountry === 'string') {
+          // Robust cleanup: remove all instances of [, ], and "
+          // This handles ["Canada"], "USA", ["Germany"] etc.
+          cleanCountry = cleanCountry.replace(/[\[\]"]/g, '');
+        }
+        return { ...profile, country: cleanCountry };
+      });
+
+      setCountryProfiles(cleanedProfiles);
+
       // Auto-select first profile if available and none selected
-      if (profiles.length > 0 && !selectedCountry) {
-        setSelectedCountry(profiles[0].country);
+      if (cleanedProfiles.length > 0 && !selectedCountry) {
+        setSelectedCountry(cleanedProfiles[0].country);
       }
     } catch (error) {
       console.error('Error fetching country profiles:', error);
@@ -2274,7 +2287,17 @@ function StudentDetails() {
                     Array.isArray(student?.targetCountries)
                       ? student.targetCountries.join(', ')
                       : typeof student?.targetCountries === 'string'
-                        ? student.targetCountries.replace(/,/g, ', ')
+                        ? (() => {
+                          try {
+                            // Try to parse if it's a JSON string like ["Canada", "Germany"]
+                            const parsed = JSON.parse(student.targetCountries);
+                            if (Array.isArray(parsed)) return parsed.join(', ');
+                            return parsed; // If it's just a string in quotes
+                          } catch (e) {
+                            // If parse fails, just clean up manually
+                            return student.targetCountries.replace(/[\[\]"]/g, '').replace(/,/g, ', ');
+                          }
+                        })()
                         : 'Not provided'
                   }
                 />
@@ -2330,7 +2353,7 @@ function StudentDetails() {
                   // Count interview refusals per country
                   const refusalCounts = {};
                   let totalRefusals = 0;
-                  
+
                   if (countryProfiles && countryProfiles.length > 0) {
                     countryProfiles.forEach(profile => {
                       if (profile.notes) {
@@ -2354,9 +2377,9 @@ function StudentDetails() {
                           } else {
                             notes = profile.notes;
                           }
-                          
+
                           const interviewStatus = notes?.interviewStatus;
-                          
+
                           if (interviewStatus && interviewStatus.status === 'REFUSED') {
                             const country = profile.country;
                             if (country) {
@@ -2371,7 +2394,7 @@ function StudentDetails() {
                       }
                     });
                   }
-                  
+
                   // Also check student notes for backward compatibility
                   // Only use student notes if no country-specific refusals were found
                   if (student?.notes && Object.keys(refusalCounts).length === 0) {
@@ -2388,10 +2411,10 @@ function StudentDetails() {
                       } else {
                         notes = student.notes;
                       }
-                      
+
                       if (notes) {
                         const interviewStatus = notes?.interviewStatus;
-                        
+
                         if (interviewStatus && interviewStatus.status === 'REFUSED') {
                           // Try to determine country from context
                           // If there's only one country profile, use that
@@ -2413,7 +2436,7 @@ function StudentDetails() {
                       console.error('Error parsing student notes:', e);
                     }
                   }
-                  
+
                   if (totalRefusals > 0) {
                     const refusedCountries = Object.keys(refusalCounts);
 
@@ -2436,7 +2459,7 @@ function StudentDetails() {
                                       color="error"
                                       variant="outlined"
                                       icon={<WarningIcon sx={{ fontSize: 14 }} />}
-                                      sx={{ 
+                                      sx={{
                                         fontWeight: 500,
                                         borderColor: 'error.main',
                                         '&:hover': {
@@ -2630,91 +2653,91 @@ function StudentDetails() {
             </Grid>
           </Box>
 
-      {/* Upload Dialog */}
-      <Dialog
-        open={openUploadDialog}
-        onClose={() => setOpenUploadDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Upload Document</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            {/* Missing Documents Section */}
-            {missingDocuments.length > 0 && (
-              <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'warning.dark' }}>
-                  Missing Documents for {student?.currentPhase?.replace(/_/g, ' ')} Phase:
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {missingDocuments.map((docType) => {
-                    const isSelected = uploadData.type === docType;
-                    return (
-                      <Chip
-                        key={docType}
-                        label={docType.replace(/_/g, ' ')}
-                        onClick={() => setUploadData({ ...uploadData, type: docType })}
-                        color={isSelected ? 'primary' : 'default'}
-                        variant={isSelected ? 'filled' : 'outlined'}
-                        sx={{
-                          cursor: 'pointer',
-                          '&:hover': {
-                            bgcolor: isSelected ? 'primary.dark' : 'action.hover'
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Search documents..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                    }}
-                    sx={{ borderRadius: 2 }}
-                  />
+          {/* Upload Dialog */}
+          <Dialog
+            open={openUploadDialog}
+            onClose={() => setOpenUploadDialog(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogContent>
+              <Box sx={{ pt: 2 }}>
+                {/* Missing Documents Section */}
+                {missingDocuments.length > 0 && (
+                  <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'warning.dark' }}>
+                      Missing Documents for {student?.currentPhase?.replace(/_/g, ' ')} Phase:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {missingDocuments.map((docType) => {
+                        const isSelected = uploadData.type === docType;
+                        return (
+                          <Chip
+                            key={docType}
+                            label={docType.replace(/_/g, ' ')}
+                            onClick={() => setUploadData({ ...uploadData, type: docType })}
+                            color={isSelected ? 'primary' : 'default'}
+                            variant={isSelected ? 'filled' : 'outlined'}
+                            sx={{
+                              cursor: 'pointer',
+                              '&:hover': {
+                                bgcolor: isSelected ? 'primary.dark' : 'action.hover'
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                )}
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Search documents..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      InputProps={{
+                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                      }}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      label="Status"
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <MenuItem value="ALL">All Status</MenuItem>
+                      <MenuItem value="APPROVED">Approved</MenuItem>
+                      <MenuItem value="PENDING">Pending</MenuItem>
+                      <MenuItem value="REJECTED">Rejected</MenuItem>
+                      <MenuItem value="EXPIRED">Expired</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<FilterIcon />}
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      size="small"
+                      sx={{ borderRadius: 2 }}
+                    >
+                      {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+                    </Button>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    label="Status"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    <MenuItem value="ALL">All Status</MenuItem>
-                    <MenuItem value="APPROVED">Approved</MenuItem>
-                    <MenuItem value="PENDING">Pending</MenuItem>
-                    <MenuItem value="REJECTED">Rejected</MenuItem>
-                    <MenuItem value="EXPIRED">Expired</MenuItem>
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<FilterIcon />}
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    size="small"
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {showAdvancedFilters ? 'Hide' : 'Show'} Filters
-                  </Button>
-                </Grid>
-              </Grid>
-            </Box>
-          </Box>
-          </DialogContent>
-        </Dialog>
+              </Box>
+            </DialogContent>
+          </Dialog>
 
           {/* Enhanced Search and Filters */}
           <Box sx={{ mb: 3 }}>
@@ -3251,200 +3274,200 @@ function StudentDetails() {
   );
 
   const renderApplications = () => {
-    const filteredApplications = selectedCountry 
+    const filteredApplications = selectedCountry
       ? applications.filter(app => app.university?.country === selectedCountry)
       : applications;
-    
-    return (
-    <Card>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box>
-            <Typography variant="h6">
-              University Applications
-              {selectedCountry && (
-                <Chip 
-                  label={selectedCountry} 
-                  size="small" 
-                  color="primary" 
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </Typography>
-            {selectedCountry && (
-              <Typography variant="caption" color="text.secondary">
-                Showing {filteredApplications.length} application(s) for {selectedCountry}
-              </Typography>
-            )}
-          </Box>
-          <Box>
-            <Button
-              startIcon={<DownloadIcon />}
-              onClick={handleExportApplications}
-              sx={{ mr: 1 }}
-            >
-              Export {selectedCountry ? selectedCountry : 'All'}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenApplicationDialog(true)}
-            >
-              New Application
-            </Button>
-          </Box>
-        </Box>
 
-        <List>
-          {filteredApplications.length === 0 ? (
-            <ListItem>
-              <ListItemText
-                primaryTypographyProps={{ component: 'div' }}
-                primary={
-                  <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }} component="div">
-                    {selectedCountry 
-                      ? `No applications found for ${selectedCountry}. Add applications to see them here.`
-                      : 'No applications found. Add an application to get started.'
-                    }
-                  </Typography>
-                }
-              />
-            </ListItem>
-          ) : (
-            filteredApplications.map((app) => (
-            <ListItem
-              key={app.id}
-              divider
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  onClick={(e) => handleApplicationMenuOpen(e, app)}
-                >
-                  <MoreVertIcon />
-                </IconButton>
-              }
-            >
-              <ListItemIcon>
-                <SchoolIcon color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primaryTypographyProps={{ component: 'div' }}
-                secondaryTypographyProps={{ component: 'div' }}
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} component="div">
-                    <Typography variant="subtitle1" component="div">
-                      {app.university?.name || 'Unknown University'}
-                    </Typography>
-                    <Chip
-                      label={app.applicationStatus || 'UNKNOWN'}
-                      color={
-                        app.applicationStatus === 'ACCEPTED' ? 'success' :
-                          app.applicationStatus === 'REJECTED' ? 'error' :
-                            app.applicationStatus === 'WITHDRAWN' ? 'default' :
-                              app.applicationStatus === 'PENDING' ? 'warning' :
-                                app.applicationStatus === 'SUBMITTED' ? 'info' :
-                                  app.applicationStatus === 'UNDER_REVIEW' ? 'primary' :
-                                    'default'
+    return (
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h6">
+                University Applications
+                {selectedCountry && (
+                  <Chip
+                    label={selectedCountry}
+                    size="small"
+                    color="primary"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Typography>
+              {selectedCountry && (
+                <Typography variant="caption" color="text.secondary">
+                  Showing {filteredApplications.length} application(s) for {selectedCountry}
+                </Typography>
+              )}
+            </Box>
+            <Box>
+              <Button
+                startIcon={<DownloadIcon />}
+                onClick={handleExportApplications}
+                sx={{ mr: 1 }}
+              >
+                Export {selectedCountry ? selectedCountry : 'All'}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenApplicationDialog(true)}
+              >
+                New Application
+              </Button>
+            </Box>
+          </Box>
+
+          <List>
+            {filteredApplications.length === 0 ? (
+              <ListItem>
+                <ListItemText
+                  primaryTypographyProps={{ component: 'div' }}
+                  primary={
+                    <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }} component="div">
+                      {selectedCountry
+                        ? `No applications found for ${selectedCountry}. Add applications to see them here.`
+                        : 'No applications found. Add an application to get started.'
                       }
-                      size="small"
-                    />
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ mt: 1 }} component="div">
-                    <Typography variant="body2" component="div">
-                      {app.courseName || 'No program specified'}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, mt: 1 }} component="div">
-                      <Typography variant="caption" color="textSecondary" component="span">
-                        Intake: {app.intakeTerm ? app.intakeTerm.replace('_', ' ') : 'Not specified'}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary" component="span">
-                        Deadline: {app.applicationDeadline ? formatDate(app.applicationDeadline) : 'Not specified'}
-                      </Typography>
-                      {app.applicationFee && (
-                        <Typography variant="caption" color="textSecondary" component="span">
-                          Fee: ${app.applicationFee}
+                  }
+                />
+              </ListItem>
+            ) : (
+              filteredApplications.map((app) => (
+                <ListItem
+                  key={app.id}
+                  divider
+                  secondaryAction={
+                    <IconButton
+                      edge="end"
+                      onClick={(e) => handleApplicationMenuOpen(e, app)}
+                    >
+                      <MoreVertIcon />
+                    </IconButton>
+                  }
+                >
+                  <ListItemIcon>
+                    <SchoolIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primaryTypographyProps={{ component: 'div' }}
+                    secondaryTypographyProps={{ component: 'div' }}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} component="div">
+                        <Typography variant="subtitle1" component="div">
+                          {app.university?.name || 'Unknown University'}
                         </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                }
-              />
-            </ListItem>
-            ))
-          )}
-        </List>
-      </CardContent>
-    </Card>
+                        <Chip
+                          label={app.applicationStatus || 'UNKNOWN'}
+                          color={
+                            app.applicationStatus === 'ACCEPTED' ? 'success' :
+                              app.applicationStatus === 'REJECTED' ? 'error' :
+                                app.applicationStatus === 'WITHDRAWN' ? 'default' :
+                                  app.applicationStatus === 'PENDING' ? 'warning' :
+                                    app.applicationStatus === 'SUBMITTED' ? 'info' :
+                                      app.applicationStatus === 'UNDER_REVIEW' ? 'primary' :
+                                        'default'
+                          }
+                          size="small"
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box sx={{ mt: 1 }} component="div">
+                        <Typography variant="body2" component="div">
+                          {app.courseName || 'No program specified'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, mt: 1 }} component="div">
+                          <Typography variant="caption" color="textSecondary" component="span">
+                            Intake: {app.intakeTerm ? app.intakeTerm.replace('_', ' ') : 'Not specified'}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary" component="span">
+                            Deadline: {app.applicationDeadline ? formatDate(app.applicationDeadline) : 'Not specified'}
+                          </Typography>
+                          {app.applicationFee && (
+                            <Typography variant="caption" color="textSecondary" component="span">
+                              Fee: ${app.applicationFee}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))
+            )}
+          </List>
+        </CardContent>
+      </Card>
     );
   };
 
-  {/* Application Menu */}
-      <Menu
-        anchorEl={applicationMenuAnchor}
-        open={Boolean(applicationMenuAnchor)}
-        onClose={handleApplicationMenuClose}
-      >
-        <MenuItem onClick={() => {
-          handleApplicationMenuClose();
-          setOpenApplicationDialog(true);
-        }}>
-          <ListItemIcon>
-            <EditIcon />
-          </ListItemIcon>
-          <ListItemText primary="Edit" />
-        </MenuItem>
-        <MenuItem onClick={() => handleDeleteApplication(selectedApplication?.id)}>
-          <ListItemIcon>
-            <DeleteIcon />
-          </ListItemIcon>
-          <ListItemText primary="Delete" />
-        </MenuItem>
-      </Menu>
+  {/* Application Menu */ }
+  <Menu
+    anchorEl={applicationMenuAnchor}
+    open={Boolean(applicationMenuAnchor)}
+    onClose={handleApplicationMenuClose}
+  >
+    <MenuItem onClick={() => {
+      handleApplicationMenuClose();
+      setOpenApplicationDialog(true);
+    }}>
+      <ListItemIcon>
+        <EditIcon />
+      </ListItemIcon>
+      <ListItemText primary="Edit" />
+    </MenuItem>
+    <MenuItem onClick={() => handleDeleteApplication(selectedApplication?.id)}>
+      <ListItemIcon>
+        <DeleteIcon />
+      </ListItemIcon>
+      <ListItemText primary="Delete" />
+    </MenuItem>
+  </Menu>
 
-      {/* Application Dialog */}
-      <Dialog
-        open={openApplicationDialog}
-        onClose={() => {
+  {/* Application Dialog */ }
+  <Dialog
+    open={openApplicationDialog}
+    onClose={() => {
+      setOpenApplicationDialog(false);
+      setSelectedApplication(null);
+    }}
+    maxWidth="md"
+    fullWidth
+  >
+    <DialogTitle>
+      {selectedApplication ? 'Edit Application' : 'New Application'}
+    </DialogTitle>
+    <DialogContent>
+      <ApplicationForm
+        studentId={id}
+        application={selectedApplication}
+        onSubmit={async (data) => {
+          try {
+            if (selectedApplication) {
+              await handleUpdateApplication(selectedApplication.id, data);
+            } else {
+              await handleAddApplication(data);
+            }
+            setOpenApplicationDialog(false);
+            setSelectedApplication(null);
+            showSnackbar('Application saved successfully', 'success');
+          } catch (error) {
+            console.error('Error saving application:', error);
+            showSnackbar('Failed to save application', 'error');
+          }
+        }}
+        onCancel={() => {
           setOpenApplicationDialog(false);
           setSelectedApplication(null);
         }}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {selectedApplication ? 'Edit Application' : 'New Application'}
-        </DialogTitle>
-        <DialogContent>
-          <ApplicationForm
-            studentId={id}
-            application={selectedApplication}
-            onSubmit={async (data) => {
-              try {
-                if (selectedApplication) {
-                  await handleUpdateApplication(selectedApplication.id, data);
-                } else {
-                  await handleAddApplication(data);
-                }
-                setOpenApplicationDialog(false);
-                setSelectedApplication(null);
-                showSnackbar('Application saved successfully', 'success');
-              } catch (error) {
-                console.error('Error saving application:', error);
-                showSnackbar('Failed to save application', 'error');
-              }
-            }}
-            onCancel={() => {
-              setOpenApplicationDialog(false);
-              setSelectedApplication(null);
-            }}
-            universities={universities}
-            loadingUniversities={sectionLoading.universities}
-          />
-        </DialogContent>
-      </Dialog>
-    
+        universities={universities}
+        loadingUniversities={sectionLoading.universities}
+      />
+    </DialogContent>
+  </Dialog>
+
 
   const renderQuickActions = () => {
     console.log('🎯 Rendering Quick Actions component');
@@ -3847,7 +3870,7 @@ function StudentDetails() {
                         value={selectedCountry || countryProfiles[0]?.country || ''}
                         onChange={(e) => setSelectedCountry(e.target.value)}
                         label="View Progress by Country"
-                        sx={{ 
+                        sx={{
                           backgroundColor: 'background.paper',
                           fontWeight: 600,
                           '& .MuiSelect-select': {
@@ -3862,10 +3885,10 @@ function StudentDetails() {
                                 {profile.country}
                               </Typography>
                               {profile.preferredCountry && (
-                                <Chip 
-                                  label="Preferred" 
-                                  size="small" 
-                                  color="primary" 
+                                <Chip
+                                  label="Preferred"
+                                  size="small"
+                                  color="primary"
                                   sx={{ height: 20, fontSize: '0.7rem' }}
                                 />
                               )}
@@ -3880,7 +3903,7 @@ function StudentDetails() {
                     <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
                   </>
                 )}
-                
+
                 {countryProfiles.length === 0 && student?.targetCountries && (
                   <Alert severity="info" sx={{ py: 0.5 }}>
                     <Typography variant="caption">
@@ -3888,7 +3911,7 @@ function StudentDetails() {
                     </Typography>
                   </Alert>
                 )}
-                
+
                 <Button
                   variant="outlined"
                   size="small"
@@ -3897,7 +3920,7 @@ function StudentDetails() {
                 >
                   Add Country
                 </Button>
-                
+
                 {applications.length > 0 && (
                   <Button
                     variant="outlined"
@@ -4275,15 +4298,15 @@ function StudentDetails() {
                 <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
                   Confirm Phase Change
                   {selectedCountry && (
-                    <Chip 
-                      label={selectedCountry} 
-                      size="small" 
+                    <Chip
+                      label={selectedCountry}
+                      size="small"
                       sx={{ ml: 1, backgroundColor: 'rgba(255,255,255,0.3)', color: 'white' }}
                     />
                   )}
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  {selectedCountry 
+                  {selectedCountry
                     ? `Moving ${selectedCountry} application to next phase`
                     : 'Moving student to next phase'
                   }
@@ -4338,23 +4361,23 @@ function StudentDetails() {
                 try {
                   // Get shortlisted universities from country profile or student notes
                   let shortlist = null;
-                  
+
                   if (selectedCountry && countryProfiles.length > 0) {
                     const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
                     if (countryProfile?.notes) {
-                      const countryNotes = typeof countryProfile.notes === 'string' 
-                        ? JSON.parse(countryProfile.notes) 
+                      const countryNotes = typeof countryProfile.notes === 'string'
+                        ? JSON.parse(countryProfile.notes)
                         : countryProfile.notes;
                       shortlist = countryNotes?.universityShortlist;
                     }
                   }
-                  
+
                   // Fallback to student notes
                   if (!shortlist && student?.notes) {
                     const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
                     shortlist = notes?.universityShortlist;
                   }
-                  
+
                   // Get shortlisted universities list
                   let shortlistedUniversities = [];
                   if (shortlist && shortlist.universities && Array.isArray(shortlist.universities)) {
@@ -4371,7 +4394,7 @@ function StudentDetails() {
                         }
                         return normalized.replace(/\s+/g, ' ').trim();
                       };
-                      
+
                       const normalizedSelected = normalizeCountry(selectedCountry);
                       shortlistedUniversities = shortlist.universities.filter(u => {
                         if (!u || !u.country) return false;
@@ -4381,13 +4404,13 @@ function StudentDetails() {
                       shortlistedUniversities = shortlist.universities;
                     }
                   }
-                  
+
                   if (shortlistedUniversities.length === 0) {
                     return (
                       <Box sx={{ mb: 3 }}>
-                        <Alert 
-                          severity="warning" 
-                          sx={{ 
+                        <Alert
+                          severity="warning"
+                          sx={{
                             background: 'rgba(255, 193, 7, 0.2)',
                             color: 'white',
                             border: '1px solid rgba(255, 193, 7, 0.4)',
@@ -4396,7 +4419,7 @@ function StudentDetails() {
                           icon={<WarningIcon />}
                         >
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {selectedCountry 
+                            {selectedCountry
                               ? `No universities shortlisted for ${selectedCountry}. Please shortlist universities first in the University Shortlisting phase.`
                               : 'No universities shortlisted. Please shortlist universities first in the University Shortlisting phase.'
                             }
@@ -4405,12 +4428,12 @@ function StudentDetails() {
                       </Box>
                     );
                   }
-                  
+
                   return (
                     <Box sx={{ mb: 3 }}>
-                      <Typography variant="body2" sx={{ 
-                        fontWeight: 600, 
-                        mb: 1.5, 
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        mb: 1.5,
                         color: 'rgba(255,255,255,0.9)',
                         display: 'flex',
                         alignItems: 'center',
@@ -4419,22 +4442,22 @@ function StudentDetails() {
                         <SchoolIcon sx={{ fontSize: 18 }} />
                         Select Universities for Application Submission (Multiple Selection)
                         {selectedCountry && (
-                          <Chip 
-                            label={selectedCountry} 
-                            size="small" 
-                            sx={{ 
+                          <Chip
+                            label={selectedCountry}
+                            size="small"
+                            sx={{
                               ml: 1,
                               backgroundColor: 'rgba(255,255,255,0.2)',
                               color: 'white',
                               fontSize: '0.7rem',
                               height: 20
-                            }} 
+                            }}
                           />
                         )}
                       </Typography>
-                      <Alert 
-                        severity="info" 
-                        sx={{ 
+                      <Alert
+                        severity="info"
+                        sx={{
                           mb: 1.5,
                           background: 'rgba(33, 150, 243, 0.2)',
                           color: 'white',
@@ -4541,9 +4564,9 @@ function StudentDetails() {
                   console.error('Error loading shortlisted universities for Application Submission:', e);
                   return (
                     <Box sx={{ mb: 3 }}>
-                      <Alert 
-                        severity="error" 
-                        sx={{ 
+                      <Alert
+                        severity="error"
+                        sx={{
                           background: 'rgba(244, 67, 54, 0.2)',
                           color: 'white',
                           border: '1px solid rgba(244, 67, 54, 0.4)',
@@ -4566,7 +4589,7 @@ function StudentDetails() {
                   // Try to get data from country profile if country is selected, otherwise from student notes
                   let offers = null;
                   let shortlist = null;
-                  
+
                   if (selectedCountry && countryProfiles.length > 0) {
                     const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
                     if (countryProfile?.notes) {
@@ -4575,14 +4598,14 @@ function StudentDetails() {
                       shortlist = countryNotes?.universityShortlist;
                     }
                   }
-                  
+
                   // Fallback to student notes for backward compatibility
                   if (student?.notes) {
                     const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
                     if (!offers) offers = notes?.universitiesWithOffers;
                     if (!shortlist) shortlist = notes?.universityShortlist;
                   }
-                  
+
                   // Determine which universities to show: offers first, then fallback to shortlisted
                   let universitiesToShow = null;
                   let isFallback = false;
@@ -4601,7 +4624,7 @@ function StudentDetails() {
                         }
                         return normalized.replace(/\s+/g, ' ').trim();
                       };
-                      
+
                       const normalizedSelected = normalizeCountry(selectedCountry);
                       universitiesToShow = offers.universities.filter(u => {
                         if (!u || !u.country) return false;
@@ -4625,7 +4648,7 @@ function StudentDetails() {
                         }
                         return normalized.replace(/\s+/g, ' ').trim();
                       };
-                      
+
                       const normalizedSelected = normalizeCountry(selectedCountry);
                       universitiesToShow = shortlist.universities.filter(u => {
                         if (!u || !u.country) return false;
@@ -4781,35 +4804,35 @@ function StudentDetails() {
                   // Try to get universities from Application Submission phase first
                   let applicationUniversities = null;
                   let shortlist = null;
-                  
+
                   if (selectedCountry && countryProfiles.length > 0) {
                     const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
                     if (countryProfile?.notes) {
-                      const countryNotes = typeof countryProfile.notes === 'string' 
-                        ? JSON.parse(countryProfile.notes) 
+                      const countryNotes = typeof countryProfile.notes === 'string'
+                        ? JSON.parse(countryProfile.notes)
                         : countryProfile.notes;
                       applicationUniversities = countryNotes?.applicationSubmissionUniversities;
                       shortlist = countryNotes?.universityShortlist;
                     }
                   }
-                  
+
                   // Fallback to student notes
                   if (!applicationUniversities && student?.notes) {
                     const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
                     applicationUniversities = notes?.applicationSubmissionUniversities;
                     if (!shortlist) shortlist = notes?.universityShortlist;
                   }
-                  
+
                   // Use Application Submission universities if available, otherwise fallback to shortlist
                   let universitiesList = [];
                   if (applicationUniversities?.universities && Array.isArray(applicationUniversities.universities)) {
                     universitiesList = applicationUniversities.universities;
                   } else if (shortlist?.universities) {
-                    universitiesList = Array.isArray(shortlist.universities) 
-                      ? shortlist.universities 
+                    universitiesList = Array.isArray(shortlist.universities)
+                      ? shortlist.universities
                       : (shortlist.universities ? [shortlist.universities] : []);
                   }
-                  
+
                   if (universitiesList.length > 0) {
                     return (
                       <Box sx={{ mb: 3 }}>
@@ -4825,9 +4848,9 @@ function StudentDetails() {
                           Select Universities with Offers (Multiple Selection)
                         </Typography>
                         {applicationUniversities ? (
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
+                          <Alert
+                            severity="info"
+                            sx={{
                               mb: 1.5,
                               background: 'rgba(33, 150, 243, 0.2)',
                               color: 'white',
@@ -4841,9 +4864,9 @@ function StudentDetails() {
                             </Typography>
                           </Alert>
                         ) : (
-                          <Alert 
-                            severity="warning" 
-                            sx={{ 
+                          <Alert
+                            severity="warning"
+                            sx={{
                               mb: 1.5,
                               background: 'rgba(255, 193, 7, 0.2)',
                               color: 'white',
@@ -4985,16 +5008,16 @@ function StudentDetails() {
                     <SchoolIcon sx={{ fontSize: 18 }} />
                     Select Universities (Multiple Selection)
                     {selectedCountry && (
-                      <Chip 
-                        label={selectedCountry} 
-                        size="small" 
-                        sx={{ 
+                      <Chip
+                        label={selectedCountry}
+                        size="small"
+                        sx={{
                           ml: 1,
                           backgroundColor: 'rgba(255,255,255,0.2)',
                           color: 'white',
                           fontSize: '0.7rem',
                           height: 20
-                        }} 
+                        }}
                       />
                     )}
                   </Typography>
@@ -5082,13 +5105,13 @@ function StudentDetails() {
                               }
                               return normalized.replace(/\s+/g, ' ').trim();
                             };
-                            
+
                             const normalizedSelected = normalizeCountry(selectedCountry);
                             const filteredUniversities = universities.filter(u => {
                               if (!u || !u.country) return false;
                               return normalizeCountry(u.country) === normalizedSelected;
                             });
-                            
+
                             if (filteredUniversities.length === 0) {
                               return (
                                 <MenuItem disabled>
@@ -5096,7 +5119,7 @@ function StudentDetails() {
                                 </MenuItem>
                               );
                             }
-                            
+
                             return filteredUniversities.map((university) => (
                               <MenuItem key={university.id} value={university.id}>
                                 <Checkbox
@@ -5383,9 +5406,9 @@ function StudentDetails() {
               {/* Visa Process Status Selection - Show for Visa Process phase */}
               {phaseConfirmDialog.phase?.key === 'VISA_APPLICATION' && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5, 
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
                     color: 'rgba(255,255,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
@@ -5408,11 +5431,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.visaStatus === 'APPROVED' 
+                        background: phaseConfirmDialog.visaStatus === 'APPROVED'
                           ? 'linear-gradient(45deg, #4CAF50 30%, #45a049 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.visaStatus === 'APPROVED' 
+                        border: phaseConfirmDialog.visaStatus === 'APPROVED'
                           ? 'none'
                           : '2px solid rgba(76, 175, 80, 0.5)',
                         '&:hover': {
@@ -5439,11 +5462,11 @@ function StudentDetails() {
                         minWidth: 120,
                         borderRadius: 2,
                         py: 1.5,
-                        background: phaseConfirmDialog.visaStatus === 'REFUSED' 
+                        background: phaseConfirmDialog.visaStatus === 'REFUSED'
                           ? 'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)'
                           : 'rgba(255,255,255,0.1)',
                         color: 'white',
-                        border: phaseConfirmDialog.visaStatus === 'REFUSED' 
+                        border: phaseConfirmDialog.visaStatus === 'REFUSED'
                           ? 'none'
                           : '2px solid rgba(244, 67, 54, 0.5)',
                         '&:hover': {
@@ -5459,9 +5482,9 @@ function StudentDetails() {
                     </Button>
                   </Box>
                   {!phaseConfirmDialog.visaStatus && (
-                    <Alert 
-                      severity="warning" 
-                      sx={{ 
+                    <Alert
+                      severity="warning"
+                      sx={{
                         mt: 1.5,
                         background: 'rgba(255, 193, 7, 0.2)',
                         color: 'white',
