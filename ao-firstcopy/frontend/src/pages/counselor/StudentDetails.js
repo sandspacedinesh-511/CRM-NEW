@@ -1190,6 +1190,8 @@ function StudentDetails() {
         setNewCountryName('');
         await fetchCountryProfiles();
         setSelectedCountry(newCountryName);
+        // Refresh student details to update progress bar
+        await fetchStudentDetails();
       }
     } catch (error) {
       console.error('Error creating country profile:', error);
@@ -2327,9 +2329,20 @@ function StudentDetails() {
                     countryProfiles.forEach(profile => {
                       if (profile.notes) {
                         try {
-                          const notes = typeof profile.notes === 'string' 
-                            ? JSON.parse(profile.notes) 
-                            : profile.notes;
+                          let notes;
+                          if (typeof profile.notes === 'string') {
+                            // Check if it looks like JSON (starts with { or [)
+                            const trimmed = profile.notes.trim();
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                              notes = JSON.parse(profile.notes);
+                            } else {
+                              // It's plain text, skip this profile
+                              return;
+                            }
+                          } else {
+                            notes = profile.notes;
+                          }
+                          
                           const interviewStatus = notes?.interviewStatus;
                           
                           if (interviewStatus && interviewStatus.status === 'REFUSED') {
@@ -2338,7 +2351,8 @@ function StudentDetails() {
                             totalRefusals++;
                           }
                         } catch (e) {
-                          console.error('Error parsing notes for profile:', profile.country, e);
+                          // Silently skip profiles with invalid JSON notes
+                          // console.error('Error parsing notes for profile:', profile.country, e);
                         }
                       }
                     });
