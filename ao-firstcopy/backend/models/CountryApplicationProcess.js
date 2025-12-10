@@ -74,12 +74,7 @@ const CountryApplicationProcess = sequelize.define('CountryApplicationProcess', 
 }, {
   timestamps: true,
   indexes: [
-    {
-      fields: ['country']
-    },
-    {
-      fields: ['countryCode']
-    },
+    // Only index isActive since country and countryCode already have unique constraints (which create indexes)
     {
       fields: ['isActive']
     }

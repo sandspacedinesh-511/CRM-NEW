@@ -77,17 +77,17 @@ const PHASES = [
   },
   {
     key: 'CAS_VISA',
-    label: 'CAS & Visa',
+    label: 'CAS Process',
     icon: <TrendingUpIcon />,
     color: '#8bc34a',
     description: 'CAS letter and visa preparation'
   },
   {
     key: 'VISA_APPLICATION',
-    label: 'Visa Application',
+    label: 'Visa Process',
     icon: <FlightIcon />,
     color: '#ffc107',
-    description: 'Submitting visa application'
+    description: 'Submitting visa process'
   },
   {
     key: 'ENROLLMENT',

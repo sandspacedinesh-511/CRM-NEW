@@ -77,6 +77,22 @@ const ApplicationCountry = sequelize.define('ApplicationCountry', {
     allowNull: true,
     comment: 'Student\'s preference ranking for this country (1 = highest)'
   },
+  currentPhase: {
+    type: DataTypes.ENUM(
+      'DOCUMENT_COLLECTION',
+      'UNIVERSITY_SHORTLISTING',
+      'APPLICATION_SUBMISSION',
+      'OFFER_RECEIVED',
+      'INITIAL_PAYMENT',
+      'INTERVIEW',
+      'FINANCIAL_TB_TEST',
+      'CAS_VISA',
+      'VISA_APPLICATION',
+      'ENROLLMENT'
+    ),
+    defaultValue: 'DOCUMENT_COLLECTION',
+    comment: 'Current application phase for this country'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

@@ -9,7 +9,7 @@ const phases = [
   'Initial Payment',
   'Interview',
   'Financial/TB Test',
-  'CAS & Visa'
+  'CAS Process'
 ];
 
 function PhaseTracker({ currentPhase }) {

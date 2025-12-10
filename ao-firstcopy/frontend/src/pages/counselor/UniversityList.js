@@ -77,16 +77,15 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const COUNTRY_OPTIONS = [
   { value: 'ALL', label: 'All Countries' },
-  { value: 'USA', label: 'United States' },
-  { value: 'UK', label: 'United Kingdom' },
-  { value: 'CANADA', label: 'Canada' },
-  { value: 'AUSTRALIA', label: 'Australia' },
-  { value: 'GERMANY', label: 'Germany' },
-  { value: 'FRANCE', label: 'France' },
-  { value: 'NETHERLANDS', label: 'Netherlands' },
-  { value: 'IRELAND', label: 'Ireland' },
-  { value: 'NEW_ZEALAND', label: 'New Zealand' },
-  { value: 'OTHER', label: 'Other' }
+  { value: 'United States', label: 'United States' },
+  { value: 'United Kingdom', label: 'United Kingdom' },
+  { value: 'Canada', label: 'Canada' },
+  { value: 'Australia', label: 'Australia' },
+  { value: 'New Zealand', label: 'New Zealand' },
+  { value: 'Ireland', label: 'Ireland' },
+  { value: 'Germany', label: 'Germany' },
+  { value: 'France', label: 'France' },
+  { value: 'Other', label: 'Other' }
 ];
 
 const SORT_OPTIONS = [
@@ -349,17 +348,24 @@ function UniversityList() {
 
   const getCountryFlag = (country) => {
     const flags = {
-      'USA': '🇺🇸',
-      'UK': '🇬🇧',
-      'CANADA': '🇨🇦',
-      'AUSTRALIA': '🇦🇺',
-      'GERMANY': '🇩🇪',
-      'FRANCE': '🇫🇷',
-      'NETHERLANDS': '🇳🇱',
-      'IRELAND': '🇮🇪',
-      'NEW_ZEALAND': '🇳🇿'
+      'United States': '🇺🇸',
+      'United Kingdom': '🇬🇧',
+      'Canada': '🇨🇦',
+      'Australia': '🇦🇺',
+      'Germany': '🇩🇪',
+      'France': '🇫🇷',
+      'Ireland': '🇮🇪',
+      'New Zealand': '🇳🇿',
+      'USA': '🇺🇸', // Fallback for old values
+      'UK': '🇬🇧', // Fallback for old values
+      'CANADA': '🇨🇦', // Fallback for old values
+      'AUSTRALIA': '🇦🇺', // Fallback for old values
+      'GERMANY': '🇩🇪', // Fallback for old values
+      'FRANCE': '🇫🇷', // Fallback for old values
+      'IRELAND': '🇮🇪', // Fallback for old values
+      'NEW_ZEALAND': '🇳🇿' // Fallback for old values
     };
-    return flags[country] || 'C';
+    return flags[country] || '🌍';
   };
 
   const LoadingSkeleton = () => (
@@ -574,42 +580,43 @@ function UniversityList() {
                 />
               </Grid>
 
-              {showFilters && (
-                <>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Country</InputLabel>
-                      <Select
-                        value={countryFilter}
-                        onChange={(e) => setCountryFilter(e.target.value)}
-                        label="Country"
-                      >
-                        {COUNTRY_OPTIONS.map((country) => (
-                          <MenuItem key={country.value} value={country.value}>
-                            {country.value !== 'ALL' && getCountryFlag(country.value)} {country.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Filter by Country</InputLabel>
+                  <Select
+                    value={countryFilter}
+                    onChange={(e) => {
+                      setCountryFilter(e.target.value);
+                      setPage(0); // Reset to first page when filter changes
+                    }}
+                    label="Filter by Country"
+                  >
+                    {COUNTRY_OPTIONS.map((country) => (
+                      <MenuItem key={country.value} value={country.value}>
+                        {country.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
 
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Sort By</InputLabel>
-                      <Select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        label="Sort By"
-                      >
-                        {SORT_OPTIONS.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </>
+              {showFilters && (
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Sort By</InputLabel>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      label="Sort By"
+                    >
+                      {SORT_OPTIONS.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
               )}
             </Grid>
           </CardContent>

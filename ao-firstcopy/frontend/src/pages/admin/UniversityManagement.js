@@ -56,11 +56,13 @@ function UniversityManagement() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUniversities, setTotalUniversities] = useState(0);
+  const [countryFilter, setCountryFilter] = useState('ALL');
   const [openDialog, setOpenDialog] = useState(false);
   const [openImportDialog, setOpenImportDialog] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedCountry, setSelectedCountry] = useState('');
   const fileInputRef = useRef(null);
   const [selectedUniversity, setSelectedUniversity] = useState(null);
   const [formData, setFormData] = useState({
@@ -92,7 +94,8 @@ function UniversityManagement() {
       const response = await axiosInstance.get('/admin/universities', {
         params: {
           page: page + 1,
-          limit: rowsPerPage
+          limit: rowsPerPage,
+          country: countryFilter !== 'ALL' ? countryFilter : undefined
         }
       });
       if (response.data.success) {
@@ -111,7 +114,7 @@ function UniversityManagement() {
 
   useEffect(() => {
     fetchUniversities();
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, countryFilter]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -230,11 +233,17 @@ function UniversityManagement() {
       return;
     }
 
+    if (!selectedCountry) {
+      setError('Please select a country for the universities');
+      return;
+    }
+
     clearMessages();
     setImporting(true);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('country', selectedCountry);
 
       const response = await axiosInstance.post('/admin/universities/bulk-import', formData, {
         headers: {
@@ -289,7 +298,25 @@ function UniversityManagement() {
           <Typography variant="h4" component="h1">
             University Management
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              select
+              label="Filter by Country"
+              value={countryFilter}
+              onChange={(e) => {
+                setCountryFilter(e.target.value);
+                setPage(0);
+              }}
+              sx={{ minWidth: 200 }}
+              size="small"
+            >
+              <MenuItem value="ALL">All Countries</MenuItem>
+              {COUNTRIES.map((country) => (
+                <MenuItem key={country} value={country}>
+                  {country}
+                </MenuItem>
+              ))}
+            </TextField>
             <Button
               variant="outlined"
               startIcon={<UploadIcon />}
@@ -297,6 +324,7 @@ function UniversityManagement() {
                 setOpenImportDialog(true);
                 setImportResults(null);
                 setSelectedFile(null);
+                setSelectedCountry('');
               }}
             >
               Bulk Import
@@ -591,13 +619,34 @@ function UniversityManagement() {
           <DialogTitle>Bulk Import Universities</DialogTitle>
           <DialogContent>
             <Box sx={{ mt: 2 }}>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Select Country"
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    required
+                    helperText="All universities in the file will be assigned to this country"
+                  >
+                    {COUNTRIES.map((country) => (
+                      <MenuItem key={country} value={country}>
+                        {country}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              </Grid>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Upload an Excel file (.xlsx or .xls) containing university data. The file should have the following columns:
               </Typography>
               <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Required Columns:</Typography>
                 <Typography variant="body2">• University Name (or Name)</Typography>
-                <Typography variant="body2">• University Country (or Country)</Typography>
+                <Typography variant="body2" color="textSecondary">
+                  • University Country (or Country) - Optional if country is selected above
+                </Typography>
                 <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Optional Columns:</Typography>
                 <Typography variant="body2">• Address, City, Location</Typography>
                 <Typography variant="body2">• Website, URL</Typography>
@@ -670,6 +719,7 @@ function UniversityManagement() {
             <Button onClick={() => {
               setOpenImportDialog(false);
               setSelectedFile(null);
+              setSelectedCountry('');
               setImportResults(null);
               if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -680,7 +730,7 @@ function UniversityManagement() {
             <Button
               onClick={handleBulkImport}
               variant="contained"
-              disabled={!selectedFile || importing}
+              disabled={!selectedFile || !selectedCountry || importing}
               startIcon={importing ? <CircularProgress size={20} /> : <UploadIcon />}
             >
               {importing ? 'Importing...' : 'Import'}

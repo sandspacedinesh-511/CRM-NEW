@@ -130,6 +130,7 @@ function Applications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [applications, setApplications] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
 
   // WebSocket integration for real-time updates
   const { isConnected, onEvent, joinRoom } = useWebSocket();
@@ -198,8 +199,12 @@ function Applications() {
       
       if (response.data.success) {
         setApplications(response.data.data?.applications || []);
+        setTotalCount(response.data.data?.total || 0);
       } else {
-        setApplications(response.data || []);
+        // Fallback for old response format
+        const apps = Array.isArray(response.data) ? response.data : [];
+        setApplications(apps);
+        setTotalCount(apps.length);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -238,11 +243,11 @@ function Applications() {
   const calculateApplicationStats = (apps) => {
     const stats = {
       total: apps.length,
-      pending: apps.filter(app => app.applicationStatus === 'PENDING').length,
-      submitted: apps.filter(app => app.applicationStatus === 'SUBMITTED').length,
-      accepted: apps.filter(app => app.applicationStatus === 'ACCEPTED').length,
-      rejected: apps.filter(app => app.applicationStatus === 'REJECTED').length,
-      underReview: apps.filter(app => app.applicationStatus === 'UNDER_REVIEW').length
+      pending: apps.filter(app => (app.status || app.applicationStatus) === 'PENDING').length,
+      submitted: apps.filter(app => (app.status || app.applicationStatus) === 'SUBMITTED').length,
+      accepted: apps.filter(app => (app.status || app.applicationStatus) === 'ACCEPTED').length,
+      rejected: apps.filter(app => (app.status || app.applicationStatus) === 'REJECTED').length,
+      underReview: apps.filter(app => (app.status || app.applicationStatus) === 'UNDER_REVIEW').length
     };
     setApplicationStats(stats);
   };
@@ -337,7 +342,7 @@ function Applications() {
       setApplications(prev => 
         prev.map(app => 
           app.id === data.applicationId 
-            ? { ...app, applicationStatus: data.status, updatedAt: data.timestamp }
+            ? { ...app, status: data.status, applicationStatus: data.status, updatedAt: data.timestamp }
             : app
         )
       );
@@ -371,7 +376,7 @@ function Applications() {
         universityId: application.universityId,
         courseName: application.courseName,
         applicationDeadline: format(new Date(application.applicationDeadline), 'yyyy-MM-dd'),
-        status: application.status,
+        status: application.status || application.applicationStatus,
         notes: application.notes || '',
         applicationFee: application.applicationFee || '',
         documentsRequired: application.documentsRequired || '',
@@ -525,26 +530,28 @@ function Applications() {
 
   const getApplicationStats = () => {
     const total = applications.length;
-    const pending = applications.filter(a => a.status === 'PENDING').length;
-    const submitted = applications.filter(a => a.status === 'SUBMITTED').length;
-    const underReview = applications.filter(a => a.status === 'UNDER_REVIEW').length;
-    const accepted = applications.filter(a => a.status === 'ACCEPTED').length;
-    const rejected = applications.filter(a => a.status === 'REJECTED').length;
-    const overdue = applications.filter(a => isOverdue(a.applicationDeadline) && a.status === 'PENDING').length;
+    const getStatus = (app) => app.status || app.applicationStatus;
+    const pending = applications.filter(a => getStatus(a) === 'PENDING').length;
+    const submitted = applications.filter(a => getStatus(a) === 'SUBMITTED').length;
+    const underReview = applications.filter(a => getStatus(a) === 'UNDER_REVIEW').length;
+    const accepted = applications.filter(a => getStatus(a) === 'ACCEPTED').length;
+    const rejected = applications.filter(a => getStatus(a) === 'REJECTED').length;
+    const overdue = applications.filter(a => isOverdue(a.applicationDeadline) && getStatus(a) === 'PENDING').length;
     
     return { total, pending, submitted, underReview, accepted, rejected, overdue };
   };
 
   const stats = getApplicationStats();
 
+  const getStatus = (app) => app.status || app.applicationStatus;
   const groupedApplications = {
-    overdue: applications.filter(app => isOverdue(app.applicationDeadline) && app.status === 'PENDING'),
-    dueSoon: applications.filter(app => isDueSoon(app.applicationDeadline) && app.status === 'PENDING'),
-    pending: applications.filter(app => app.status === 'PENDING' && !isOverdue(app.applicationDeadline) && !isDueSoon(app.applicationDeadline)),
-    submitted: applications.filter(app => app.status === 'SUBMITTED'),
-    underReview: applications.filter(app => app.status === 'UNDER_REVIEW'),
-    accepted: applications.filter(app => app.status === 'ACCEPTED'),
-    rejected: applications.filter(app => app.status === 'REJECTED')
+    overdue: applications.filter(app => isOverdue(app.applicationDeadline) && getStatus(app) === 'PENDING'),
+    dueSoon: applications.filter(app => isDueSoon(app.applicationDeadline) && getStatus(app) === 'PENDING'),
+    pending: applications.filter(app => getStatus(app) === 'PENDING' && !isOverdue(app.applicationDeadline) && !isDueSoon(app.applicationDeadline)),
+    submitted: applications.filter(app => getStatus(app) === 'SUBMITTED'),
+    underReview: applications.filter(app => getStatus(app) === 'UNDER_REVIEW'),
+    accepted: applications.filter(app => getStatus(app) === 'ACCEPTED'),
+    rejected: applications.filter(app => getStatus(app) === 'REJECTED')
   };
 
   const LoadingSkeleton = () => (
@@ -801,7 +808,7 @@ function Applications() {
                             {activity.student?.name || 'Unknown Student'}
                           </Typography>
                           <Typography variant="caption" color="textSecondary">
-                            {activity.university?.name} - {activity.applicationStatus}
+                            {activity.university?.name} - {activity.status || activity.applicationStatus}
                           </Typography>
                           <Typography variant="caption" display="block" color="textSecondary">
                             {format(new Date(activity.updatedAt || activity.createdAt), 'MMM dd, yyyy')}
@@ -1317,8 +1324,9 @@ function Applications() {
                 </TableHead>
                 <TableBody>
                   {applications.map((application) => {
-                    const student = students.find(s => s.id === application.studentId);
-                    const university = universities.find(u => u.id === application.universityId);
+                    // Use included data from backend if available, otherwise fallback to separate arrays
+                    const student = application.student || students.find(s => s.id === application.studentId);
+                    const university = application.university || universities.find(u => u.id === application.universityId);
                     const isOverdueApp = isOverdue(application.applicationDeadline);
                     const isDueSoonApp = isDueSoon(application.applicationDeadline);
                     
@@ -1391,13 +1399,13 @@ function Applications() {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={APPLICATION_STATUS.find(s => s.value === application.status)?.label}
-                            color={getStatusColor(application.status)}
+                            label={APPLICATION_STATUS.find(s => s.value === (application.status || application.applicationStatus))?.label}
+                            color={getStatusColor(application.status || application.applicationStatus)}
                             size="small"
                             icon={
-                              application.status === 'ACCEPTED' ? <CheckCircleIcon /> :
-                              application.status === 'PENDING' ? <WarningIcon /> :
-                              application.status === 'REJECTED' ? <ErrorIcon /> : null
+                              (application.status || application.applicationStatus) === 'ACCEPTED' ? <CheckCircleIcon /> :
+                              (application.status || application.applicationStatus) === 'PENDING' ? <WarningIcon /> :
+                              (application.status || application.applicationStatus) === 'REJECTED' ? <ErrorIcon /> : null
                             }
                           />
                         </TableCell>
@@ -1484,7 +1492,7 @@ function Applications() {
 
             <TablePagination
               component="div"
-              count={-1} // You can set actual count if available
+              count={totalCount}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}

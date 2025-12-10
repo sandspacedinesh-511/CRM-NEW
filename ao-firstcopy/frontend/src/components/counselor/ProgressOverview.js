@@ -27,8 +27,8 @@ const PHASES = [
   { key: 'INITIAL_PAYMENT', label: 'Initial Payment', color: '#795548' },
   { key: 'INTERVIEW', label: 'Interview', color: '#607d8b' },
   { key: 'FINANCIAL_TB_TEST', label: 'Financial & TB Test', color: '#ff5722' },
-  { key: 'CAS_VISA', label: 'CAS & Visa', color: '#8bc34a' },
-  { key: 'VISA_APPLICATION', label: 'Visa Application', color: '#ffc107' },
+  { key: 'CAS_VISA', label: 'CAS Process', color: '#8bc34a' },
+  { key: 'VISA_APPLICATION', label: 'Visa Process', color: '#ffc107' },
   { key: 'ENROLLMENT', label: 'Enrollment', color: '#03a9f4' }
 ];
 

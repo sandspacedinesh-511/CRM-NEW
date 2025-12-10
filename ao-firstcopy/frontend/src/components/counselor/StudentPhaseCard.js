@@ -21,7 +21,8 @@ import {
   Person as PersonIcon,
   School as SchoolIcon,
   CalendarToday as CalendarIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { format, isValid } from 'date-fns';
 
@@ -58,7 +59,8 @@ const StudentPhaseCard = ({
   onEditStudent, 
   onViewDocuments, 
   onViewApplications,
-  onShareLead
+  onShareLead,
+  onCreateCountryProfile
 }) => {
   // Helper function to safely format dates
   const safeFormatDate = (dateString, formatString) => {
@@ -378,6 +380,14 @@ const StudentPhaseCard = ({
           }}>
             <TrendingUpIcon sx={{ mr: 1, fontSize: '1rem' }} />
             View Applications
+          </MenuItem>
+          <Divider sx={{ my: 0.5 }} />
+          <MenuItem onClick={() => {
+            onCreateCountryProfile?.(student);
+            handleMenuClose();
+          }}>
+            <AddIcon sx={{ mr: 1, fontSize: '1rem' }} />
+            Add Country Profile
           </MenuItem>
         </Menu>
 
