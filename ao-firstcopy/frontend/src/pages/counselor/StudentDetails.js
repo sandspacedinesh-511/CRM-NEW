@@ -2334,9 +2334,15 @@ function StudentDetails() {
                             // Check if it looks like JSON (starts with { or [)
                             const trimmed = profile.notes.trim();
                             if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-                              notes = JSON.parse(profile.notes);
+                              try {
+                                notes = JSON.parse(profile.notes);
+                              } catch (parseError) {
+                                // If JSON parsing fails, skip this profile
+                                console.warn(`Failed to parse notes for ${profile.country}:`, parseError);
+                                return;
+                              }
                             } else {
-                              // It's plain text, skip this profile
+                              // It's plain text, skip this profile (no interview status in plain text)
                               return;
                             }
                           } else {
@@ -2347,29 +2353,54 @@ function StudentDetails() {
                           
                           if (interviewStatus && interviewStatus.status === 'REFUSED') {
                             const country = profile.country;
-                            refusalCounts[country] = (refusalCounts[country] || 0) + 1;
-                            totalRefusals++;
+                            if (country) {
+                              refusalCounts[country] = (refusalCounts[country] || 0) + 1;
+                              totalRefusals++;
+                            }
                           }
                         } catch (e) {
-                          // Silently skip profiles with invalid JSON notes
-                          // console.error('Error parsing notes for profile:', profile.country, e);
+                          // Log error for debugging but continue with other profiles
+                          console.warn(`Error processing notes for profile ${profile.country}:`, e);
                         }
                       }
                     });
                   }
                   
                   // Also check student notes for backward compatibility
-                  if (student?.notes) {
+                  // Only use student notes if no country-specific refusals were found
+                  if (student?.notes && Object.keys(refusalCounts).length === 0) {
                     try {
-                      const notes = typeof student.notes === 'string' 
-                        ? JSON.parse(student.notes) 
-                        : student.notes;
-                      const interviewStatus = notes?.interviewStatus;
+                      let notes;
+                      if (typeof student.notes === 'string') {
+                        const trimmed = student.notes.trim();
+                        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                          notes = JSON.parse(student.notes);
+                        } else {
+                          // Plain text, skip
+                          notes = null;
+                        }
+                      } else {
+                        notes = student.notes;
+                      }
                       
-                      if (interviewStatus && interviewStatus.status === 'REFUSED') {
-                        // If no country-specific refusals found, count this as a general refusal
-                        if (totalRefusals === 0) {
-                          totalRefusals = 1;
+                      if (notes) {
+                        const interviewStatus = notes?.interviewStatus;
+                        
+                        if (interviewStatus && interviewStatus.status === 'REFUSED') {
+                          // Try to determine country from context
+                          // If there's only one country profile, use that
+                          if (countryProfiles && countryProfiles.length === 1) {
+                            const country = countryProfiles[0].country;
+                            refusalCounts[country] = 1;
+                            totalRefusals = 1;
+                          } else if (selectedCountry) {
+                            // Use currently selected country as fallback
+                            refusalCounts[selectedCountry] = 1;
+                            totalRefusals = 1;
+                          } else {
+                            // No way to determine country, show generic
+                            totalRefusals = 1;
+                          }
                         }
                       }
                     } catch (e) {
@@ -2379,6 +2410,7 @@ function StudentDetails() {
                   
                   if (totalRefusals > 0) {
                     const refusedCountries = Object.keys(refusalCounts);
+
                     return (
                       <ListItem>
                         <ListItemIcon>
