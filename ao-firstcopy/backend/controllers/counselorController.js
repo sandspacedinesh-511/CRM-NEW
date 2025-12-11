@@ -1534,6 +1534,7 @@ exports.getApplications = async (req, res) => {
       status, 
       studentId, 
       universityId, 
+      country,
       sort = 'deadline_asc', 
       page = 1, 
       limit = 10 
@@ -1609,6 +1610,22 @@ exports.getApplications = async (req, res) => {
           model: University,
           as: 'university',
           attributes: ['id', 'name', 'country'],
+          where: country ? (() => {
+            // Normalize country names for filtering (handle UK = United Kingdom, etc.)
+            const normalizeCountry = (c) => {
+              if (!c) return '';
+              const upper = c.trim().toUpperCase();
+              if (upper === 'UK' || upper === 'U.K.' || upper === 'U.K' || upper === 'UNITED KINGDOM') {
+                return ['United Kingdom', 'UK', 'U.K.', 'U.K'];
+              }
+              if (upper === 'USA' || upper === 'U.S.A.' || upper === 'US' || upper === 'U.S.' || upper === 'UNITED STATES' || upper === 'UNITED STATES OF AMERICA') {
+                return ['United States', 'USA', 'U.S.A.', 'US', 'U.S.', 'United States of America'];
+              }
+              return [c];
+            };
+            const countryVariations = normalizeCountry(country);
+            return countryVariations.length > 1 ? { [Op.in]: countryVariations } : { country: countryVariations[0] };
+          })() : undefined,
           required: true
         }
       ],

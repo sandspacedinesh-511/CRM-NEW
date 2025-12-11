@@ -64,9 +64,21 @@ exports.getApplications = async (req, res) => {
       };
     }
 
-    // Filter by country
+    // Filter by country (normalize country names to handle variations)
     if (country) {
-      includeClause[1].where = { country };
+      const normalizeCountryForFilter = (c) => {
+        if (!c) return [c];
+        const upper = c.trim().toUpperCase();
+        if (upper === 'UK' || upper === 'U.K.' || upper === 'U.K' || upper === 'UNITED KINGDOM') {
+          return ['United Kingdom', 'UK', 'U.K.', 'U.K'];
+        }
+        if (upper === 'USA' || upper === 'U.S.A.' || upper === 'US' || upper === 'U.S.' || upper === 'UNITED STATES' || upper === 'UNITED STATES OF AMERICA') {
+          return ['United States', 'USA', 'U.S.A.', 'US', 'U.S.', 'United States of America'];
+        }
+        return [c];
+      };
+      const countryVariations = normalizeCountryForFilter(country);
+      includeClause[1].where = countryVariations.length > 1 ? { country: { [Op.in]: countryVariations } } : { country: countryVariations[0] };
     }
 
     // Filter students with multiple countries

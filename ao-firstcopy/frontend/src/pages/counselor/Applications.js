@@ -88,7 +88,8 @@ import {
   Archive as ArchiveIcon,
   RestoreFromTrash as RestoreFromTrashIcon,
   PriorityHigh as PriorityHighIcon,
-  LowPriority as LowPriorityIcon
+  LowPriority as LowPriorityIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { format, isAfter, isBefore, addDays, differenceInDays } from 'date-fns';
 import axiosInstance from '../../utils/axios';
@@ -123,6 +124,51 @@ const SORT_OPTIONS = [
   { value: 'country_desc', label: 'Country (Z-A)' }
 ];
 
+// Normalize country names to handle variations (UK = United Kingdom, USA = United States, etc.)
+const normalizeCountryName = (country) => {
+  if (!country) return '';
+  const normalized = country.trim();
+  const upperNormalized = normalized.toUpperCase();
+  
+  // Map variations to standard names
+  const countryMap = {
+    'UK': 'United Kingdom',
+    'U.K.': 'United Kingdom',
+    'U.K': 'United Kingdom',
+    'UNITED KINGDOM': 'United Kingdom',
+    'USA': 'United States',
+    'U.S.A.': 'United States',
+    'U.S.A': 'United States',
+    'US': 'United States',
+    'U.S.': 'United States',
+    'U.S': 'United States',
+    'UNITED STATES': 'United States',
+    'UNITED STATES OF AMERICA': 'United States',
+    'CANADA': 'Canada',
+    'CA': 'Canada',
+    'AUSTRALIA': 'Australia',
+    'AU': 'Australia',
+    'IRELAND': 'Ireland',
+    'GERMANY': 'Germany',
+    'DE': 'Germany',
+    'FRANCE': 'France',
+    'FR': 'France',
+    'NETHERLANDS': 'Netherlands',
+    'NL': 'Netherlands',
+    'ITALY': 'Italy',
+    'SPAIN': 'Spain',
+    'SWEDEN': 'Sweden',
+    'DENMARK': 'Denmark',
+    'NORWAY': 'Norway',
+    'FINLAND': 'Finland',
+    'SWITZERLAND': 'Switzerland',
+    'NEW ZEALAND': 'New Zealand',
+    'NZ': 'New Zealand'
+  };
+  
+  return countryMap[upperNormalized] || normalized;
+};
+
 function Applications() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -154,6 +200,10 @@ function Applications() {
   const [selectedStudentForMultiCountry, setSelectedStudentForMultiCountry] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [selectedCountryForDetails, setSelectedCountryForDetails] = useState(null);
+  const [countryStudentsData, setCountryStudentsData] = useState([]);
+  const [loadingCountryStudents, setLoadingCountryStudents] = useState(false);
+  const [allApplicationsForCountry, setAllApplicationsForCountry] = useState([]);
   const [applicationStats, setApplicationStats] = useState({
     total: 0,
     pending: 0,
@@ -251,6 +301,18 @@ function Applications() {
     }
   };
 
+  // Fetch students by country
+  const fetchCountryStudentsData = async () => {
+    try {
+      setLoadingCountryStudents(true);
+      await fetchAllStudentsWithCountries(); // This already sets allStudentsData
+    } catch (error) {
+      console.error('Error fetching country students data:', error);
+    } finally {
+      setLoadingCountryStudents(false);
+    }
+  };
+
   // Fetch all students with their country data
   const fetchAllStudentsWithCountries = async () => {
     try {
@@ -286,12 +348,26 @@ function Applications() {
         })
       );
 
-      setAllStudentsData(studentsWithCountries);
+      // Normalize country names in student data
+      const normalizedStudentsWithCountries = studentsWithCountries.map(student => ({
+        ...student,
+        countries: student.countries.map(country => normalizeCountryName(country)),
+        countryProfiles: (student.countryProfiles || []).map(profile => ({
+          ...profile,
+          country: normalizeCountryName(profile.country)
+        }))
+      }));
 
-      // Extract unique countries for filter dropdown
+      setAllStudentsData(normalizedStudentsWithCountries);
+
+      // Extract unique countries for filter dropdown (normalized)
       const allCountries = new Set();
-      studentsWithCountries.forEach(student => {
-        student.countries.forEach(country => allCountries.add(country));
+      normalizedStudentsWithCountries.forEach(student => {
+        student.countries.forEach(country => {
+          if (country) {
+            allCountries.add(country);
+          }
+        });
       });
       setCountriesList(Array.from(allCountries).sort());
     } catch (error) {
@@ -379,8 +455,14 @@ function Applications() {
   useEffect(() => {
     fetchApplications();
     fetchStudentsAndUniversities();
-    fetchAllStudentsWithCountries();
   }, [searchQuery, statusFilter, studentFilter, universityFilter, countryFilter, sortBy, page, rowsPerPage]);
+
+  // Fetch country students data when Country-Based Management tab is selected
+  useEffect(() => {
+    if (tabValue === 2 && countriesList.length === 0) {
+      fetchCountryStudentsData();
+    }
+  }, [tabValue]);
 
   useEffect(() => {
     if (applications.length > 0) {
@@ -1482,16 +1564,17 @@ function Applications() {
                             </TableRow>
                           ) : (
                             (() => {
-                              // Group students by country
+                              // Group students by country (normalized)
                               const studentsByCountry = {};
                               allStudentsData.forEach(student => {
                                 if (student.countries && student.countries.length > 0) {
                                   student.countries.forEach(country => {
-                                    if (!studentsByCountry[country]) {
-                                      studentsByCountry[country] = [];
+                                    const normalizedCountry = normalizeCountryName(country);
+                                    if (!studentsByCountry[normalizedCountry]) {
+                                      studentsByCountry[normalizedCountry] = [];
                                     }
-                                    if (!studentsByCountry[country].find(s => s.id === student.id)) {
-                                      studentsByCountry[country].push(student);
+                                    if (!studentsByCountry[normalizedCountry].find(s => s.id === student.id)) {
+                                      studentsByCountry[normalizedCountry].push(student);
                                     }
                                   });
                                 } else {
@@ -1625,26 +1708,317 @@ function Applications() {
 
         {tabValue === 2 && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Select a student to manage their multi-country applications:
-            </Typography>
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Select Student</InputLabel>
-              <Select
-                value={selectedStudentForMultiCountry || ''}
-                onChange={(e) => setSelectedStudentForMultiCountry(e.target.value)}
-                label="Select Student"
-              >
-                {students.map((student) => (
-                  <MenuItem key={student.id} value={student.id}>
-                    {student.firstName} {student.lastName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {!selectedCountryForDetails ? (
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Select a Country to View Students
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchCountryStudentsData}
+                    disabled={loadingCountryStudents}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
 
-            {selectedStudentForMultiCountry && (
-              <MultiCountryApplicationManager studentId={selectedStudentForMultiCountry} />
+                {loadingCountryStudents ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <Grid container spacing={3}>
+                    {countriesList.map((country) => {
+                      const normalizedCountry = normalizeCountryName(country);
+                      const countryStudents = allStudentsData.filter(student => 
+                        student.countries && student.countries.some(c => normalizeCountryName(c) === normalizedCountry)
+                      );
+                      const countryProfile = allStudentsData
+                        .flatMap(s => s.countryProfiles || [])
+                        .find(p => normalizeCountryName(p.country) === normalizedCountry);
+                      
+                      return (
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={country}>
+                          <Card
+                            sx={{
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                transform: 'translateY(-4px)',
+                                boxShadow: theme.shadows[8]
+                              },
+                              border: '2px solid',
+                              borderColor: 'primary.light'
+                            }}
+                            onClick={async () => {
+                              setSelectedCountryForDetails(country);
+                              const normalizedCountry = normalizeCountryName(country);
+                              // Fetch all applications for this country (try both normalized and original name)
+                              try {
+                                // First try with normalized name
+                                let response = await axiosInstance.get('/counselor/applications', {
+                                  params: {
+                                    country: normalizedCountry,
+                                    limit: 1000,
+                                    page: 1
+                                  }
+                                });
+                                
+                                // If no results and country name differs, try original
+                                if (!response.data.success || !response.data.data?.applications?.length) {
+                                  if (normalizedCountry !== country) {
+                                    response = await axiosInstance.get('/counselor/applications', {
+                                      params: {
+                                        country: country,
+                                        limit: 1000,
+                                        page: 1
+                                      }
+                                    });
+                                  }
+                                }
+                                
+                                if (response.data.success) {
+                                  // Filter applications to match normalized country name
+                                  const apps = response.data.data?.applications || [];
+                                  const filteredApps = apps.filter(app => 
+                                    normalizeCountryName(app.university?.country) === normalizedCountry
+                                  );
+                                  setAllApplicationsForCountry(filteredApps);
+                                }
+                              } catch (error) {
+                                console.error('Error fetching applications for country:', error);
+                                setAllApplicationsForCountry([]);
+                              }
+                            }}
+                          >
+                            <CardContent>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                <Box
+                                  sx={{
+                                    width: 56,
+                                    height: 56,
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    bgcolor: 'primary.main',
+                                    color: 'white',
+                                    fontSize: '2rem'
+                                  }}
+                                >
+                                  <FlagIcon />
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                    {country}
+                                  </Typography>
+                                  <Typography variant="body2" color="textSecondary">
+                                    {countryStudents.length} student{countryStudents.length !== 1 ? 's' : ''}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <Divider sx={{ my: 2 }} />
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="caption" color="textSecondary">
+                                  Click to view details
+                                </Typography>
+                                <LocationIcon color="primary" />
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                )}
+              </Box>
+            ) : (
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <IconButton onClick={() => {
+                    setSelectedCountryForDetails(null);
+                    setAllApplicationsForCountry([]);
+                  }}>
+                    <ArrowBackIcon />
+                  </IconButton>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Students in {selectedCountryForDetails}
+                  </Typography>
+                </Box>
+
+                {(() => {
+                  const normalizedSelectedCountry = normalizeCountryName(selectedCountryForDetails);
+                  const countryStudents = allStudentsData.filter(student => 
+                    student.countries && student.countries.some(c => normalizeCountryName(c) === normalizedSelectedCountry)
+                  );
+
+                  if (countryStudents.length === 0) {
+                    return (
+                      <Alert severity="info">
+                        No students found for {selectedCountryForDetails}
+                      </Alert>
+                    );
+                  }
+
+                  return (
+                    <Grid container spacing={3}>
+                      {countryStudents.map((student) => {
+                        const normalizedSelected = normalizeCountryName(selectedCountryForDetails);
+                        const countryProfile = (student.countryProfiles || []).find(
+                          p => normalizeCountryName(p.country) === normalizedSelected
+                        );
+                        const countryApplications = allApplicationsForCountry.filter(
+                          app => app.student?.id === student.id && 
+                                 normalizeCountryName(app.university?.country) === normalizedSelected
+                        );
+
+                        return (
+                          <Grid item xs={12} key={student.id}>
+                            <Card>
+                              <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
+                                      {student.firstName?.charAt(0) || 'S'}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                        {student.firstName} {student.lastName}
+                                      </Typography>
+                                      <Typography variant="body2" color="textSecondary">
+                                        {student.email}
+                                      </Typography>
+                                      {student.phone && (
+                                        <Typography variant="body2" color="textSecondary">
+                                          {student.phone}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Box>
+                                  <Button
+                                    variant="outlined"
+                                    startIcon={<ViewIcon />}
+                                    onClick={() => navigate(`/counselor/students/${student.id}`)}
+                                  >
+                                    View Details
+                                  </Button>
+                                </Box>
+
+                                <Grid container spacing={2} sx={{ mb: 2 }}>
+                                  <Grid item xs={12} sm={6} md={3}>
+                                    <Card variant="outlined" sx={{ p: 2 }}>
+                                      <Typography variant="caption" color="textSecondary">
+                                        Current Phase
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5 }}>
+                                        {countryProfile?.currentPhase?.replace(/_/g, ' ') || 'Not Set'}
+                                      </Typography>
+                                    </Card>
+                                  </Grid>
+                                  <Grid item xs={12} sm={6} md={3}>
+                                    <Card variant="outlined" sx={{ p: 2 }}>
+                                      <Typography variant="caption" color="textSecondary">
+                                        Total Applications
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5 }}>
+                                        {countryApplications.length}
+                                      </Typography>
+                                    </Card>
+                                  </Grid>
+                                  <Grid item xs={12} sm={6} md={3}>
+                                    <Card variant="outlined" sx={{ p: 2 }}>
+                                      <Typography variant="caption" color="textSecondary">
+                                        Accepted
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: 'success.main' }}>
+                                        {countryApplications.filter(app => app.applicationStatus === 'ACCEPTED').length}
+                                      </Typography>
+                                    </Card>
+                                  </Grid>
+                                  <Grid item xs={12} sm={6} md={3}>
+                                    <Card variant="outlined" sx={{ p: 2 }}>
+                                      <Typography variant="caption" color="textSecondary">
+                                        Pending
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: 'warning.main' }}>
+                                        {countryApplications.filter(app => 
+                                          ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(app.applicationStatus)
+                                        ).length}
+                                      </Typography>
+                                    </Card>
+                                  </Grid>
+                                </Grid>
+
+                                {countryApplications.length > 0 && (
+                                  <Box>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                                      Applications in {selectedCountryForDetails}
+                                    </Typography>
+                                    <TableContainer>
+                                      <Table size="small">
+                                        <TableHead>
+                                          <TableRow>
+                                            <TableCell>University</TableCell>
+                                            <TableCell>Course</TableCell>
+                                            <TableCell>Status</TableCell>
+                                            <TableCell>Deadline</TableCell>
+                                            <TableCell>Actions</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {countryApplications.map((app) => (
+                                            <TableRow key={app.id}>
+                                              <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                  {app.university?.name || 'N/A'}
+                                                </Typography>
+                                              </TableCell>
+                                              <TableCell>
+                                                <Typography variant="body2">
+                                                  {app.courseName || 'N/A'}
+                                                </Typography>
+                                              </TableCell>
+                                              <TableCell>
+                                                <Chip
+                                                  label={app.applicationStatus || 'PENDING'}
+                                                  size="small"
+                                                  color={getStatusColor(app.applicationStatus || 'PENDING')}
+                                                />
+                                              </TableCell>
+                                              <TableCell>
+                                                <Typography variant="body2">
+                                                  {app.applicationDeadline 
+                                                    ? format(new Date(app.applicationDeadline), 'MMM d, yyyy')
+                                                    : 'N/A'}
+                                                </Typography>
+                                              </TableCell>
+                                              <TableCell>
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={() => handleOpenDialog('edit', app)}
+                                                >
+                                                  <EditIcon fontSize="small" />
+                                                </IconButton>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </TableContainer>
+                                  </Box>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  );
+                })()}
+              </Box>
             )}
           </Box>
         )}
