@@ -477,30 +477,69 @@ const StudentProgressBar = ({
               )}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              {countryProfiles.length > 1 && (
-                <FormControl size="small" sx={{ minWidth: 180 }}>
-                  <InputLabel>Select Country</InputLabel>
-                  <Select
-                    value={selectedCountry || ''}
-                    onChange={(e) => {
-                      const newCountry = e.target.value;
-                      setSelectedCountry(newCountry);
-                      // Notify parent component of country change
-                      if (onCountryChange) {
-                        onCountryChange(newCountry);
-                      }
-                    }}
-                    label="Select Country"
-                  >
-                    <MenuItem value={null}>All Countries</MenuItem>
-                    {countryProfiles.map((profile) => (
-                      <MenuItem key={profile.country} value={profile.country}>
-                        {profile.country}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
+              {countryProfiles.length > 1 && (() => {
+                // Helper function to clean country names by removing brackets, quotes, and extra characters
+                const cleanCountryName = (country) => {
+                  if (!country) return '';
+                  // Remove brackets, quotes, and extra whitespace
+                  return country
+                    .replace(/[\[\]"]/g, '') // Remove brackets and quotes
+                    .trim();
+                };
+
+                // Helper function to normalize country names for deduplication
+                const normalizeCountryForDedup = (country) => {
+                  if (!country) return '';
+                  const cleaned = cleanCountryName(country);
+                  const normalized = cleaned.toUpperCase();
+                  if (normalized === 'UK' || normalized === 'U.K.' || normalized === 'U.K' || normalized === 'UNITED KINGDOM') {
+                    return 'UNITED KINGDOM';
+                  }
+                  if (normalized === 'USA' || normalized === 'U.S.A.' || normalized === 'US' || normalized === 'U.S.' || normalized === 'UNITED STATES' || normalized === 'UNITED STATES OF AMERICA') {
+                    return 'UNITED STATES';
+                  }
+                  return normalized.replace(/\s+/g, ' ').trim();
+                };
+
+                // Get unique countries by normalizing and deduplicating
+                const seenNormalized = new Set();
+                const uniqueCountryProfiles = countryProfiles.filter((profile) => {
+                  const normalized = normalizeCountryForDedup(profile.country);
+                  if (seenNormalized.has(normalized)) {
+                    return false;
+                  }
+                  seenNormalized.add(normalized);
+                  return true;
+                });
+
+                return (
+                  <FormControl size="small" sx={{ minWidth: 180 }}>
+                    <InputLabel>Select Country</InputLabel>
+                    <Select
+                      value={cleanCountryName(selectedCountry || '')}
+                      onChange={(e) => {
+                        const newCountry = e.target.value;
+                        setSelectedCountry(newCountry);
+                        // Notify parent component of country change
+                        if (onCountryChange) {
+                          onCountryChange(newCountry);
+                        }
+                      }}
+                      label="Select Country"
+                    >
+                      <MenuItem value={null}>All Countries</MenuItem>
+                      {uniqueCountryProfiles.map((profile) => {
+                        const cleanedCountry = cleanCountryName(profile.country);
+                        return (
+                          <MenuItem key={profile.id || cleanedCountry} value={cleanedCountry}>
+                            {cleanedCountry}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                );
+              })()}
               <Typography variant="body2" color="text.secondary">
                 {Math.round(getOverallProgress())}% Complete
               </Typography>

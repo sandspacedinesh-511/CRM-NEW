@@ -3856,47 +3856,89 @@ function StudentDetails() {
 
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                 {/* Country Profile Dropdown - Show prominently if country profiles exist */}
-                {countryProfiles.length > 0 && (
-                  <>
-                    <FormControl size="small" sx={{ minWidth: 220 }}>
-                      <InputLabel>View Progress by Country</InputLabel>
-                      <Select
-                        value={selectedCountry || countryProfiles[0]?.country || ''}
-                        onChange={(e) => setSelectedCountry(e.target.value)}
-                        label="View Progress by Country"
-                        sx={{
-                          backgroundColor: 'background.paper',
-                          fontWeight: 600,
-                          '& .MuiSelect-select': {
-                            fontWeight: 600
-                          }
-                        }}
-                      >
-                        {countryProfiles.map((profile) => (
-                          <MenuItem key={profile.id} value={profile.country}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {profile.country}
-                              </Typography>
-                              {profile.preferredCountry && (
-                                <Chip
-                                  label="Preferred"
-                                  size="small"
-                                  color="primary"
-                                  sx={{ height: 20, fontSize: '0.7rem' }}
-                                />
-                              )}
-                              <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                                {profile.currentPhase?.replace(/_/g, ' ') || 'Not started'}
-                              </Typography>
-                            </Box>
-                          </MenuItem>
-                        ))}
+                {countryProfiles.length > 0 && (() => {
+                  // Helper function to clean country names by removing brackets, quotes, and extra characters
+                  const cleanCountryName = (country) => {
+                    if (!country) return '';
+                    // Remove brackets, quotes, and extra whitespace
+                    return country
+                      .replace(/[\[\]"]/g, '') // Remove brackets and quotes
+                      .trim();
+                  };
+
+                  return (
+                    <>
+                      <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <InputLabel>View Progress by Country</InputLabel>
+                        <Select
+                          value={cleanCountryName(selectedCountry || countryProfiles[0]?.country || '')}
+                          onChange={(e) => setSelectedCountry(e.target.value)}
+                          label="View Progress by Country"
+                          sx={{
+                            backgroundColor: 'background.paper',
+                            fontWeight: 600,
+                            '& .MuiSelect-select': {
+                              fontWeight: 600
+                            }
+                          }}
+                        >
+                          {(() => {
+
+                          // Helper function to normalize country names for deduplication
+                          const normalizeCountryForDedup = (country) => {
+                            if (!country) return '';
+                            const cleaned = cleanCountryName(country);
+                            const normalized = cleaned.toUpperCase();
+                            if (normalized === 'UK' || normalized === 'U.K.' || normalized === 'U.K' || normalized === 'UNITED KINGDOM') {
+                              return 'UNITED KINGDOM';
+                            }
+                            if (normalized === 'USA' || normalized === 'U.S.A.' || normalized === 'US' || normalized === 'U.S.' || normalized === 'UNITED STATES' || normalized === 'UNITED STATES OF AMERICA') {
+                              return 'UNITED STATES';
+                            }
+                            return normalized.replace(/\s+/g, ' ').trim();
+                          };
+
+                          // Get unique countries by normalizing and deduplicating
+                          const seenNormalized = new Set();
+                          const uniqueCountryProfiles = countryProfiles.filter((profile) => {
+                            const normalized = normalizeCountryForDedup(profile.country);
+                            if (seenNormalized.has(normalized)) {
+                              return false;
+                            }
+                            seenNormalized.add(normalized);
+                            return true;
+                          });
+
+                          return uniqueCountryProfiles.map((profile) => {
+                            const cleanedCountry = cleanCountryName(profile.country);
+                            return (
+                              <MenuItem key={profile.id} value={cleanedCountry}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {cleanedCountry}
+                                  </Typography>
+                                  {profile.preferredCountry && (
+                                    <Chip
+                                      label="Preferred"
+                                      size="small"
+                                      color="primary"
+                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                    />
+                                  )}
+                                  <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                                    {profile.currentPhase?.replace(/_/g, ' ') || 'Not started'}
+                                  </Typography>
+                                </Box>
+                              </MenuItem>
+                            );
+                          });
+                        })()}
                       </Select>
                     </FormControl>
                     <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
                   </>
-                )}
+                  );
+                })()}
 
                 {countryProfiles.length === 0 && student?.targetCountries && (
                   <Alert severity="info" sx={{ py: 0.5 }}>

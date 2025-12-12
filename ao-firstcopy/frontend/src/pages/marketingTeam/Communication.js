@@ -1084,26 +1084,52 @@ function MarketingCommunication() {
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
                       Application Progress
                     </Typography>
-                    {countryProfiles && countryProfiles.length > 0 && (
-                      <FormControl size="small" sx={{ minWidth: 250 }}>
-                        <InputLabel>Select Country</InputLabel>
-                        <Select
-                          value={selectedCountry || ''}
-                          onChange={(e) => setSelectedCountry(e.target.value)}
-                          label="Select Country"
-                        >
-                          <MenuItem value="">
-                            <em>All Countries</em>
-                          </MenuItem>
-                          {countryProfiles.map((profile) => (
-                            <MenuItem key={profile.id || profile.country} value={profile.country}>
-                              {profile.country}
-                              {profile.preferredCountry && ' ⭐'}
+                    {countryProfiles && countryProfiles.length > 0 && (() => {
+                      // Helper function to normalize country names for deduplication
+                      const normalizeCountryForDedup = (country) => {
+                        if (!country) return '';
+                        const normalized = country.trim().toUpperCase();
+                        if (normalized === 'UK' || normalized === 'U.K.' || normalized === 'U.K' || normalized === 'UNITED KINGDOM') {
+                          return 'UNITED KINGDOM';
+                        }
+                        if (normalized === 'USA' || normalized === 'U.S.A.' || normalized === 'US' || normalized === 'U.S.' || normalized === 'UNITED STATES' || normalized === 'UNITED STATES OF AMERICA') {
+                          return 'UNITED STATES';
+                        }
+                        return normalized.replace(/\s+/g, ' ').trim();
+                      };
+
+                      // Get unique countries by normalizing and deduplicating
+                      const seenNormalized = new Set();
+                      const uniqueCountryProfiles = countryProfiles.filter((profile) => {
+                        const normalized = normalizeCountryForDedup(profile.country);
+                        if (seenNormalized.has(normalized)) {
+                          return false;
+                        }
+                        seenNormalized.add(normalized);
+                        return true;
+                      });
+
+                      return (
+                        <FormControl size="small" sx={{ minWidth: 250 }}>
+                          <InputLabel>Select Country</InputLabel>
+                          <Select
+                            value={selectedCountry || ''}
+                            onChange={(e) => setSelectedCountry(e.target.value)}
+                            label="Select Country"
+                          >
+                            <MenuItem value="">
+                              <em>All Countries</em>
                             </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    )}
+                            {uniqueCountryProfiles.map((profile) => (
+                              <MenuItem key={profile.id || profile.country} value={profile.country}>
+                                {profile.country}
+                                {profile.preferredCountry && ' ⭐'}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      );
+                    })()}
                   </Box>
                   {countryProfiles && countryProfiles.length > 0 ? (
                     selectedCountry ? (
