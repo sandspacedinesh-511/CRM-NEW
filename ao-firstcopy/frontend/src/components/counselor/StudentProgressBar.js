@@ -37,82 +37,231 @@ import {
   Flight as FlightIcon,
   Person as PersonIcon,
   TrendingUp as TrendingUpIcon,
-  CloudUpload as CloudUploadIcon
+  CloudUpload as CloudUploadIcon,
+  AccountBalance as AccountBalanceIcon,
+  HealthAndSafety as HealthAndSafetyIcon,
+  CreditCard as CreditCardIcon,
+  VerifiedUser as VerifiedUserIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 
-const PHASES = [
-  {
-    key: 'DOCUMENT_COLLECTION',
-    label: 'Document Collection',
-    icon: <DocumentIcon />,
-    color: '#2196f3',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']
-  },
-  {
-    key: 'UNIVERSITY_SHORTLISTING',
-    label: 'University Shortlisting',
-    icon: <SchoolIcon />,
-    color: '#ff9800',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT']
-  },
-  {
-    key: 'APPLICATION_SUBMISSION',
-    label: 'Application Submission',
-    icon: <AssignmentIcon />,
-    color: '#9c27b0',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']
-  },
-  {
-    key: 'OFFER_RECEIVED',
-    label: 'Offer Received',
-    icon: <CheckCircleIcon />,
-    color: '#4caf50',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']
-  },
-  {
-    key: 'INITIAL_PAYMENT',
-    label: 'Initial Payment',
-    icon: <PaymentIcon />,
-    color: '#795548',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']
-  },
-  {
-    key: 'INTERVIEW',
-    label: 'Interview',
-    icon: <PersonIcon />,
-    color: '#607d8b',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']
-  },
-  {
-    key: 'FINANCIAL_TB_TEST',
-    label: 'Financial & TB Test',
-    icon: <EventIcon />,
-    color: '#ff5722',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
-  },
-  {
-    key: 'CAS_VISA',
-    label: 'CAS Process',
-    icon: <TrendingUpIcon />,
-    color: '#8bc34a',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
-  },
-  {
-    key: 'VISA_APPLICATION',
-    label: 'Visa Process',
-    icon: <FlightIcon />,
-    color: '#ffc107',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
-  },
-  {
-    key: 'ENROLLMENT',
-    label: 'Enrollment',
-    icon: <SchoolIcon />,
-    color: '#03a9f4',
-    requiredDocs: ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']
+// Helper function to create phase objects with icons and colors
+const createPhase = (key, label, iconType, color, requiredDocs = []) => {
+  const iconMap = {
+    document: <DocumentIcon />,
+    school: <SchoolIcon />,
+    assignment: <AssignmentIcon />,
+    check: <CheckCircleIcon />,
+    payment: <PaymentIcon />,
+    person: <PersonIcon />,
+    event: <EventIcon />,
+    trending: <TrendingUpIcon />,
+    flight: <FlightIcon />,
+    account: <AccountBalanceIcon />,
+    health: <HealthAndSafetyIcon />,
+    credit: <CreditCardIcon />,
+    verified: <VerifiedUserIcon />
+  };
+
+  return {
+    key,
+    label,
+    icon: iconMap[iconType] || <EventIcon />,
+    color,
+    requiredDocs
+  };
+};
+
+// Country-specific phase mappings
+const PROCESS_STEPS = {
+  // United Kingdom
+  'United Kingdom': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_PAYMENT', 'Initial Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('INTERVIEW', 'Interview', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('FINANCIAL_TB_TEST', 'Financial & TB Test', 'event', '#ff5722', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('CAS_VISA', 'CAS Process', 'trending', '#8bc34a', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_APPLICATION', 'Visa Process', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Italy
+  'Italy': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('PRE_ENROLLMENT_UNIVERSITALY', 'Pre-Enrollment on Universitaly Portal', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_PAYMENT', 'Initial Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_ITALY', 'Visa Application – Type D (Long Stay)', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_RESIDENCE_PERMIT', 'Arrival & Residence Permit (Permesso di Soggiorno)', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // France
+  'France': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION_FRANCE', 'Application Submission (Campus France / Direct)', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INTERVIEW_CAMPUS_FRANCE', 'Interview (Campus France)', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_PAYMENT', 'Initial Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_FRANCE', 'Visa Application – VFS France', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('OFII_ARRIVAL', 'OFII / Arrival Formalities', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Germany
+  'Germany': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('APS_CERTIFICATE', 'APS (If Not Done Before)', 'verified', '#8bc34a', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('BLOCKED_ACCOUNT_HEALTH', 'Blocked Account + Health Insurance', 'account', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_GERMANY', 'Visa Application – National D Visa', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_GERMANY', 'Arrival in Germany', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // United States
+  'United States': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('DEPOSIT_I20', 'Deposit Payment & I-20', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('SEVIS_FEE', 'SEVIS Fee Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_USA', 'Visa Application (F-1) – DS-160 + Biometrics', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_INTERVIEW', 'Visa Interview', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_ENROLLMENT_USA', 'Arrival & Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Canada
+  'Canada': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('LETTER_OF_ACCEPTANCE', 'Letter of Acceptance (LOA)', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_PAYMENT', 'Initial Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('GIC_OPTIONAL', 'GIC (Optional for SDS)', 'credit', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('STUDY_PERMIT_APPLICATION', 'Study Permit Application', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('PRE_DEPARTURE', 'Pre-Departure', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Australia
+  'Australia': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_LETTER_AUSTRALIA', 'Offer Letter', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OSHC_TUITION_DEPOSIT', 'OSHC + Tuition Deposit', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('ECOE_ISSUED', 'eCOE Issued', 'verified', '#8bc34a', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_AUSTRALIA', 'Visa Application (Subclass 500)', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('PRE_DEPARTURE', 'Pre-Departure', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Ireland
+  'Ireland': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_TUITION_PAYMENT', 'Initial Tuition Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION', 'Visa Application', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('PRE_DEPARTURE', 'Pre-Departure', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('GNIB_REGISTRATION', 'Arrival → GNIB Registration', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ]
+};
+
+// Helper function to normalize country names
+const normalizeCountryName = (country) => {
+  if (!country) return null;
+  const normalized = country.trim();
+  
+  // Map variations to standard names
+  const countryMap = {
+    'UK': 'United Kingdom',
+    'U.K.': 'United Kingdom',
+    'U.K': 'United Kingdom',
+    'UNITED KINGDOM': 'United Kingdom',
+    'USA': 'United States',
+    'U.S.A.': 'United States',
+    'U.S.': 'United States',
+    'US': 'United States',
+    'UNITED STATES': 'United States',
+    'UNITED STATES OF AMERICA': 'United States'
+  };
+  
+  const upperNormalized = normalized.toUpperCase();
+  return countryMap[upperNormalized] || normalized;
+};
+
+// Helper function to clean country name (remove brackets, quotes, extra spaces)
+const cleanCountryName = (country) => {
+  if (!country) return '';
+  return country
+    .replace(/[\[\]"]/g, '') // Remove brackets and quotes
+    .trim();
+};
+
+// Helper function to get phases for a country
+const getPhasesForCountry = (country) => {
+  if (!country) {
+    console.log('[getPhasesForCountry] No country provided, defaulting to UK');
+    return PROCESS_STEPS['United Kingdom']; // Default to UK if no country
   }
-];
+  
+  // First clean the country name (remove brackets, quotes, etc.)
+  const cleanedCountry = cleanCountryName(country);
+  const normalizedCountry = normalizeCountryName(cleanedCountry);
+  
+  console.log(`[getPhasesForCountry] Input: "${country}" -> Cleaned: "${cleanedCountry}" -> Normalized: "${normalizedCountry}"`);
+  
+  // Try exact match first (with cleaned and normalized)
+  if (PROCESS_STEPS[cleanedCountry]) {
+    console.log(`[getPhasesForCountry] Found exact match: "${cleanedCountry}"`);
+    return PROCESS_STEPS[cleanedCountry];
+  }
+  
+  if (PROCESS_STEPS[normalizedCountry]) {
+    console.log(`[getPhasesForCountry] Found normalized match: "${normalizedCountry}"`);
+    return PROCESS_STEPS[normalizedCountry];
+  }
+  
+  // Try case-insensitive match
+  const countryKeys = Object.keys(PROCESS_STEPS);
+  const matchedKey = countryKeys.find(key => {
+    const keyCleaned = cleanCountryName(key);
+    const keyNormalized = normalizeCountryName(keyCleaned);
+    return keyCleaned.toLowerCase() === cleanedCountry.toLowerCase() ||
+           keyNormalized.toLowerCase() === normalizedCountry.toLowerCase() ||
+           key.toLowerCase() === cleanedCountry.toLowerCase() ||
+           key.toLowerCase() === normalizedCountry.toLowerCase();
+  });
+  
+  if (matchedKey) {
+    console.log(`[getPhasesForCountry] Found case-insensitive match: "${matchedKey}"`);
+    return PROCESS_STEPS[matchedKey];
+  }
+  
+  // Default to UK if country not found
+  console.warn(`[getPhasesForCountry] Country "${country}" (cleaned: "${cleanedCountry}", normalized: "${normalizedCountry}") not found in PROCESS_STEPS. Defaulting to United Kingdom. Available countries:`, countryKeys);
+  return PROCESS_STEPS['United Kingdom'];
+};
 
 const StudentProgressBar = ({ 
   student, 
@@ -134,20 +283,44 @@ const StudentProgressBar = ({
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [progressData, setProgressData] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState(propSelectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null));
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
-  // Sync internal state with prop when prop changes
+  // Initialize and sync selectedCountry when prop or countryProfiles change
   useEffect(() => {
-    if (propSelectedCountry !== selectedCountry) {
-      setSelectedCountry(propSelectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null));
+    // Priority: propSelectedCountry > first country profile
+    let countryToSet = propSelectedCountry ? cleanCountryName(propSelectedCountry) : null;
+    
+    // If no prop and we have country profiles, use the first one
+    // But only if we don't already have a selectedCountry set (to avoid overwriting user selection)
+    if (!countryToSet && countryProfiles.length > 0 && !selectedCountry) {
+      countryToSet = cleanCountryName(countryProfiles[0].country);
     }
-  }, [propSelectedCountry]);
+    
+    // Update if we have a country to set and it's different from current
+    if (countryToSet && countryToSet !== selectedCountry) {
+      console.log(`[useEffect] Setting selectedCountry to: "${countryToSet}"`);
+      setSelectedCountry(countryToSet);
+    }
+  }, [propSelectedCountry, countryProfiles]); // Don't include selectedCountry to avoid circular dependency
 
   // Check if student was created by telecaller/marketing/b2b_marketing
   const isMarketingLead = !!student?.marketingOwnerId;
 
-  // Get current country profile
-  const currentCountryProfile = countryProfiles.find(p => p.country === selectedCountry);
+  // Helper to get current country - use prop if available, otherwise use state, or first country profile
+  const getCurrentCountry = () => {
+    return propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+  };
+  
+  // Get current country - computed on each render
+  const currentCountry = getCurrentCountry();
+  
+  // Get current country profile - try to match by exact name or normalized name
+  const currentCountryProfile = countryProfiles.find(p => {
+    if (!p || !p.country) return false;
+    const normalizedProfileCountry = normalizeCountryName(p.country);
+    const normalizedSelectedCountry = normalizeCountryName(currentCountry);
+    return p.country === currentCountry || normalizedProfileCountry === normalizedSelectedCountry;
+  });
   
   // Get country-specific phase (use country profile phase if available, otherwise use student phase)
   const effectiveCurrentPhase = currentCountryProfile?.currentPhase || student?.currentPhase;
@@ -262,12 +435,27 @@ const StudentProgressBar = ({
     return null;
   };
 
+  // Calculate progress whenever dependencies change
   useEffect(() => {
-    calculateProgress();
-  }, [student, documents, applications, selectedCountry, currentCountryProfile]);
-
+    // Calculate progress function
   const calculateProgress = () => {
-    let currentPhaseIndex = PHASES.findIndex(phase => phase.key === effectiveCurrentPhase);
+      // Get the current country - prioritize prop, then state, then first country profile
+      // This must match the dropdown's value resolution logic exactly
+      let countryForPhases = propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+      
+      // Clean the country name to remove any brackets, quotes, or extra spaces
+      if (countryForPhases) {
+        countryForPhases = cleanCountryName(countryForPhases);
+      }
+      
+      console.log(`[calculateProgress] Country resolution: propSelectedCountry="${propSelectedCountry}", selectedCountry="${selectedCountry}", countryProfiles[0]="${countryProfiles.length > 0 ? countryProfiles[0].country : 'N/A'}" -> Final (cleaned): "${countryForPhases}"`);
+      
+      // Get phases for the current country (or default to UK)
+      const phases = getPhasesForCountry(countryForPhases);
+      
+      console.log(`[calculateProgress] Got ${phases.length} phases. First phase: "${phases[0]?.label}", Last phase: "${phases[phases.length - 1]?.label}"`);
+    
+    let currentPhaseIndex = phases.findIndex(phase => phase.key === effectiveCurrentPhase);
     
     // Check if Document Collection is actually complete (all documents uploaded)
     let documentCollectionComplete = false;
@@ -281,7 +469,7 @@ const StudentProgressBar = ({
       documentCollectionComplete = missingDocs.length === 0;
     }
     
-    const progress = PHASES.map((phase, index) => {
+    const progress = phases.map((phase, index) => {
       const isCompleted = index < currentPhaseIndex;
       const isCurrent = index === currentPhaseIndex;
       const isPending = index > currentPhaseIndex;
@@ -299,7 +487,7 @@ const StudentProgressBar = ({
       }
       
       // Special case: If University Shortlisting is completed (has selected universities), enable Application Submission
-      if (phase.key === 'APPLICATION_SUBMISSION' && isNextPhase && effectiveCurrentPhase === 'UNIVERSITY_SHORTLISTING') {
+      if ((phase.key === 'APPLICATION_SUBMISSION' || phase.key.startsWith('APPLICATION_SUBMISSION')) && isNextPhase && effectiveCurrentPhase === 'UNIVERSITY_SHORTLISTING') {
         // Check if University Shortlisting has selected universities
         try {
           const notes = getCountrySpecificNotes();
@@ -410,11 +598,18 @@ const StudentProgressBar = ({
 
     setProgressData(progress);
   };
+    
+    // Always calculate progress (will default to UK if no country selected)
+    calculateProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student, documents, applications, selectedCountry, currentCountryProfile, countryProfiles, propSelectedCountry]);
 
   const getOverallProgress = () => {
+    const countryForPhases = propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+    const phases = getPhasesForCountry(countryForPhases);
     const completedPhases = progressData.filter(phase => phase.isCompleted).length;
     const currentPhaseProgress = progressData.find(phase => phase.isCurrent)?.phaseCompletion || 0;
-    return ((completedPhases + (currentPhaseProgress / 100)) / PHASES.length) * 100;
+    return ((completedPhases + (currentPhaseProgress / 100)) / phases.length) * 100;
   };
 
   const getStatusIcon = (phase) => {
@@ -467,14 +662,20 @@ const StudentProgressBar = ({
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Application Progress
               </Typography>
-              {countryProfiles.length > 0 && (
-                <Chip 
-                  label={selectedCountry || 'All Countries'} 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                />
-              )}
+              {countryProfiles.length > 0 && (() => {
+                const currentCountry = selectedCountry || propSelectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+                if (currentCountry) {
+                  return (
+                    <Chip 
+                      label={currentCountry} 
+                      size="small" 
+                      color="primary" 
+                      variant="outlined"
+                    />
+                  );
+                }
+                return null;
+              })()}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               {countryProfiles.length > 1 && (() => {
@@ -516,7 +717,7 @@ const StudentProgressBar = ({
                   <FormControl size="small" sx={{ minWidth: 180 }}>
                     <InputLabel>Select Country</InputLabel>
                     <Select
-                      value={cleanCountryName(selectedCountry || '')}
+                      value={cleanCountryName(selectedCountry || propSelectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : '') || '')}
                       onChange={(e) => {
                         const newCountry = e.target.value;
                         setSelectedCountry(newCountry);
@@ -791,7 +992,7 @@ const StudentProgressBar = ({
                     })()}
 
                     {/* Application Universities - Show for Application Submission phase (current or completed) */}
-                    {phase.key === 'APPLICATION_SUBMISSION' && (phase.isCurrent || phase.isCompleted) && (() => {
+                    {(phase.key === 'APPLICATION_SUBMISSION' || phase.key.startsWith('APPLICATION_SUBMISSION')) && (phase.isCurrent || phase.isCompleted) && (() => {
                       try {
                         // First, try to get universities from applicationSubmissionUniversities (selected in phase popup)
                         const notes = getCountrySpecificNotes();
@@ -1175,7 +1376,7 @@ const StudentProgressBar = ({
                     })()}
 
                     {/* Interview Status Display - Show for Interview phase whenever there's a status */}
-                    {phase.key === 'INTERVIEW' && (() => {
+                    {(phase.key === 'INTERVIEW' || phase.key.startsWith('INTERVIEW')) && (() => {
                       try {
                         const notes = getCountrySpecificNotes();
                         const interviewStatus = notes?.interviewStatus;
@@ -1363,7 +1564,7 @@ const StudentProgressBar = ({
                     })()}
 
                     {/* Visa Process Status Display - Show for Visa Process phase whenever there's a status */}
-                    {phase.key === 'VISA_APPLICATION' && (() => {
+                    {(phase.key === 'VISA_APPLICATION' || phase.key.startsWith('VISA_APPLICATION')) && (() => {
                       try {
                         const notes = getCountrySpecificNotes();
                         const visaStatus = notes?.visaStatus;
