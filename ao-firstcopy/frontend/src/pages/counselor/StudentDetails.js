@@ -95,10 +95,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import axiosInstance from '../../utils/axios';
 import { useAuth } from '../../context/AuthContext';
+import useWebSocket from '../../hooks/useWebSocket';
 import ApplicationForm from '../../components/counselor/ApplicationForm';
 import TaskManager from '../../components/counselor/TaskManager';
 // AcademicRecords import removed
-import StudentProgressBar from '../../components/counselor/StudentProgressBar';
+import StudentProgressBar, { getDocumentsForPhase, BASE_DOCUMENTS } from '../../components/counselor/StudentProgressBar';
 import PhaseChangeErrorDialog from '../../components/common/PhaseChangeErrorDialog';
 import StudentChat from '../../components/counselor/StudentChat';
 
@@ -204,6 +205,7 @@ function StudentDetails() {
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAuth();
+  const { isConnected, onEvent, joinRoom } = useWebSocket();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -226,6 +228,8 @@ function StudentDetails() {
   const [documents, setDocuments] = useState([]);
   const [applications, setApplications] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [uploadPhaseInfo, setUploadPhaseInfo] = useState(null); // Store phase and country info for filtering
+  const [filteredDocumentTypes, setFilteredDocumentTypes] = useState(DOCUMENT_TYPES); // Default to all document types
   const [uploadData, setUploadData] = useState({
     type: '',
     description: '',
@@ -1004,6 +1008,9 @@ function StudentDetails() {
     // Switch to the Documents tab
     setTabValue(0);
     // Open the upload dialog so counselor can add required documents immediately
+    setUploadPhaseInfo(null);
+    setFilteredDocumentTypes(DOCUMENT_TYPES);
+    setUploadData(prev => ({ ...prev, type: '' }));
     setOpenUploadDialog(true);
   };
 
@@ -1282,6 +1289,46 @@ function StudentDetails() {
       return () => clearInterval(interval);
     }
   }, [student?.id, student?.marketingOwner, user?.id, fetchUnreadCount]);
+
+  // WebSocket: Listen for real-time phase updates
+  useEffect(() => {
+    if (!isConnected || !user?.id || !id) return;
+
+    // Join counselor room to receive phase updates
+    joinRoom(`counselor:${user.id}`);
+    // Also join student-specific room for targeted updates
+    joinRoom(`student:${id}`);
+
+    // Listen for student phase update events
+    const cleanupPhaseUpdate = onEvent('student_phase_updated', (phaseData) => {
+      console.log('📡 Phase update received via WebSocket:', phaseData);
+      
+      // Only process updates for the current student
+      if (phaseData.studentId && phaseData.studentId !== parseInt(id)) {
+        return;
+      }
+
+      // Update student state if it's a global phase update (no country)
+      if (!phaseData.country) {
+        // Refresh student details to get complete updated data including global phase
+        fetchStudentDetails();
+        showSnackbar('Phase updated in real-time', 'info');
+      } 
+      // Update country profiles if it's a country-specific phase update
+      else if (phaseData.country && phaseData.countryProfile) {
+        // Refresh country profiles to get updated phase
+        fetchCountryProfiles();
+        // Also refresh student details to ensure progress bar updates
+        fetchStudentDetails();
+        showSnackbar(`Phase updated for ${phaseData.country} in real-time`, 'info');
+      }
+    });
+
+    return () => {
+      cleanupPhaseUpdate?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, user?.id, id, onEvent, joinRoom]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -2619,7 +2666,12 @@ function StudentDetails() {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => setOpenUploadDialog(true)}
+                onClick={() => {
+                  setUploadPhaseInfo(null);
+                  setFilteredDocumentTypes(DOCUMENT_TYPES);
+                  setUploadData(prev => ({ ...prev, type: '' }));
+                  setOpenUploadDialog(true);
+                }}
                 sx={{
                   borderRadius: 2,
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
@@ -2907,7 +2959,12 @@ function StudentDetails() {
                         <Button
                           variant="contained"
                           startIcon={<AddIcon />}
-                          onClick={() => setOpenUploadDialog(true)}
+                          onClick={() => {
+                            setUploadPhaseInfo(null);
+                            setFilteredDocumentTypes(DOCUMENT_TYPES);
+                            setUploadData(prev => ({ ...prev, type: '' }));
+                            setOpenUploadDialog(true);
+                          }}
                           sx={{ borderRadius: 2 }}
                         >
                           Upload Document
@@ -2963,13 +3020,30 @@ function StudentDetails() {
         {/* Upload Dialog */}
         <Dialog
           open={openUploadDialog}
-          onClose={() => setOpenUploadDialog(false)}
+          onClose={() => {
+            setOpenUploadDialog(false);
+            setUploadPhaseInfo(null);
+            setFilteredDocumentTypes(DOCUMENT_TYPES);
+            setUploadData(prev => ({ ...prev, type: '' }));
+          }}
           maxWidth="sm"
           fullWidth
         >
           <DialogTitle>Upload Document</DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2 }}>
+              {uploadPhaseInfo && (
+                <Box sx={{ mb: 2, p: 1.5, backgroundColor: 'info.light', borderRadius: 1 }}>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
+                    Phase: {uploadPhaseInfo.phaseLabel}
+                  </Typography>
+                  {uploadPhaseInfo.country && (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                      Country: {uploadPhaseInfo.country}
+                    </Typography>
+                  )}
+                </Box>
+              )}
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <TextField
@@ -2980,7 +3054,7 @@ function StudentDetails() {
                     onChange={(e) => setUploadData({ ...uploadData, type: e.target.value })}
                     required
                   >
-                    {DOCUMENT_TYPES.map((type) => (
+                    {filteredDocumentTypes.map((type) => (
                       <MenuItem key={type} value={type}>
                         {type.replace(/_/g, ' ')}
                       </MenuItem>
@@ -3488,6 +3562,9 @@ function StudentDetails() {
                 startIcon={<AddIcon />}
                 onClick={() => {
                   console.log('📄 Upload Document button clicked');
+                  setUploadPhaseInfo(null);
+                  setFilteredDocumentTypes(DOCUMENT_TYPES);
+                  setUploadData(prev => ({ ...prev, type: '' }));
                   setOpenUploadDialog(true);
                 }}
                 sx={{
@@ -4024,7 +4101,35 @@ function StudentDetails() {
               selectedCountry={selectedCountry}
               universities={universities}
               onPhaseClick={handlePhaseClick}
-              onUploadDocuments={() => setOpenUploadDialog(true)}
+              onUploadDocuments={(phaseInfo) => {
+                setUploadPhaseInfo(phaseInfo);
+                // Calculate filtered document types based on phase and country
+                if (phaseInfo && phaseInfo.phaseKey && phaseInfo.country) {
+                  const phaseDocInfo = getDocumentsForPhase(phaseInfo.phaseKey, phaseInfo.phaseLabel, phaseInfo.country);
+                  const phaseDocuments = phaseDocInfo.documents;
+                  
+                  if (phaseDocuments && phaseDocuments.length > 0) {
+                    // Include phase-specific documents
+                    // Also include any matching documents from DOCUMENT_TYPES for better formatting
+                    const phaseSet = new Set(phaseDocuments);
+                    const allTypes = [...phaseDocuments];
+                    
+                    // Add 'OTHER' option for flexibility
+                    allTypes.push('OTHER');
+                    
+                    setFilteredDocumentTypes(allTypes);
+                  } else {
+                    // No phase-specific documents, show all document types
+                    setFilteredDocumentTypes(DOCUMENT_TYPES);
+                  }
+                } else {
+                  // No phase info, show all document types
+                  setFilteredDocumentTypes(DOCUMENT_TYPES);
+                }
+                // Reset upload data type when opening dialog
+                setUploadData(prev => ({ ...prev, type: '' }));
+                setOpenUploadDialog(true);
+              }}
               onInterviewRetry={handleInterviewRetry}
               onInterviewStop={handleInterviewStop}
               onCasVisaRetry={handleCasVisaRetry}

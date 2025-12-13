@@ -10,7 +10,8 @@ const {
   DeletedRecord,
   sequelize,
   TelecallerImportedTask,
-  Notification
+  Notification,
+  ApplicationCountry
 } = require('../models');
 const { Op, Sequelize } = require('sequelize');
 const telecallerController = require('./telecallerController');
@@ -1245,6 +1246,14 @@ exports.assignTelecallerImportedLeadToCounselorAdmin = async (req, res) => {
       student = await Student.findOne({ where: { phone: importedLead.contactNumber } });
     }
 
+    // Prepare targetCountries from interestedCountry (comma-separated string)
+    let targetCountries = null;
+    if (importedLead.interestedCountry) {
+      // interestedCountry is stored as comma-separated string (e.g., "USA, UK, Canada")
+      // We'll store it directly as a string in targetCountries
+      targetCountries = importedLead.interestedCountry.trim();
+    }
+
     if (!student) {
       const rawName = (importedLead.name || '').trim();
       const nameParts = rawName ? rawName.split(' ') : [];
@@ -1263,8 +1272,59 @@ exports.assignTelecallerImportedLeadToCounselorAdmin = async (req, res) => {
         email,
         phone: importedLead.contactNumber || '',
         counselorId: null,
-        marketingOwnerId: telecallerId
+        marketingOwnerId: telecallerId,
+        targetCountries: targetCountries
       });
+    } else {
+      // Update existing student with targetCountries if it's empty and we have interestedCountry
+      if (targetCountries && !student.targetCountries) {
+        await student.update({ targetCountries });
+      }
+    }
+
+    // Auto-create country profiles from interestedCountry if targetCountries was set
+    if (targetCountries) {
+      try {
+        const countries = targetCountries
+          .split(',')
+          .map(c => c.trim())
+          .filter(c => c.length > 0);
+
+        for (const country of countries) {
+          try {
+            // Check if profile already exists
+            const existing = await ApplicationCountry.findOne({
+              where: { studentId: student.id, country }
+            });
+
+            if (!existing) {
+              await ApplicationCountry.create({
+                studentId: student.id,
+                country,
+                currentPhase: 'DOCUMENT_COLLECTION',
+                totalApplications: 0,
+                primaryApplications: 0,
+                backupApplications: 0,
+                acceptedApplications: 0,
+                rejectedApplications: 0,
+                pendingApplications: 0,
+                totalApplicationFees: 0,
+                totalScholarshipAmount: 0,
+                visaRequired: true,
+                visaStatus: 'NOT_STARTED',
+                preferredCountry: false,
+                notes: `Country profile auto-created from telecaller lead interested country: ${country}. Application progress starts from beginning.`
+              });
+            }
+          } catch (error) {
+            // Log but don't fail - country profile creation is not critical
+            console.error(`Error creating country profile for ${country}:`, error.message);
+          }
+        }
+      } catch (error) {
+        console.error('Error auto-creating country profiles from interestedCountry:', error);
+        // Do not fail the main request if this background update fails
+      }
     }
 
     // Update imported lead metadata so it reflects that assignment is pending counselor acceptance

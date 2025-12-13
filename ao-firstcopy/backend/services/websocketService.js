@@ -436,6 +436,38 @@ class WebSocketService {
       logger.error('Error sending admin alert:', error);
     }
   }
+
+  // Send student phase update notification
+  async sendStudentPhaseUpdate(studentId, counselorId, phaseData) {
+    try {
+      const { currentPhase, previousPhase, country, countryProfile } = phaseData;
+      
+      // Create phase update event data
+      const phaseUpdate = {
+        studentId,
+        currentPhase,
+        previousPhase,
+        country: country || null,
+        countryProfile: countryProfile || null,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Notify the student's counselor
+      if (counselorId) {
+        this.broadcastToRoom(`counselor:${counselorId}`, 'student_phase_updated', phaseUpdate);
+      }
+
+      // Also broadcast to student-specific room (for future use if students can view their own progress)
+      this.broadcastToRoom(`student:${studentId}`, 'student_phase_updated', phaseUpdate);
+
+      // Broadcast to all counselors (for dashboard updates)
+      this.broadcastToRoom('role:counselor', 'student_phase_updated', phaseUpdate);
+
+      logger.info(`Phase update broadcast sent for student ${studentId}, phase: ${currentPhase}, country: ${country || 'global'}`);
+    } catch (error) {
+      logger.error('Error sending student phase update:', error);
+    }
+  }
 }
 
 module.exports = new WebSocketService();

@@ -92,7 +92,7 @@ const Tasks = () => {
     assigned: '',
     callStatus: '',
     leadStatus: '',
-    interestedCountry: '',
+    interestedCountry: [],
     services: '',
     comments: '',
     isLead: false
@@ -351,6 +351,17 @@ const Tasks = () => {
   };
 
   const openDetailsDialog = (row) => {
+    // Parse interestedCountry: if it's a string, split by comma; if array, use as is; otherwise empty array
+    let countries = [];
+    if (row.interestedCountry) {
+      if (Array.isArray(row.interestedCountry)) {
+        countries = row.interestedCountry;
+      } else if (typeof row.interestedCountry === 'string') {
+        // Split by comma and trim each country
+        countries = row.interestedCountry.split(',').map(c => c.trim()).filter(c => c.length > 0);
+      }
+    }
+    
     setDetailsDialog({
       open: true,
       rowId: row.id,
@@ -358,7 +369,7 @@ const Tasks = () => {
       assigned: row.assigned || '',
       callStatus: row.callStatus || '',
       leadStatus: row.leadStatus || '',
-      interestedCountry: row.interestedCountry || '',
+      interestedCountry: countries,
       services: row.services || '',
       comments: row.comments || '',
       isLead: Boolean(row.isLead)
@@ -389,12 +400,17 @@ const Tasks = () => {
     }
     setActionLoading(true);
     try {
+      // Convert array of countries to comma-separated string
+      const interestedCountryString = Array.isArray(detailsDialog.interestedCountry) 
+        ? detailsDialog.interestedCountry.join(', ') 
+        : (detailsDialog.interestedCountry || null);
+      
       await updateImportedTelecallerTask(detailsDialog.rowId, {
         emailId: detailsDialog.emailId || null,
         assigned: detailsDialog.assigned || null,
         callStatus: detailsDialog.callStatus || null,
         leadStatus: detailsDialog.leadStatus || null,
-        interestedCountry: detailsDialog.interestedCountry || null,
+        interestedCountry: interestedCountryString,
         services: detailsDialog.services || null,
       comments: detailsDialog.comments || null,
       isLead: detailsDialog.isLead
@@ -770,9 +786,16 @@ const Tasks = () => {
               <InputLabel id="details-country">Interested country</InputLabel>
               <Select
                 labelId="details-country"
+                multiple
                 value={detailsDialog.interestedCountry}
                 label="Interested country"
                 onChange={handleDetailsFieldChange('interestedCountry')}
+                renderValue={(selected) => {
+                  if (Array.isArray(selected) && selected.length > 0) {
+                    return selected.join(', ');
+                  }
+                  return '';
+                }}
               >
                 <MenuItem value="USA">USA</MenuItem>
                 <MenuItem value="UK">UK</MenuItem>

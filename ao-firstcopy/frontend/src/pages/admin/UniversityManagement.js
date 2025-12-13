@@ -45,6 +45,13 @@ const COUNTRIES = [
   'Ireland',
   'Germany',
   'France',
+  'Italy',
+  'Greece',
+  'Denmark',
+  'Finland',
+  'Singapore',
+  'UAE',
+  'Malta',
   'Other'
 ];
 
@@ -181,6 +188,18 @@ function UniversityManagement() {
       if (response.data.success) {
         setSuccess(response.data.message);
         setOpenDialog(false);
+        
+        // If adding a new university (not editing), set country filter to match the new university's country
+        // This ensures the newly added university appears immediately in the table
+        if (!selectedUniversity && formData.country) {
+          setCountryFilter(formData.country);
+        }
+        
+        // Reset to first page to ensure the new university is visible
+        setPage(0);
+        
+        // Note: fetchUniversities() will be called automatically by useEffect when countryFilter or page changes
+        // But we also call it here to ensure immediate refresh, especially when editing
         fetchUniversities();
       } else {
         setError(response.data.message || 'Failed to save university');

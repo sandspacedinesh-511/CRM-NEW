@@ -353,6 +353,7 @@ exports.acceptLeadAssignment = async (req, res) => {
     }
 
     // If this lead originated from telecaller imported tasks, mark those records as assigned
+    // and sync interestedCountry to targetCountries
     try {
       const where = {};
       const orConditions = [];
@@ -364,10 +365,67 @@ exports.acceptLeadAssignment = async (req, res) => {
       }
       if (orConditions.length) {
         where[Op.or] = orConditions;
+        
+        // Find the imported task to get interestedCountry
+        const importedTasks = await TelecallerImportedTask.findAll({ where });
+        
+        // Update lead status
         await TelecallerImportedTask.update(
           { leadStatus: 'ASSIGNED_TO_COUNSELOR' },
           { where }
         );
+
+        // Sync interestedCountry to targetCountries if targetCountries is empty
+        if (importedTasks.length > 0) {
+          const importedTask = importedTasks[0]; // Use the first matching task
+          if (importedTask.interestedCountry && !student.targetCountries) {
+            const targetCountries = importedTask.interestedCountry.trim();
+            await student.update({ targetCountries });
+
+            // Auto-create country profiles from interestedCountry
+            try {
+              const countries = targetCountries
+                .split(',')
+                .map(c => c.trim())
+                .filter(c => c.length > 0);
+
+              for (const country of countries) {
+                try {
+                  // Check if profile already exists
+                  const existing = await ApplicationCountry.findOne({
+                    where: { studentId: student.id, country }
+                  });
+
+                  if (!existing) {
+                    await ApplicationCountry.create({
+                      studentId: student.id,
+                      country,
+                      currentPhase: 'DOCUMENT_COLLECTION',
+                      totalApplications: 0,
+                      primaryApplications: 0,
+                      backupApplications: 0,
+                      acceptedApplications: 0,
+                      rejectedApplications: 0,
+                      pendingApplications: 0,
+                      totalApplicationFees: 0,
+                      totalScholarshipAmount: 0,
+                      visaRequired: true,
+                      visaStatus: 'NOT_STARTED',
+                      preferredCountry: false,
+                      notes: `Country profile auto-created from telecaller lead interested country: ${country}. Application progress starts from beginning.`
+                    });
+                  }
+                } catch (error) {
+                  // Log but don't fail - country profile creation is not critical
+                  console.error(`Error creating country profile for ${country}:`, error.message);
+                }
+              }
+            } catch (error) {
+              console.error('Error auto-creating country profiles from interestedCountry:', error);
+              // Do not fail the main request if this background update fails
+            }
+          }
+        }
       }
     } catch (importedUpdateError) {
       console.error('Error updating telecaller imported tasks on lead acceptance:', importedUpdateError);
@@ -779,6 +837,35 @@ exports.getStudentDetails = async (req, res) => {
         success: false,
         message: 'Student not found'
       });
+    }
+
+    // If targetCountries is empty and student came from telecaller, try to sync from TelecallerImportedTask
+    if (!student.targetCountries && student.marketingOwnerId) {
+      try {
+        const where = {};
+        const orConditions = [];
+        if (student.email) {
+          orConditions.push({ emailId: student.email });
+        }
+        if (student.phone) {
+          orConditions.push({ contactNumber: student.phone });
+        }
+        
+        if (orConditions.length) {
+          where[Op.or] = orConditions;
+          const importedTask = await TelecallerImportedTask.findOne({ where });
+          
+          if (importedTask && importedTask.interestedCountry) {
+            const targetCountries = importedTask.interestedCountry.trim();
+            await student.update({ targetCountries });
+            // Reload student to get updated targetCountries
+            await student.reload();
+          }
+        }
+      } catch (syncError) {
+        console.error('Error syncing interestedCountry from TelecallerImportedTask:', syncError);
+        // Do not fail the request if sync fails
+      }
     }
 
     // Auto-create country profiles from targetCountries if they don't exist
@@ -3472,6 +3559,23 @@ Need help? Contact your counselor for assistance.`;
     // Reload country profile if it was updated
     if (countryProfile) {
       await countryProfile.reload();
+    }
+    
+    // Broadcast phase update via WebSocket for real-time updates
+    try {
+      await websocketService.sendStudentPhaseUpdate(student.id, counselorId, {
+        currentPhase: countryProfile ? countryProfile.currentPhase : student.currentPhase,
+        previousPhase: previousPhase,
+        country: country || null,
+        countryProfile: countryProfile ? {
+          id: countryProfile.id,
+          country: countryProfile.country,
+          currentPhase: countryProfile.currentPhase
+        } : null
+      });
+    } catch (wsError) {
+      console.error('Error broadcasting phase update via WebSocket:', wsError);
+      // Don't fail the request if WebSocket broadcast fails
     }
     
     res.json({

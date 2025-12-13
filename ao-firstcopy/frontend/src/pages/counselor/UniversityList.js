@@ -85,6 +85,13 @@ const COUNTRY_OPTIONS = [
   { value: 'Ireland', label: 'Ireland' },
   { value: 'Germany', label: 'Germany' },
   { value: 'France', label: 'France' },
+  { value: 'Italy', label: 'Italy' },
+  { value: 'Greece', label: 'Greece' },
+  { value: 'Denmark', label: 'Denmark' },
+  { value: 'Finland', label: 'Finland' },
+  { value: 'Singapore', label: 'Singapore' },
+  { value: 'UAE', label: 'UAE' },
+  { value: 'Malta', label: 'Malta' },
   { value: 'Other', label: 'Other' }
 ];
 

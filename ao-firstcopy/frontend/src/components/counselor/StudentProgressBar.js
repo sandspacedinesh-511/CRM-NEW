@@ -72,6 +72,286 @@ const createPhase = (key, label, iconType, color, requiredDocs = []) => {
   };
 };
 
+// Base documents required for Document Collection phase (common for all countries)
+export const BASE_DOCUMENTS = [
+  'PASSPORT',
+  'ACADEMIC_TRANSCRIPT',
+  'RECOMMENDATION_LETTER',
+  'STATEMENT_OF_PURPOSE',
+  'CV_RESUME'
+];
+
+// Country and phase-specific document rules
+// Country keys are normalized to lowercase (e.g., 'usa', 'uk', 'uae')
+// Phase labels must match exactly with phase.label in PROCESS_STEPS
+const COUNTRY_DOCUMENT_RULES = {
+  usa: {
+    'Offer Received': [
+      'OFFER_LETTER',
+      'I_20_FORM'
+    ],
+    'SEVIS Fee Payment': [
+      'SEVIS_FEE_RECEIPT'
+    ],
+    'Visa Application (F-1) – DS-160 + Biometrics': [
+      'DS_160_CONFIRMATION',
+      'VISA_APPOINTMENT_CONFIRMATION',
+      'BANK_STATEMENTS',
+      'SPONSOR_AFFIDAVIT',
+      'INCOME_PROOF'
+    ]
+  },
+  uk: {
+    'Offer Received': [
+      'OFFER_LETTER',
+      'CAS_LETTER'
+    ],
+    'Visa Process': [
+      'TB_TEST_CERTIFICATE',
+      'BANK_STATEMENTS',
+      'TUITION_FEE_RECEIPT'
+    ]
+  },
+  germany: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Blocked Account + Health Insurance': [
+      'BLOCKED_ACCOUNT_PROOF',
+      'HEALTH_INSURANCE'
+    ],
+    'Visa Application – National D Visa': [
+      'APS_CERTIFICATE',
+      'VISA_APPLICATION',
+      'BIOMETRICS'
+    ]
+  },
+  canada: {
+    'Letter of Acceptance (LOA)': [
+      'LOA'
+    ],
+    'Initial Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Study Permit Application': [
+      'GIC_CERTIFICATE',
+      'BANK_STATEMENTS',
+      'MEDICAL_EXAM',
+      'BIOMETRICS'
+    ]
+  },
+  australia: {
+    'Offer Letter': [
+      'OFFER_LETTER'
+    ],
+    'OSHC + Tuition Deposit': [
+      'OSHC',
+      'TUITION_FEE_RECEIPT'
+    ],
+    'eCOE Issued': [
+      'ECOE'
+    ],
+    'Visa Application (Subclass 500)': [
+      'FINANCIAL_PROOF',
+      'VISA_APPLICATION',
+      'BIOMETRICS'
+    ]
+  },
+  ireland: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Initial Tuition Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Visa Application': [
+      'BANK_STATEMENT',
+      'MEDICAL_INSURANCE'
+    ]
+  },
+  france: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Application Submission (Campus France / Direct)': [
+      'CAMPUS_FRANCE_REGISTRATION',
+      'INTERVIEW_ACKNOWLEDGEMENT'
+    ],
+    'Visa Application – VFS France': [
+      'TUITION_FEE_RECEIPT',
+      'OFII_FORM',
+      'BIOMETRICS'
+    ]
+  },
+  italy: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Pre-Enrollment on Universitaly Portal': [
+      'UNIVERSITALY_RECEIPT'
+    ],
+    'Visa Application – Type D (Long Stay)': [
+      'FINANCIAL_PROOF',
+      'ACCOMMODATION_PROOF',
+      'VISA_APPLICATION'
+    ]
+  },
+  greece: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Initial Tuition Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Visa Application (National Visa – Type D)': [
+      'FINANCIAL_PROOF',
+      'ACCOMMODATION_PROOF',
+      'VISA_APPLICATION'
+    ]
+  },
+  denmark: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Tuition Fee Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Residence Permit Application': [
+      'FINANCIAL_PROOF',
+      'BIOMETRICS'
+    ]
+  },
+  finland: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Tuition Fee Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Residence Permit Application': [
+      'FINANCIAL_PROOF',
+      'BIOMETRICS'
+    ]
+  },
+  singapore: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Student Pass Application (IPA)': [
+      'IPA_LETTER'
+    ],
+    'Student Pass Issuance': [
+      'MEDICAL_REPORT'
+    ]
+  },
+  uae: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Student Visa Processing': [
+      'STUDENT_VISA_APPROVAL',
+      'MEDICAL_TEST',
+      'EMIRATES_ID_APPLICATION'
+    ]
+  },
+  malta: {
+    'Offer Received': [
+      'OFFER_LETTER'
+    ],
+    'Initial Payment': [
+      'TUITION_FEE_RECEIPT'
+    ],
+    'Visa Application (National Visa – Type D)': [
+      'BANK_STATEMENTS',
+      'ACCOMMODATION_PROOF',
+      'MEDICAL_INSURANCE'
+    ]
+  }
+};
+
+// Helper function to normalize country name to lowercase key
+// Examples: "USA" → "usa", "Dubai" → "uae", "United Kingdom" → "uk"
+export const normalizeCountryKey = (country) => {
+  if (!country) return null;
+  const normalized = country.trim();
+  const upperNormalized = normalized.toUpperCase();
+  
+  // Map variations to lowercase keys
+  const countryKeyMap = {
+    'UK': 'uk',
+    'U.K.': 'uk',
+    'U.K': 'uk',
+    'UNITED KINGDOM': 'uk',
+    'United Kingdom': 'uk',
+    'USA': 'usa',
+    'U.S.A.': 'usa',
+    'U.S.': 'usa',
+    'US': 'usa',
+    'UNITED STATES': 'usa',
+    'UNITED STATES OF AMERICA': 'usa',
+    'United States': 'usa',
+    'UAE': 'uae',
+    'U.A.E.': 'uae',
+    'UNITED ARAB EMIRATES': 'uae',
+    'Dubai': 'uae',
+    'DUBAI': 'uae',
+    'Germany': 'germany',
+    'GERMANY': 'germany',
+    'Canada': 'canada',
+    'CANADA': 'canada',
+    'Australia': 'australia',
+    'AUSTRALIA': 'australia',
+    'Ireland': 'ireland',
+    'IRELAND': 'ireland',
+    'France': 'france',
+    'FRANCE': 'france',
+    'Italy': 'italy',
+    'ITALY': 'italy',
+    'Greece': 'greece',
+    'GREECE': 'greece',
+    'Denmark': 'denmark',
+    'DENMARK': 'denmark',
+    'Finland': 'finland',
+    'FINLAND': 'finland',
+    'Singapore': 'singapore',
+    'SINGAPORE': 'singapore',
+    'Malta': 'malta',
+    'MALTA': 'malta'
+  };
+  
+  return countryKeyMap[upperNormalized] || normalized.toLowerCase();
+};
+
+// Helper function to get documents for a phase based on country and phase label
+// Returns: { documents: string[], canUpload: boolean }
+export const getDocumentsForPhase = (phaseKey, phaseLabel, country) => {
+  // Document Collection phase always uses BASE_DOCUMENTS and allows upload
+  if (phaseKey === 'DOCUMENT_COLLECTION') {
+    return {
+      documents: BASE_DOCUMENTS,
+      canUpload: true
+    };
+  }
+  
+  // For other phases, check if country + phase exists in COUNTRY_DOCUMENT_RULES
+  const countryKey = normalizeCountryKey(country);
+  if (countryKey && COUNTRY_DOCUMENT_RULES[countryKey]) {
+    const phaseDocuments = COUNTRY_DOCUMENT_RULES[countryKey][phaseLabel];
+    if (phaseDocuments && phaseDocuments.length > 0) {
+      return {
+        documents: phaseDocuments,
+        canUpload: true
+      };
+    }
+  }
+  
+  // Default: no documents (will show read-only based on phase.requiredDocs from PROCESS_STEPS)
+  return {
+    documents: [],
+    canUpload: false
+  };
+};
+
 // Country-specific phase mappings
 const PROCESS_STEPS = {
   // United Kingdom
@@ -183,6 +463,90 @@ const PROCESS_STEPS = {
     createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
     createPhase('PRE_DEPARTURE', 'Pre-Departure', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
     createPhase('GNIB_REGISTRATION', 'Arrival → GNIB Registration', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Greece
+  'Greece': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_TUITION_PAYMENT', 'Initial Tuition Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_GREECE', 'Visa Application (National Visa – Type D)', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_GREECE', 'Arrival in Greece', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('RESIDENCE_PERMIT_GREECE', 'Residence Permit', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Denmark
+  'Denmark': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('TUITION_FEE_PAYMENT', 'Tuition Fee Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('RESIDENCE_PERMIT_APPLICATION_DENMARK', 'Residence Permit Application', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_PERMIT_DECISION_DENMARK', 'Visa / Permit Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('PRE_DEPARTURE', 'Pre-Departure', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_CPR_REGISTRATION', 'Arrival & CPR Registration', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Finland
+  'Finland': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('ENTRANCE_EXAM_INTERVIEW', 'Entrance Exam / Interview', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('TUITION_FEE_PAYMENT', 'Tuition Fee Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('RESIDENCE_PERMIT_APPLICATION_FINLAND', 'Residence Permit Application', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_MUNICIPALITY_REGISTRATION', 'Arrival & Municipality Registration', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Singapore
+  'Singapore': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('ACCEPT_OFFER_PAY_DEPOSIT', 'Accept Offer & Pay Deposit', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('STUDENT_PASS_APPLICATION_IPA', 'Student Pass Application (IPA)', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('IPA_RECEIVED', 'In-Principle Approval (IPA) Received', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_SINGAPORE', 'Arrival in Singapore', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('STUDENT_PASS_ISSUANCE', 'Student Pass Issuance', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // UAE (Dubai)
+  'UAE': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_TUITION_PAYMENT', 'Initial Tuition Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('STUDENT_VISA_PROCESSING_UAE', 'Student Visa Processing', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_APPROVAL_UAE', 'Visa Approval', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_UAE', 'Arrival in UAE', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('EMIRATES_ID_MEDICAL', 'Emirates ID & Medical', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
+  ],
+
+  // Malta
+  'Malta': [
+    createPhase('DOCUMENT_COLLECTION', 'Document Collection', 'document', '#2196f3', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME']),
+    createPhase('UNIVERSITY_SHORTLISTING', 'University Shortlisting', 'school', '#ff9800', ['PASSPORT', 'ACADEMIC_TRANSCRIPT']),
+    createPhase('APPLICATION_SUBMISSION', 'Application Submission', 'assignment', '#9c27b0', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('OFFER_RECEIVED', 'Offer Received', 'check', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE']),
+    createPhase('INITIAL_PAYMENT', 'Initial Payment', 'payment', '#795548', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT']),
+    createPhase('VISA_APPLICATION_MALTA', 'Visa Application (National Visa – Type D)', 'flight', '#ffc107', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('VISA_DECISION', 'Visa Decision', 'verified', '#4caf50', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('ARRIVAL_MALTA', 'Arrival in Malta', 'flight', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
+    createPhase('RESIDENCE_PERMIT_APPLICATION_MALTA', 'Residence Permit Application', 'person', '#607d8b', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE']),
     createPhase('ENROLLMENT', 'Enrollment', 'school', '#03a9f4', ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'ENGLISH_TEST_SCORE', 'FINANCIAL_STATEMENT', 'MEDICAL_CERTIFICATE'])
   ]
 };
@@ -460,7 +824,8 @@ const StudentProgressBar = ({
     // Check if Document Collection is actually complete (all documents uploaded)
     let documentCollectionComplete = false;
     if (effectiveCurrentPhase === 'DOCUMENT_COLLECTION' || currentPhaseIndex === 0) {
-      const requiredDocs = ['PASSPORT', 'ACADEMIC_TRANSCRIPT', 'RECOMMENDATION_LETTER', 'STATEMENT_OF_PURPOSE', 'CV_RESUME'];
+      // Use BASE_DOCUMENTS for Document Collection phase
+      const requiredDocs = BASE_DOCUMENTS;
       const relevantDocs = isMarketingLead
         ? documents.filter(doc => doc.uploader?.role === 'counselor' && ['PENDING', 'APPROVED'].includes(doc.status))
         : documents.filter(doc => ['PENDING', 'APPROVED'].includes(doc.status));
@@ -532,10 +897,22 @@ const StudentProgressBar = ({
       let docCompletion = 100;
       let isReady = true;
       let missingDocs = [];
+      let canUpload = false;
+      
+      // Get documents for this phase based on country and phase label
+      const phaseDocInfo = getDocumentsForPhase(phase.key, phase.label, countryForPhases);
+      const phaseSpecificDocs = phaseDocInfo.documents;
+      const phaseCanUpload = phaseDocInfo.canUpload;
+      
+      // Use phase-specific documents if available, otherwise fall back to phase.requiredDocs
+      // This allows us to show country+phase documents when rules exist, but still show
+      // phase.requiredDocs as read-only when no rules exist
+      const effectiveRequiredDocs = phaseSpecificDocs.length > 0 ? phaseSpecificDocs : phase.requiredDocs;
       
       // Special handling for Document Collection phase
       if (phase.key === 'DOCUMENT_COLLECTION' && isCurrent) {
-        requiredDocs = phase.requiredDocs;
+        requiredDocs = effectiveRequiredDocs;
+        canUpload = phaseCanUpload; // Always true for Document Collection
         
         // For marketing leads, only count documents uploaded by counselor
         // For other leads, count all documents
@@ -554,7 +931,10 @@ const StudentProgressBar = ({
         docCompletion = requiredDocs.length > 0 ? 
           ((requiredDocs.length - missingDocs.length) / requiredDocs.length) * 100 : 0;
       } else if (isCurrent || isNextPhase) {
-        requiredDocs = phase.requiredDocs;
+        // For other phases, use phase-specific documents if available
+        requiredDocs = effectiveRequiredDocs;
+        canUpload = phaseCanUpload;
+        
         uploadedDocs = documents.filter(doc => 
           requiredDocs.includes(doc.type) && ['PENDING', 'APPROVED'].includes(doc.status)
         );
@@ -569,6 +949,10 @@ const StudentProgressBar = ({
         // Calculate completion percentage based on required document types present
         docCompletion = requiredDocs.length > 0 ? 
           ((requiredDocs.length - missingDocs.length) / requiredDocs.length) * 100 : 100;
+      } else {
+        // For completed or pending phases, still use effectiveRequiredDocs for display
+        requiredDocs = effectiveRequiredDocs;
+        canUpload = false; // Don't allow upload for non-current phases
       }
       
       // Calculate overall phase completion
@@ -592,7 +976,9 @@ const StudentProgressBar = ({
         docCompletion,
         phaseCompletion,
         uploadedDocs,
-        missingDocs
+        missingDocs,
+        requiredDocs: effectiveRequiredDocs, // Use effective documents (phase-specific or fallback)
+        canUpload // Flag indicating if upload is enabled for this phase
       };
     });
 
@@ -1671,8 +2057,8 @@ const StudentProgressBar = ({
                       return null;
                     })()}
 
-                    {/* Upload Documents Button - Show for Document Collection phase until all required documents are uploaded */}
-                    {phase.key === 'DOCUMENT_COLLECTION' && 
+                    {/* Upload Documents Button - Show for phases with upload enabled (Document Collection or country+phase rules) */}
+                    {phase.canUpload && 
                      phase.isCurrent && 
                      phase.missingDocs && phase.missingDocs.length > 0 &&
                      onUploadDocuments && (
@@ -1683,7 +2069,13 @@ const StudentProgressBar = ({
                           startIcon={<CloudUploadIcon />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onUploadDocuments();
+                            // Get current country for document filtering
+                            const currentCountry = propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+                            onUploadDocuments({
+                              phaseKey: phase.key,
+                              phaseLabel: phase.label,
+                              country: currentCountry
+                            });
                           }}
                           sx={{
                             width: '100%',

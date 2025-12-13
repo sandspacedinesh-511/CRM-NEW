@@ -368,8 +368,15 @@ function MarketingLeads() {
                       fullWidth
                       required
                       type="number"
+                      inputProps={{ maxLength: 1, min: 0, max: 9 }}
                       value={leadForm.yearOfStudy}
-                      onChange={(e) => setLeadForm({ ...leadForm, yearOfStudy: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow single digit (0-9)
+                        if (value === '' || (value.length <= 1 && /^[0-9]$/.test(value))) {
+                          setLeadForm({ ...leadForm, yearOfStudy: value });
+                        }
+                      }}
                       error={!!leadFormErrors.yearOfStudy}
                       helperText={leadFormErrors.yearOfStudy}
                     />
@@ -400,7 +407,7 @@ function MarketingLeads() {
                         }
                         renderValue={(selected) => selected.join(', ')}
                       >
-                        {['Italy', 'France', 'Germany', 'USA', 'UK', 'Canada', 'Australia', 'Ireland'].map((country) => (
+                        {['USA', 'UK', 'Germany', 'Canada', 'Australia', 'Ireland', 'Greece', 'Denmark', 'Italy', 'France', 'Finland', 'Singapore', 'Dubai', 'Malta'].map((country) => (
                           <MenuItem key={country} value={country}>
                             {country}
                           </MenuItem>
