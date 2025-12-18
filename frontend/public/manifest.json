@@ -1,0 +1,30 @@
+{
+  "short_name": "AO Counsellor HUB",
+  "name": "AO Counsellor HUB - Student Management Platform",
+  "description": "The comprehensive CRM platform designed specifically for educational counselors. Manage applications, track progress, and boost your success rates with powerful analytics.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "ao-logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "ao-logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["education", "business", "productivity"]
+}
