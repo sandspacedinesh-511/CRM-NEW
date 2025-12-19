@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -70,6 +70,7 @@ import axiosInstance from '../../utils/axios';
 import { useAuth } from '../../context/AuthContext';
 import StudentProgressBar from '../../components/counselor/StudentProgressBar';
 import useWebSocket from '../../hooks/useWebSocket';
+import LeadChat from '../../components/marketing/LeadChat';
 
 function MarketingCommunication() {
   const theme = useTheme();
@@ -81,6 +82,7 @@ function MarketingCommunication() {
   const [refreshing, setRefreshing] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openChatDialog, setOpenChatDialog] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -122,6 +124,16 @@ function MarketingCommunication() {
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(null);
+  const [leadMessages, setLeadMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [leadMessages]);
 
   const loadData = useCallback(async () => {
     try {
@@ -192,9 +204,26 @@ function MarketingCommunication() {
           }
         });
 
-        // If the dialog is open for this lead, refresh the lead details
+        // If the dialog is open for this lead, add the message to the conversation instantly
         if (selectedLead && selectedLead.id === data.studentId) {
-          loadLeadDetails(data.studentId);
+          setLeadMessages(prev => {
+            // Check if message already exists (avoid duplicates)
+            // Check by id if available, otherwise by content and timestamp
+            const exists = prev.some(msg => {
+              if (data.message.id && msg.id === data.message.id) return true;
+              if (!data.message.id && msg.message === data.message.message && 
+                  Math.abs(new Date(msg.createdAt) - new Date(data.message.createdAt)) < 1000) {
+                return true;
+              }
+              return false;
+            });
+            if (exists) {
+              return prev;
+            }
+            // Add new message to the conversation and sort by createdAt
+            const updated = [...prev, data.message];
+            return updated.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+          });
         }
       }
 
@@ -295,24 +324,37 @@ function MarketingCommunication() {
   }, [leads, tabValue, searchQuery, recentMessages]);
 
   const handleOpenDialog = async (lead) => {
-    setSelectedLead(lead);
-    setMessage('');
-    setOpenDialog(true);
-    
-    // Load lead details for application progress
-    await loadLeadDetails(lead.id);
+    // For Recent Communications tab, open chat dialog
+    if (tabValue === 1) {
+      setSelectedLead(lead);
+      setOpenChatDialog(true);
+    } else {
+      // For other tabs, open the detailed dialog
+      setSelectedLead(lead);
+      setMessage('');
+      setOpenDialog(true);
+      
+      // Load lead details for application progress
+      await loadLeadDetails(lead.id);
+    }
+  };
+
+  const handleCloseChatDialog = () => {
+    setOpenChatDialog(false);
+    setSelectedLead(null);
   };
 
   const loadLeadDetails = async (leadId) => {
     try {
       setLoadingLeadDetails(true);
       
-      // Fetch lead details, documents, applications, and country profiles in parallel
-      const [leadResponse, documentsResponse, applicationsResponse, countryProfilesResponse] = await Promise.all([
+      // Fetch lead details, documents, applications, country profiles, and messages in parallel
+      const [leadResponse, documentsResponse, applicationsResponse, countryProfilesResponse, messagesResponse] = await Promise.all([
         axiosInstance.get(`/marketing/leads/${leadId}`).catch(() => null),
         axiosInstance.get(`/marketing/leads/${leadId}/documents`).catch(() => ({ data: { success: true, data: [] } })),
         axiosInstance.get(`/marketing/leads/${leadId}/applications`).catch(() => ({ data: { success: true, data: [] } })),
-        axiosInstance.get(`/marketing/leads/${leadId}/country-profiles`).catch(() => ({ data: { success: true, data: [] } }))
+        axiosInstance.get(`/marketing/leads/${leadId}/country-profiles`).catch(() => ({ data: { success: true, data: [] } })),
+        axiosInstance.get(`/messages/student/${leadId}`).catch(() => ({ data: { success: true, data: [] } }))
       ]);
 
       // Set lead details
@@ -381,6 +423,15 @@ function MarketingCommunication() {
       } else {
         setCountryProfiles([]);
       }
+
+      // Set messages
+      setLoadingMessages(true);
+      if (messagesResponse?.data?.success) {
+        setLeadMessages(messagesResponse.data.data || []);
+      } else {
+        setLeadMessages([]);
+      }
+      setLoadingMessages(false);
     } catch (err) {
       console.error('Error loading lead details:', err);
       // Fallback to lead data we already have
@@ -401,6 +452,7 @@ function MarketingCommunication() {
     setLeadDocuments([]);
     setLeadApplications([]);
     setCountryProfiles([]);
+    setLeadMessages([]);
     setDocumentFiles({
       idCard: null,
       enrollmentLetter: null,
@@ -792,6 +844,9 @@ function MarketingCommunication() {
       });
       
       if (response.data.success) {
+        const newMessage = response.data.data;
+        // Add the sent message to the conversation instantly
+        setLeadMessages(prev => [...prev, newMessage]);
         setMessage('');
         // Show success message
         setError(null);
@@ -1796,6 +1851,83 @@ function MarketingCommunication() {
                 </Button>
               </Box>
 
+              {/* Messages Section */}
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                Messages
+              </Typography>
+              <Box
+                sx={{
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 2,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.5)
+                }}
+              >
+                {loadingMessages ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : leadMessages.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                    No messages yet. Start the conversation!
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {leadMessages.map((msg) => {
+                      const isFromCounselor = msg.sender?.role === 'counselor';
+                      const isFromCurrentUser = msg.senderId === user?.id;
+                      
+                      return (
+                        <Box
+                          key={msg.id}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: isFromCurrentUser ? 'flex-end' : 'flex-start',
+                            mb: 1
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              maxWidth: '70%',
+                              p: 2,
+                              borderRadius: 2,
+                              backgroundColor: isFromCurrentUser
+                                ? alpha(theme.palette.primary.main, 0.1)
+                                : alpha(theme.palette.secondary.main, 0.1),
+                              border: `1px solid ${alpha(
+                                isFromCurrentUser ? theme.palette.primary.main : theme.palette.secondary.main,
+                                0.2
+                              )}`
+                            }}
+                          >
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                {msg.sender?.name || 'Unknown'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ({isFromCounselor ? 'Counselor' : msg.sender?.role || 'User'})
+                              </Typography>
+                            </Stack>
+                            <Typography variant="body2" sx={{ mb: 0.5 }}>
+                              {msg.message}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </Stack>
+                )}
+              </Box>
+
               {/* Send Message Section */}
               <Divider sx={{ my: 3 }} />
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
@@ -1827,6 +1959,13 @@ function MarketingCommunication() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Chat Dialog for Recent Communications */}
+      <LeadChat
+        open={openChatDialog}
+        onClose={handleCloseChatDialog}
+        lead={selectedLead}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

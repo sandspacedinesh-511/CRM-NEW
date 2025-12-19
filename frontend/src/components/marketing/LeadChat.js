@@ -12,7 +12,6 @@ import {
   Avatar,
   Paper,
   CircularProgress,
-  Badge,
   useTheme,
   alpha
 } from '@mui/material';
@@ -24,17 +23,18 @@ import {
 import { format } from 'date-fns';
 import axiosInstance from '../../utils/axios';
 import { useAuth } from '../../context/AuthContext';
+import useWebSocket from '../../hooks/useWebSocket';
 
-const StudentChat = ({ open, onClose, student }) => {
+const LeadChat = ({ open, onClose, lead }) => {
   const theme = useTheme();
   const { user } = useAuth();
+  const { isConnected, onEvent } = useWebSocket();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [receiverId, setReceiverId] = useState(null);
   const messagesEndRef = useRef(null);
-  const wsRef = useRef(null);
 
   // Scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -47,47 +47,66 @@ const StudentChat = ({ open, onClose, student }) => {
 
   // Fetch messages when dialog opens
   useEffect(() => {
-    if (open && student?.id) {
+    if (open && lead?.id) {
       loadMessages();
-      connectWebSocket();
-    } else {
-      disconnectWebSocket();
     }
+  }, [open, lead?.id]);
 
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [open, student?.id]);
+  // WebSocket listener for real-time messages
+  useEffect(() => {
+    if (!isConnected || !open || !lead?.id) return;
+
+    const cleanup = onEvent('new_message', (data) => {
+      if (data.message && data.studentId === lead.id) {
+        setMessages(prev => {
+          // Check if message already exists (avoid duplicates)
+          const exists = prev.some(msg => {
+            if (data.message.id && msg.id === data.message.id) return true;
+            if (!data.message.id && msg.message === data.message.message && 
+                Math.abs(new Date(msg.createdAt) - new Date(data.message.createdAt)) < 1000) {
+              return true;
+            }
+            return false;
+          });
+          if (exists) {
+            return prev;
+          }
+          // Add new message and sort by createdAt
+          const updated = [...prev, data.message];
+          return updated.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        });
+      }
+    });
+
+    return cleanup;
+  }, [isConnected, open, lead?.id, onEvent]);
 
   const loadMessages = async () => {
-    if (!student?.id) return;
+    if (!lead?.id) return;
 
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/messages/student/${student.id}`);
+      const response = await axiosInstance.get(`/messages/student/${lead.id}`);
       if (response.data.success) {
         const loadedMessages = response.data.data || [];
         setMessages(loadedMessages);
         
-        // Find receiver from existing messages or student's marketingOwner
-        let foundReceiverId = student.marketingOwner?.id;
+        // Find receiver (counselor) from lead or existing messages
+        let foundReceiverId = lead.counselor?.id;
         
-        // If no marketingOwner, try to find from previous messages
+        // If no counselor, try to find from previous messages
         if (!foundReceiverId && loadedMessages.length > 0) {
-          // Find the first message where the receiver is a marketing/b2b_marketing user
-          const marketingMessage = loadedMessages.find(msg => 
-            msg.receiver?.role === 'marketing' || 
-            msg.receiver?.role === 'b2b_marketing' ||
-            msg.sender?.role === 'marketing' || 
-            msg.sender?.role === 'b2b_marketing'
+          // Find the first message where the sender/receiver is a counselor
+          const counselorMessage = loadedMessages.find(msg => 
+            msg.receiver?.role === 'counselor' || 
+            msg.sender?.role === 'counselor'
           );
           
-          if (marketingMessage) {
-            // Use the marketing user from the message (either sender or receiver)
-            foundReceiverId = marketingMessage.sender?.role === 'marketing' || marketingMessage.sender?.role === 'b2b_marketing'
-              ? marketingMessage.sender.id
-              : marketingMessage.receiver?.role === 'marketing' || marketingMessage.receiver?.role === 'b2b_marketing'
-              ? marketingMessage.receiver.id
+          if (counselorMessage) {
+            foundReceiverId = counselorMessage.sender?.role === 'counselor'
+              ? counselorMessage.sender.id
+              : counselorMessage.receiver?.role === 'counselor'
+              ? counselorMessage.receiver.id
               : null;
           }
         }
@@ -101,60 +120,39 @@ const StudentChat = ({ open, onClose, student }) => {
     }
   };
 
-  const connectWebSocket = () => {
-    if (!student?.id || !user?.id) return;
-
-    // Use polling for real-time updates (every 3 seconds)
-    // This ensures messages appear quickly without complex WebSocket setup
-    const pollInterval = setInterval(() => {
-      loadMessages();
-    }, 3000);
-    
-    wsRef.current = { close: () => clearInterval(pollInterval) };
-  };
-
-  const disconnectWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  };
-
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !student?.id || sending) return;
+    if (!newMessage.trim() || !lead?.id || sending) return;
 
     try {
       setSending(true);
 
-      // Determine receiver: use marketingOwner, or receiverId from messages, or try to find one
-      let targetReceiverId = student.marketingOwner?.id || receiverId;
+      // Determine receiver: use counselor from lead, or receiverId from messages
+      let targetReceiverId = lead.counselor?.id || receiverId;
       
       // If still no receiver, try to find from existing messages
       if (!targetReceiverId && messages.length > 0) {
-        const marketingMessage = messages.find(msg => 
-          msg.receiver?.role === 'marketing' || 
-          msg.receiver?.role === 'b2b_marketing' ||
-          msg.sender?.role === 'marketing' || 
-          msg.sender?.role === 'b2b_marketing'
+        const counselorMessage = messages.find(msg => 
+          msg.receiver?.role === 'counselor' || 
+          msg.sender?.role === 'counselor'
         );
         
-        if (marketingMessage) {
-          targetReceiverId = marketingMessage.sender?.role === 'marketing' || marketingMessage.sender?.role === 'b2b_marketing'
-            ? marketingMessage.sender.id
-            : marketingMessage.receiver?.role === 'marketing' || marketingMessage.receiver?.role === 'b2b_marketing'
-            ? marketingMessage.receiver.id
+        if (counselorMessage) {
+          targetReceiverId = counselorMessage.sender?.role === 'counselor'
+            ? counselorMessage.sender.id
+            : counselorMessage.receiver?.role === 'counselor'
+            ? counselorMessage.receiver.id
             : null;
         }
       }
       
       // Send message - backend will automatically determine the receiver if targetReceiverId is not provided
       const requestBody = {
-        studentId: student.id,
+        studentId: lead.id,
         message: newMessage.trim()
       };
       
       // Only include receiverId if we have a valid one
-      // Backend will auto-find a marketing user if not provided
+      // Backend will auto-find a counselor if not provided
       if (targetReceiverId) {
         requestBody.receiverId = targetReceiverId;
       }
@@ -163,10 +161,13 @@ const StudentChat = ({ open, onClose, student }) => {
 
       if (response.data.success) {
         // Add message to local state immediately for instant feedback
-        setMessages(prev => [...prev, response.data.data]);
+        setMessages(prev => {
+          const updated = [...prev, response.data.data];
+          return updated.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        });
         setNewMessage('');
         // Update receiverId for future messages
-        if (!receiverId) {
+        if (!receiverId && targetReceiverId) {
           setReceiverId(targetReceiverId);
         }
       }
@@ -191,23 +192,21 @@ const StudentChat = ({ open, onClose, student }) => {
   };
 
   const getOtherParticipant = () => {
-    if (!student) return null;
-    if (student.marketingOwner) return student.marketingOwner;
+    if (!lead) return null;
+    if (lead.counselor) return lead.counselor;
     
     // Try to find from messages
     if (messages.length > 0) {
-      const marketingMessage = messages.find(msg => 
-        msg.receiver?.role === 'marketing' || 
-        msg.receiver?.role === 'b2b_marketing' ||
-        msg.sender?.role === 'marketing' || 
-        msg.sender?.role === 'b2b_marketing'
+      const counselorMessage = messages.find(msg => 
+        msg.receiver?.role === 'counselor' || 
+        msg.sender?.role === 'counselor'
       );
       
-      if (marketingMessage) {
-        return marketingMessage.sender?.role === 'marketing' || marketingMessage.sender?.role === 'b2b_marketing'
-          ? marketingMessage.sender
-          : marketingMessage.receiver?.role === 'marketing' || marketingMessage.receiver?.role === 'b2b_marketing'
-          ? marketingMessage.receiver
+      if (counselorMessage) {
+        return counselorMessage.sender?.role === 'counselor'
+          ? counselorMessage.sender
+          : counselorMessage.receiver?.role === 'counselor'
+          ? counselorMessage.receiver
           : null;
       }
     }
@@ -237,10 +236,10 @@ const StudentChat = ({ open, onClose, student }) => {
             <ChatIcon color="primary" />
             <Box>
               <Typography variant="h6">
-                Chat with {otherParticipant?.name || 'Marketing Team'}
+                {lead?.firstName} {lead?.lastName}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {student?.firstName} {student?.lastName}
+                {otherParticipant ? `Chat with ${otherParticipant.name} (Counselor)` : 'Chat with Counselor'}
               </Typography>
             </Box>
           </Box>
@@ -286,7 +285,7 @@ const StudentChat = ({ open, onClose, student }) => {
                 const isMine = isMyMessage(message);
                 return (
                   <Box
-                    key={message.id}
+                    key={message.id || `${message.createdAt}-${message.message}`}
                     sx={{
                       display: 'flex',
                       justifyContent: isMine ? 'flex-end' : 'flex-start',
@@ -301,7 +300,7 @@ const StudentChat = ({ open, onClose, student }) => {
                           bgcolor: theme.palette.secondary.main
                         }}
                       >
-                        {message.sender?.name?.charAt(0) || 'M'}
+                        {message.sender?.name?.charAt(0) || 'C'}
                       </Avatar>
                     )}
                     <Paper
@@ -342,7 +341,7 @@ const StudentChat = ({ open, onClose, student }) => {
                           bgcolor: theme.palette.primary.main
                         }}
                       >
-                        {user?.name?.charAt(0) || 'C'}
+                        {user?.name?.charAt(0) || 'M'}
                       </Avatar>
                     )}
                   </Box>
@@ -379,5 +378,5 @@ const StudentChat = ({ open, onClose, student }) => {
   );
 };
 
-export default StudentChat;
+export default LeadChat;
 

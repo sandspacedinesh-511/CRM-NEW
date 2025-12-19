@@ -10,11 +10,11 @@ exports.sendMessage = async (req, res) => {
     const { studentId, receiverId, message } = req.body;
     const senderId = req.user.id;
 
-    // Validate required fields
-    if (!studentId || !receiverId || !message || !message.trim()) {
+    // Validate required fields (receiverId is optional - backend can auto-find for counselors)
+    if (!studentId || !message || !message.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Student ID, receiver ID, and message are required'
+        message: 'Student ID and message are required'
       });
     }
 
@@ -47,13 +47,16 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    // Verify receiver exists and is either the counselor or marketing owner
-    const receiver = await User.findByPk(receiverId);
-    if (!receiver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Receiver not found'
-      });
+    // Verify receiver exists (only if receiverId is provided)
+    // For counselors without marketingOwner, we'll find the receiver automatically
+    if (receiverId && receiverId !== 0) {
+      const receiver = await User.findByPk(receiverId);
+      if (!receiver) {
+        return res.status(404).json({
+          success: false,
+          message: 'Receiver not found'
+        });
+      }
     }
 
     // Determine the receiver based on student's counselor and marketing owner
@@ -70,25 +73,98 @@ exports.sendMessage = async (req, res) => {
         });
       }
     }
-    // If sender is counselor, receiver should be marketing owner
+    // If sender is counselor, receiver should be marketing owner or any marketing/b2b_marketing user
     else if (student.counselorId === senderId) {
       if (student.marketingOwnerId) {
+        // Use the student's marketing owner
         actualReceiverId = student.marketingOwnerId;
+      } else if (receiverId && receiverId !== 0) {
+        // Verify the provided receiverId is a marketing or b2b_marketing user
+        const receiverUser = await User.findByPk(receiverId);
+        if (!receiverUser) {
+          return res.status(404).json({
+            success: false,
+            message: 'Receiver not found'
+          });
+        }
+        if (receiverUser.role !== 'marketing' && receiverUser.role !== 'b2b_marketing') {
+          return res.status(400).json({
+            success: false,
+            message: 'Receiver must be a marketing team member'
+          });
+        }
+        // Use the provided receiverId (marketing/b2b_marketing user)
+        actualReceiverId = receiverId;
       } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Cannot send message: No marketing contact found for this student.'
+        // Try to find any marketing/b2b_marketing user who has previously messaged this student
+        const previousMessages = await Message.findAll({
+          where: { studentId },
+          include: [
+            {
+              model: User,
+              as: 'sender',
+              attributes: ['id', 'role'],
+              required: false
+            },
+            {
+              model: User,
+              as: 'receiver',
+              attributes: ['id', 'role'],
+              required: false
+            }
+          ],
+          order: [['createdAt', 'DESC']],
+          limit: 10
         });
+        
+        // Find the first marketing/b2b_marketing user from previous messages
+        let foundMarketingUser = null;
+        for (const msg of previousMessages) {
+          if (msg.sender && (msg.sender.role === 'marketing' || msg.sender.role === 'b2b_marketing')) {
+            foundMarketingUser = msg.sender;
+            break;
+          }
+          if (msg.receiver && (msg.receiver.role === 'marketing' || msg.receiver.role === 'b2b_marketing')) {
+            foundMarketingUser = msg.receiver;
+            break;
+          }
+        }
+        
+        if (foundMarketingUser) {
+          actualReceiverId = foundMarketingUser.id;
+        } else {
+          // Find any active marketing/b2b_marketing user
+          const marketingUser = await User.findOne({
+            where: {
+              role: { [Op.in]: ['marketing', 'b2b_marketing'] },
+              active: true
+            },
+            attributes: ['id'],
+            order: [['createdAt', 'ASC']]
+          });
+          
+          if (marketingUser) {
+            actualReceiverId = marketingUser.id;
+          } else {
+            return res.status(400).json({
+              success: false,
+              message: 'Cannot send message: No marketing team member available. Please contact an administrator.'
+            });
+          }
+        }
       }
     }
     // If sender is admin or other role, use the provided receiverId
     else {
-      // Verify the receiver is either the counselor or marketing owner
+      // Verify the receiver is either the counselor or marketing owner, or is a valid marketing/b2b_marketing user
       if (receiverId !== student.counselorId && receiverId !== student.marketingOwnerId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Invalid receiver for this student'
-        });
+        const receiverUser = await User.findByPk(receiverId);
+        if (!receiverUser || (receiverUser.role !== 'marketing' && receiverUser.role !== 'b2b_marketing' && receiverUser.role !== 'counselor')) {
+          return res.status(403).json({
+            success: false,
+            message: 'Invalid receiver for this student'
+          });
+        }
       }
     }
 
