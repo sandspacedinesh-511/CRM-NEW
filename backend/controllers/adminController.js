@@ -62,8 +62,10 @@ exports.getDashboardStats = async (req, res) => {
     const activeApplications = await Student.count({
       where: { currentPhase: { [Op.not]: 'DOCUMENT_COLLECTION' } }
     });
-    const successfulApplications = await Student.count({
-      where: { currentPhase: 'CAS_VISA' }
+    
+    // Count completed students (status = 'COMPLETED') for success rate calculation
+    const completedStudentsCount = await Student.count({
+      where: { status: 'COMPLETED' }
     });
 
     const todayApplications = await Student.count({
@@ -90,8 +92,9 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    const successRate = activeApplications > 0
-      ? Math.round((successfulApplications / activeApplications) * 100)
+    // Calculate success rate: (Completed Students / Total Students) * 100
+    const successRate = totalStudents > 0
+      ? Math.round((completedStudentsCount / totalStudents) * 100)
       : 0;
 
     const lastMonthApplications = await Student.count({

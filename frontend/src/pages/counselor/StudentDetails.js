@@ -900,7 +900,7 @@ function StudentDetails() {
 
   const handlePhaseChange = async (newPhase, remarks = '', selectedUniversities = [], selectedUniversity = null, interviewStatus = null, casVisaStatus = null, visaStatus = null, financialOption = null, visaDecisionStatus = null, paymentAmount = null, paymentType = null) => {
     try {
-      await axiosInstance.patch(`/counselor/students/${id}/phase`, {
+      const response = await axiosInstance.patch(`/counselor/students/${id}/phase`, {
         currentPhase: newPhase,
         remarks: remarks,
         selectedUniversities: selectedUniversities,
@@ -914,7 +914,32 @@ function StudentDetails() {
         paymentAmount: paymentAmount,
         paymentType: paymentType
       });
-      fetchStudentDetails();
+
+      // Optimistically update the state immediately using response data
+      if (response.data) {
+        const { student, countryProfile, country } = response.data;
+        
+        // Update student phase if it's a global phase update
+        if (student && !country) {
+          setStudent(prev => prev ? { ...prev, currentPhase: student.currentPhase, updatedAt: student.updatedAt } : prev);
+        }
+        
+        // Update country profile phase if it's a country-specific update
+        if (countryProfile && country) {
+          setCountryProfiles(prev => prev.map(profile => 
+            profile.country === country 
+              ? { ...profile, currentPhase: countryProfile.currentPhase }
+              : profile
+          ));
+        }
+      }
+
+      // Fetch updated data in parallel for complete refresh
+      await Promise.all([
+        fetchStudentDetails(),
+        fetchCountryProfiles()
+      ]);
+      
       showSnackbar('Phase updated successfully', 'success');
     } catch (error) {
       console.error('Error updating phase:', error);
@@ -1346,27 +1371,30 @@ function StudentDetails() {
 
     // Filter document types to show only missing ones
     const allowedTypes = uniqueMissingTypes.length > 0
-      ? DOCUMENT_TYPES.filter(doc => uniqueMissingTypes.includes(doc.value))
+      ? DOCUMENT_TYPES.filter(doc => uniqueMissingTypes.includes(doc))
       : DOCUMENT_TYPES;
 
     // Close the phase error dialog
     setPhaseErrorDialog({ open: false, errorData: null });
 
-    // Switch to the Documents tab
-    setTabValue(1); // Documents tab
-
-    // Set filtered document types and open upload dialog
+    // Set filtered document types and pre-select the first missing document type
     setFilteredDocumentTypes(allowedTypes);
     setUploadData(prev => ({
       ...prev,
-      // If there's only one required type, pre-select it for convenience
-      type: uniqueMissingTypes.length === 1 ? uniqueMissingTypes[0] : ''
+      // Pre-select the first missing document type for convenience
+      type: uniqueMissingTypes.length > 0 ? uniqueMissingTypes[0] : '',
+      file: null,
+      description: '',
+      documentNumber: '',
+      issuingAuthority: '',
+      issueDate: '',
+      expiryDate: '',
+      countryOfIssue: '',
+      remarks: '',
+      priority: 'MEDIUM'
     }));
 
-    // Open the upload dialog after a small delay to ensure tab switch completes
-    setTimeout(() => {
-      setOpenUploadDialog(true);
-    }, 300);
+    // Open the upload dialog immediately (no need to switch tabs)
     setOpenUploadDialog(true);
   };
 
@@ -1746,18 +1774,31 @@ function StudentDetails() {
         return;
       }
 
-      // Update student state if it's a global phase update (no country)
+      // Optimistically update the state immediately
       if (!phaseData.country) {
-        // Refresh student details to get complete updated data including global phase
+        // Global phase update - update student state immediately
+        setStudent(prev => prev ? { 
+          ...prev, 
+          currentPhase: phaseData.currentPhase,
+          updatedAt: phaseData.updatedAt || new Date().toISOString()
+        } : prev);
+        // Then refresh to get complete data
         fetchStudentDetails();
         showSnackbar('Phase updated in real-time', 'info');
       }
       // Update country profiles if it's a country-specific phase update
       else if (phaseData.country && phaseData.countryProfile) {
-        // Refresh country profiles to get updated phase
-        fetchCountryProfiles();
-        // Also refresh student details to ensure progress bar updates
-        fetchStudentDetails();
+        // Update country profile state immediately
+        setCountryProfiles(prev => prev.map(profile => 
+          profile.country === phaseData.country 
+            ? { ...profile, currentPhase: phaseData.countryProfile.currentPhase }
+            : profile
+        ));
+        // Refresh both in parallel for complete data
+        Promise.all([
+          fetchCountryProfiles(),
+          fetchStudentDetails()
+        ]);
         showSnackbar(`Phase updated for ${phaseData.country} in real-time`, 'info');
       }
     });

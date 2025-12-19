@@ -47,6 +47,12 @@ exports.uploadDocument = async (req, res) => {
     // Get studentId from route parameter or body
     const studentId = req.params.id || req.body.studentId;
     const { type, description, expiryDate, issueDate, issuingAuthority, documentNumber, countryOfIssue, remarks, priority } = req.body;
+    
+    // Validate and normalize priority value
+    const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+    const normalizedPriority = priority && validPriorities.includes(priority.toUpperCase()) 
+      ? priority.toUpperCase() 
+      : 'MEDIUM';
 
     // Verify student belongs to counselor
     const student = await Student.findOne({
@@ -160,7 +166,7 @@ exports.uploadDocument = async (req, res) => {
       documentNumber: documentNumber || null,
       countryOfIssue: countryOfIssue || null,
       remarks: remarks || null,
-      priority: priority || 'MEDIUM'
+      priority: normalizedPriority
     });
 
     // Create activity for document upload
