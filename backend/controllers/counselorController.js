@@ -872,7 +872,7 @@ exports.getStudents = async (req, res) => {
     })();
 
     // Subquery to count unread messages from marketing to counselor for each student
-    const unreadMessageCountSql = 
+    const unreadMessageCountSql =
       `(SELECT COUNT(*) FROM ${messageTableName} m ` +
       `WHERE m.studentId = Student.id ` +
       `AND m.receiverId = ${counselorId} ` +
@@ -1121,7 +1121,7 @@ exports.addStudent = async (req, res) => {
 exports.getStudentDetails = async (req, res) => {
   try {
     const counselorId = req.user.id;
-    
+
     // Get Message table name
     const messageTableName = (() => {
       try {
@@ -1135,7 +1135,7 @@ exports.getStudentDetails = async (req, res) => {
     })();
 
     // Subquery to count unread messages from marketing to counselor for this student
-    const unreadMessageCountSql = 
+    const unreadMessageCountSql =
       `(SELECT COUNT(*) FROM ${messageTableName} m ` +
       `WHERE m.studentId = Student.id ` +
       `AND m.receiverId = ${counselorId} ` +
@@ -4130,7 +4130,7 @@ Need help? Contact your counselor for assistance.`;
         currentPhase,
         lastUpdated: new Date()
       });
-      
+
       // Automatically set student status to 'COMPLETED' when reaching ENROLLMENT phase
       if (currentPhase === 'ENROLLMENT' && student.status !== 'COMPLETED') {
         await student.update({ status: 'COMPLETED' });
@@ -4140,12 +4140,12 @@ Need help? Contact your counselor for assistance.`;
       // Note: Phase metadata is only tracked for country-specific phases
       // Update student phase
       const updateData = { currentPhase };
-      
+
       // Automatically set status to 'COMPLETED' when student reaches ENROLLMENT phase
       if (currentPhase === 'ENROLLMENT' && student.status !== 'COMPLETED') {
         updateData.status = 'COMPLETED';
       }
-      
+
       await student.update(updateData);
     }
 
@@ -4668,6 +4668,60 @@ Need help? Contact your counselor for assistance.`;
         const updatedNotes = {
           ...existingNotes,
           visaStatus: visaData
+        };
+        await student.update({ notes: JSON.stringify(updatedNotes) });
+      }
+    }
+
+
+
+    // Generic Payment Details Saving (Amount & Type)
+    // Applies to INITIAL_PAYMENT and other payment-related phases
+    const PAYMENT_PHASES = [
+      'INITIAL_PAYMENT',
+      'DEPOSIT_I20',
+      'SEVIS_FEE',
+      'GIC_OPTIONAL',
+      'OSHC_TUITION_DEPOSIT',
+      'INITIAL_TUITION_PAYMENT',
+      'TUITION_FEE_PAYMENT',
+      'ACCEPT_OFFER_PAY_DEPOSIT',
+      'BLOCKED_ACCOUNT_HEALTH' // Germany
+    ];
+
+    if ((PAYMENT_PHASES.includes(currentPhase) || currentPhase.includes('PAYMENT') || currentPhase.includes('FEE') || currentPhase.includes('DEPOSIT')) && (req.body.paymentAmount || req.body.paymentType)) {
+      const { paymentAmount, paymentType } = req.body;
+
+      const paymentData = {
+        amount: paymentAmount,
+        type: paymentType, // 'INITIAL', 'HALF', 'COMPLETE'
+        updatedAt: new Date().toISOString()
+      };
+
+      // If country is specified, store in country profile notes
+      if (country && countryProfile) {
+        const countryNotes = safeParseNotes(countryProfile.notes);
+        // We use a specific key structure: payments.<phaseKey>
+        const updatedCountryNotes = {
+          ...countryNotes,
+          payments: {
+            ...(countryNotes.payments || {}),
+            [currentPhase]: paymentData
+          }
+        };
+        await countryProfile.update({
+          notes: JSON.stringify(updatedCountryNotes),
+          lastUpdated: new Date()
+        });
+      } else {
+        // Store in student notes
+        const existingNotes = safeParseNotes(student.notes);
+        const updatedNotes = {
+          ...existingNotes,
+          payments: {
+            ...(existingNotes.payments || {}),
+            [currentPhase]: paymentData
+          }
         };
         await student.update({ notes: JSON.stringify(updatedNotes) });
       }

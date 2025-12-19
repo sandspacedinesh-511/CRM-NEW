@@ -209,6 +209,19 @@ const formatStudentName = (student) => {
   return `${firstName} ${lastName}`.trim();
 };
 
+// Payment-related phases validation list
+const PAYMENT_PHASES = [
+  'INITIAL_PAYMENT',
+  'DEPOSIT_I20',
+  'SEVIS_FEE',
+  'GIC_OPTIONAL',
+  'OSHC_TUITION_DEPOSIT',
+  'INITIAL_TUITION_PAYMENT',
+  'TUITION_FEE_PAYMENT',
+  'ACCEPT_OFFER_PAY_DEPOSIT',
+  'BLOCKED_ACCOUNT_HEALTH'
+];
+
 function StudentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -302,7 +315,9 @@ function StudentDetails() {
     casVisaStatus: null, // For CAS Process phase decision
     visaStatus: null, // For Visa Process phase decision
     visaDecisionStatus: null, // For Visa Decision phase decision (Approved/Rejected)
-    financialOption: null // For Financial & TB Test phase selection
+    financialOption: null, // For Financial & TB Test phase selection
+    paymentAmount: '',
+    paymentType: '' // 'INITIAL', 'HALF', 'COMPLETE'
   });
 
   // Phase change error dialog state
@@ -534,7 +549,7 @@ function StudentDetails() {
     if (!notes) return null;
     if (typeof notes === 'object') return notes;
     if (typeof notes !== 'string') return null;
-    
+
     const trimmed = notes.trim();
     // Only try to parse if it looks like JSON (starts with { or [)
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -814,7 +829,7 @@ function StudentDetails() {
               preloadedVisaDecisionStatus = visaDecisionStatus.status;
             }
           }
-          
+
           // Fallback to student notes
           if (!preloadedVisaDecisionStatus && student?.notes) {
             const notes = safeParseNotes(student.notes);
@@ -825,6 +840,43 @@ function StudentDetails() {
           }
         } catch (e) {
           console.error('Error loading visa decision status:', e);
+        }
+      }
+
+      // Pre-load payment details if phase is a payment phase
+      let preloadedPaymentAmount = '';
+      let preloadedPaymentType = '';
+
+      if (PAYMENT_PHASES.includes(phase.key) || phase.key?.includes('PAYMENT') || phase.key?.includes('FEE') || phase.key?.includes('DEPOSIT')) {
+        try {
+          const loadPaymentDetails = (notesJson) => {
+            const notes = typeof notesJson === 'string' ? safeParseNotes(notesJson) : notesJson;
+            if (notes?.payments && notes.payments[phase.key]) {
+              return notes.payments[phase.key];
+            }
+            return null;
+          };
+
+          let paymentData = null;
+          // Check country profile first
+          if (selectedCountry) {
+            const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
+            if (countryProfile?.notes) {
+              paymentData = loadPaymentDetails(countryProfile.notes);
+            }
+          }
+
+          // Fallback to student notes
+          if (!paymentData && student?.notes) {
+            paymentData = loadPaymentDetails(student.notes);
+          }
+
+          if (paymentData) {
+            preloadedPaymentAmount = paymentData.amount || '';
+            preloadedPaymentType = paymentData.type || '';
+          }
+        } catch (e) {
+          console.error('Error loading payment details:', e);
         }
       }
 
@@ -839,12 +891,14 @@ function StudentDetails() {
         casVisaStatus: null,
         visaStatus: null,
         visaDecisionStatus: preloadedVisaDecisionStatus,
-        financialOption: null
+        financialOption: null,
+        paymentAmount: preloadedPaymentAmount,
+        paymentType: preloadedPaymentType
       });
     }
   };
 
-  const handlePhaseChange = async (newPhase, remarks = '', selectedUniversities = [], selectedUniversity = null, interviewStatus = null, casVisaStatus = null, visaStatus = null, financialOption = null, visaDecisionStatus = null) => {
+  const handlePhaseChange = async (newPhase, remarks = '', selectedUniversities = [], selectedUniversity = null, interviewStatus = null, casVisaStatus = null, visaStatus = null, financialOption = null, visaDecisionStatus = null, paymentAmount = null, paymentType = null) => {
     try {
       await axiosInstance.patch(`/counselor/students/${id}/phase`, {
         currentPhase: newPhase,
@@ -856,7 +910,9 @@ function StudentDetails() {
         visaStatus: visaStatus,
         visaDecisionStatus: visaDecisionStatus,
         financialOption: financialOption,
-        country: selectedCountry // Include selected country for country-specific phase update
+        country: selectedCountry, // Include selected country for country-specific phase update
+        paymentAmount: paymentAmount,
+        paymentType: paymentType
       });
       fetchStudentDetails();
       showSnackbar('Phase updated successfully', 'success');
@@ -985,6 +1041,25 @@ function StudentDetails() {
         }
       }
 
+      // Validate Payment Phases: require amount and payment type
+      const isPaymentPhase = PAYMENT_PHASES.includes(phaseConfirmDialog.phase.key) ||
+        phaseConfirmDialog.phase.key?.includes('PAYMENT') ||
+        phaseConfirmDialog.phase.key?.includes('FEE') ||
+        (phaseConfirmDialog.phase.key?.includes('DEPOSIT') && phaseConfirmDialog.phase.key !== 'APPLICATION_SUBMISSION'); // Exclude if ambiguous
+
+      if (isPaymentPhase) {
+        if (!phaseConfirmDialog.paymentAmount) {
+          showSnackbar('Please enter the payment amount', 'error');
+          return;
+        }
+        if (!phaseConfirmDialog.paymentType) {
+          showSnackbar('Please select payment type (Initial, Half, or Complete)', 'error');
+          return;
+        }
+      }
+
+
+
       handlePhaseChange(
         phaseConfirmDialog.phase.key,
         phaseConfirmDialog.remarks,
@@ -994,14 +1069,16 @@ function StudentDetails() {
         phaseConfirmDialog.casVisaStatus,
         phaseConfirmDialog.visaStatus,
         phaseConfirmDialog.financialOption,
-        phaseConfirmDialog.visaDecisionStatus
+        phaseConfirmDialog.visaDecisionStatus,
+        phaseConfirmDialog.paymentAmount,
+        phaseConfirmDialog.paymentType
       );
     }
-    setPhaseConfirmDialog({ open: false, phase: null, studentName: '', remarks: '', selectedUniversities: [], selectedUniversity: null, interviewStatus: null, casVisaStatus: null, visaStatus: null, visaDecisionStatus: null, financialOption: null });
+    setPhaseConfirmDialog({ open: false, phase: null, studentName: '', remarks: '', selectedUniversities: [], selectedUniversity: null, interviewStatus: null, casVisaStatus: null, visaStatus: null, visaDecisionStatus: null, financialOption: null, paymentAmount: '', paymentType: '' });
   };
 
   const handlePhaseCancel = () => {
-    setPhaseConfirmDialog({ open: false, phase: null, studentName: '', remarks: '', selectedUniversities: [], selectedUniversity: null, interviewStatus: null, casVisaStatus: null, visaStatus: null, visaDecisionStatus: null, financialOption: null });
+    setPhaseConfirmDialog({ open: false, phase: null, studentName: '', remarks: '', selectedUniversities: [], selectedUniversity: null, interviewStatus: null, casVisaStatus: null, visaStatus: null, visaDecisionStatus: null, financialOption: null, paymentAmount: '', paymentType: '' });
   };
 
   const handlePhaseErrorClose = () => {
@@ -1115,7 +1192,9 @@ function StudentDetails() {
       selectedUniversity: null,
       interviewStatus: null,
       casVisaStatus: currentStatus || 'REFUSED', // Default to REFUSED if retrying, but allow change
-      financialOption: null
+      financialOption: null,
+      paymentAmount: '',
+      paymentType: ''
     });
   };
 
@@ -1175,7 +1254,9 @@ function StudentDetails() {
       interviewStatus: null,
       casVisaStatus: null,
       visaStatus: currentStatus || 'REFUSED', // Default to REFUSED if retrying, but allow change
-      financialOption: null
+      financialOption: null,
+      paymentAmount: '',
+      paymentType: ''
     });
   };
 
@@ -1231,7 +1312,9 @@ function StudentDetails() {
       casVisaStatus: null,
       visaStatus: null,
       visaDecisionStatus: currentStatus || 'REJECTED', // Default to REJECTED if retrying, but allow change
-      financialOption: null
+      financialOption: null,
+      paymentAmount: '',
+      paymentType: ''
     });
   };
 
@@ -1251,7 +1334,7 @@ function StudentDetails() {
     }
 
     const uniqueMissingTypes = Array.from(new Set(missingTypes));
-    
+
     // Set upload phase info to filter documents for the current phase
     if (errorData?.phaseName && (errorData?.country || selectedCountry)) {
       setUploadPhaseInfo({
@@ -1260,9 +1343,9 @@ function StudentDetails() {
         missingDocuments: uniqueMissingTypes
       });
     }
-    
+
     // Filter document types to show only missing ones
-    const allowedTypes = uniqueMissingTypes.length > 0 
+    const allowedTypes = uniqueMissingTypes.length > 0
       ? DOCUMENT_TYPES.filter(doc => uniqueMissingTypes.includes(doc.value))
       : DOCUMENT_TYPES;
 
@@ -1279,7 +1362,7 @@ function StudentDetails() {
       // If there's only one required type, pre-select it for convenience
       type: uniqueMissingTypes.length === 1 ? uniqueMissingTypes[0] : ''
     }));
-    
+
     // Open the upload dialog after a small delay to ensure tab switch completes
     setTimeout(() => {
       setOpenUploadDialog(true);
@@ -1363,7 +1446,7 @@ function StudentDetails() {
       setApplications(applicationsData);
       setNotes(notesData);
       setActivities(activitiesData);
-      
+
       // Set initial unread message count from student data if available
       if (studentData?.unreadMessageCount !== undefined) {
         setUnreadMessageCount(studentData.unreadMessageCount || 0);
@@ -1555,14 +1638,14 @@ function StudentDetails() {
       if (student?.unreadMessageCount !== undefined) {
         setUnreadMessageCount(student.unreadMessageCount || 0);
       }
-      
+
       // Also fetch from messages API to get real-time count
       const studentMessagesResponse = await axiosInstance.get(`/messages/student/${student.id}`);
       if (studentMessagesResponse.data.success) {
         const messages = studentMessagesResponse.data.data || [];
         // Check if there are any messages at all
         setHasMessages(messages.length > 0);
-        
+
         // Count unread messages where current user is the receiver
         const unread = messages.filter(
           msg => msg.receiverId === user.id && !msg.isRead
@@ -4476,25 +4559,25 @@ function StudentDetails() {
 
                   // Use requiredDocs from phaseInfo if available (country-specific or generic)
                   const requiredDocs = phaseInfo.requiredDocs || phaseDocuments || [];
-                  
+
                   if (requiredDocs && requiredDocs.length > 0) {
                     // Filter DOCUMENT_TYPES to show only required document types
                     // This ensures we show proper labels for document types
-                    const filteredTypes = DOCUMENT_TYPES.filter(docType => 
+                    const filteredTypes = DOCUMENT_TYPES.filter(docType =>
                       requiredDocs.includes(docType)
                     );
-                    
+
                     // If some required docs aren't in DOCUMENT_TYPES, add them as strings
                     const requiredSet = new Set(requiredDocs);
                     const filteredSet = new Set(filteredTypes);
                     const missingTypes = requiredDocs.filter(doc => !filteredSet.has(doc));
-                    
+
                     // Combine filtered types with missing types
                     const allTypes = [...filteredTypes, ...missingTypes];
 
                     // Add 'OTHER' option for flexibility
                     if (!allTypes.includes('OTHER')) {
-                    allTypes.push('OTHER');
+                      allTypes.push('OTHER');
                     }
 
                     setFilteredDocumentTypes(allTypes);
@@ -4529,6 +4612,7 @@ function StudentDetails() {
               onCasVisaRetry={handleCasVisaRetry}
               onCasVisaStop={handleCasVisaStop}
               onVisaRetry={handleVisaRetry}
+              onVisaDecisionRetry={handleVisaDecisionRetry}
               onCountryChange={(newCountry) => setSelectedCountry(newCountry)}
             />
           </Grid>
@@ -4865,16 +4949,16 @@ function StudentDetails() {
                       ? (countryProfiles.find(p => p.country === selectedCountry)?.currentPhase || student?.currentPhase)
                       : student?.currentPhase;
                     const isEditingCurrent = phaseConfirmDialog.phase?.key === activePhase;
-                    
+
                     if (isEditingCurrent) {
                       return selectedCountry
                         ? `Editing ${selectedCountry} application - ${phaseConfirmDialog.phase?.label || 'Current Phase'}`
                         : `Editing ${phaseConfirmDialog.phase?.label || 'Current Phase'}`;
                     } else {
                       return selectedCountry
-                    ? `Moving ${selectedCountry} application to next phase`
+                        ? `Moving ${selectedCountry} application to next phase`
                         : 'Moving student to next phase';
-                  }
+                    }
                   })()}
                 </Typography>
               </Box>
@@ -5580,199 +5664,199 @@ function StudentDetails() {
               {/* University Selection for Offer Received Phase (including Australia Offer Letter) - Select from Application Submission Universities */}
               {(phaseConfirmDialog.phase?.key === 'OFFER_RECEIVED' ||
                 phaseConfirmDialog.phase?.key === 'OFFER_LETTER_AUSTRALIA') && (() => {
-                try {
-                  // Try to get universities from Application Submission phase first
-                  let applicationUniversities = null;
-                  let shortlist = null;
+                  try {
+                    // Try to get universities from Application Submission phase first
+                    let applicationUniversities = null;
+                    let shortlist = null;
 
-                  if (selectedCountry && countryProfiles.length > 0) {
-                    const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
-                    if (countryProfile?.notes) {
-                      const countryNotes = typeof countryProfile.notes === 'string'
-                        ? JSON.parse(countryProfile.notes)
-                        : countryProfile.notes;
-                      applicationUniversities = countryNotes?.applicationSubmissionUniversities;
-                      shortlist = countryNotes?.universityShortlist;
+                    if (selectedCountry && countryProfiles.length > 0) {
+                      const countryProfile = countryProfiles.find(p => p.country === selectedCountry);
+                      if (countryProfile?.notes) {
+                        const countryNotes = typeof countryProfile.notes === 'string'
+                          ? JSON.parse(countryProfile.notes)
+                          : countryProfile.notes;
+                        applicationUniversities = countryNotes?.applicationSubmissionUniversities;
+                        shortlist = countryNotes?.universityShortlist;
+                      }
                     }
-                  }
 
-                  // Fallback to student notes
-                  if (!applicationUniversities && student?.notes) {
-                    const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
-                    applicationUniversities = notes?.applicationSubmissionUniversities;
-                    if (!shortlist) shortlist = notes?.universityShortlist;
-                  }
+                    // Fallback to student notes
+                    if (!applicationUniversities && student?.notes) {
+                      const notes = typeof student.notes === 'string' ? JSON.parse(student.notes) : student.notes;
+                      applicationUniversities = notes?.applicationSubmissionUniversities;
+                      if (!shortlist) shortlist = notes?.universityShortlist;
+                    }
 
-                  // Use Application Submission universities if available, otherwise fallback to shortlist
-                  let universitiesList = [];
-                  if (applicationUniversities?.universities && Array.isArray(applicationUniversities.universities)) {
-                    universitiesList = applicationUniversities.universities;
-                  } else if (shortlist?.universities) {
-                    universitiesList = Array.isArray(shortlist.universities)
-                      ? shortlist.universities
-                      : (shortlist.universities ? [shortlist.universities] : []);
-                  }
+                    // Use Application Submission universities if available, otherwise fallback to shortlist
+                    let universitiesList = [];
+                    if (applicationUniversities?.universities && Array.isArray(applicationUniversities.universities)) {
+                      universitiesList = applicationUniversities.universities;
+                    } else if (shortlist?.universities) {
+                      universitiesList = Array.isArray(shortlist.universities)
+                        ? shortlist.universities
+                        : (shortlist.universities ? [shortlist.universities] : []);
+                    }
 
-                  if (universitiesList.length > 0) {
-                    return (
-                      <Box sx={{ mb: 3 }}>
-                        <Typography variant="body2" sx={{
-                          fontWeight: 600,
-                          mb: 1.5,
-                          color: 'rgba(255,255,255,0.9)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <SchoolIcon sx={{ fontSize: 18 }} />
-                          Select Universities with Offers (Multiple Selection)
-                        </Typography>
-                        {applicationUniversities ? (
-                          <Alert
-                            severity="info"
-                            sx={{
-                              mb: 1.5,
-                              background: 'rgba(33, 150, 243, 0.2)',
-                              color: 'white',
-                              border: '1px solid rgba(33, 150, 243, 0.4)',
-                              '& .MuiAlert-icon': { color: 'rgba(33, 150, 243, 0.9)' }
-                            }}
-                            icon={<InfoIcon />}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              Showing universities from Application Submission phase. Select which ones received offers.
-                            </Typography>
-                          </Alert>
-                        ) : (
-                          <Alert
-                            severity="warning"
-                            sx={{
-                              mb: 1.5,
-                              background: 'rgba(255, 193, 7, 0.2)',
-                              color: 'white',
-                              border: '1px solid rgba(255, 193, 7, 0.4)',
-                              '& .MuiAlert-icon': { color: 'rgba(255, 193, 7, 0.9)' }
-                            }}
-                            icon={<WarningIcon />}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              No universities from Application Submission phase found. Showing shortlisted universities as fallback.
-                            </Typography>
-                          </Alert>
-                        )}
-                        <FormControl fullWidth>
-                          <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Select Universities with Offers</InputLabel>
-                          <Select
-                            multiple
-                            value={phaseConfirmDialog.selectedUniversities}
-                            onChange={(e) => {
-                              setPhaseConfirmDialog(prev => ({
-                                ...prev,
-                                selectedUniversities: e.target.value
-                              }));
-                            }}
-                            input={<OutlinedInput label="Select Universities with Offers" />}
-                            renderValue={(selected) => (
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                {selected.map((value) => {
-                                  const university = universitiesList.find(u => u.id === value);
-                                  return (
-                                    <Chip
-                                      key={value}
-                                      label={university ? university.name : value}
-                                      size="small"
-                                      sx={{
-                                        backgroundColor: 'rgba(255,255,255,0.2)',
-                                        color: 'white',
-                                        '& .MuiChip-deleteIcon': {
-                                          color: 'rgba(255,255,255,0.7)'
-                                        }
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            sx={{
-                              background: 'rgba(255,255,255,0.1)',
-                              borderRadius: 2,
-                              border: '1px solid rgba(255,255,255,0.3)',
-                              color: 'white',
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'rgba(255,255,255,0.3)'
-                              },
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'rgba(255,255,255,0.5)'
-                              },
-                              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'rgba(255,255,255,0.8)'
-                              },
-                              '& .MuiSelect-icon': {
-                                color: 'rgba(255,255,255,0.7)'
-                              }
-                            }}
-                            MenuProps={{
-                              PaperProps: {
-                                sx: {
-                                  maxHeight: 300,
-                                  bgcolor: 'background.paper'
-                                }
-                              }
-                            }}
-                          >
-                            {universitiesList.map((university) => (
-                              <MenuItem key={university.id} value={university.id}>
-                                <Checkbox
-                                  checked={phaseConfirmDialog.selectedUniversities.indexOf(university.id) > -1}
-                                  sx={{
-                                    color: 'rgba(255,255,255,0.7)',
-                                    '&.Mui-checked': {
-                                      color: 'primary.main'
-                                    }
-                                  }}
-                                />
-                                <Box>
-                                  <Typography variant="body1">{university.name}</Typography>
-                                  {university.country && (
-                                    <Typography variant="caption" color="textSecondary">
-                                      {university.country} {university.city ? `- ${university.city}` : ''}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        {phaseConfirmDialog.selectedUniversities.length > 0 && (
-                          <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'rgba(255,255,255,0.7)' }}>
-                            {phaseConfirmDialog.selectedUniversities.length} universit{phaseConfirmDialog.selectedUniversities.length === 1 ? 'y' : 'ies'} selected with offers
+                    if (universitiesList.length > 0) {
+                      return (
+                        <Box sx={{ mb: 3 }}>
+                          <Typography variant="body2" sx={{
+                            fontWeight: 600,
+                            mb: 1.5,
+                            color: 'rgba(255,255,255,0.9)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}>
+                            <SchoolIcon sx={{ fontSize: 18 }} />
+                            Select Universities with Offers (Multiple Selection)
                           </Typography>
-                        )}
-                        {phaseConfirmDialog.selectedUniversities.length === 0 && (
-                          <Alert
-                            severity="info"
-                            sx={{
-                              mt: 1.5,
-                              background: 'rgba(33, 150, 243, 0.2)',
-                              color: 'white',
-                              border: '1px solid rgba(33, 150, 243, 0.4)',
-                              '& .MuiAlert-icon': { color: 'rgba(33, 150, 243, 0.9)' }
-                            }}
-                            icon={<InfoIcon />}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              Please select at least one university that has sent an offer.
+                          {applicationUniversities ? (
+                            <Alert
+                              severity="info"
+                              sx={{
+                                mb: 1.5,
+                                background: 'rgba(33, 150, 243, 0.2)',
+                                color: 'white',
+                                border: '1px solid rgba(33, 150, 243, 0.4)',
+                                '& .MuiAlert-icon': { color: 'rgba(33, 150, 243, 0.9)' }
+                              }}
+                              icon={<InfoIcon />}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Showing universities from Application Submission phase. Select which ones received offers.
+                              </Typography>
+                            </Alert>
+                          ) : (
+                            <Alert
+                              severity="warning"
+                              sx={{
+                                mb: 1.5,
+                                background: 'rgba(255, 193, 7, 0.2)',
+                                color: 'white',
+                                border: '1px solid rgba(255, 193, 7, 0.4)',
+                                '& .MuiAlert-icon': { color: 'rgba(255, 193, 7, 0.9)' }
+                              }}
+                              icon={<WarningIcon />}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                No universities from Application Submission phase found. Showing shortlisted universities as fallback.
+                              </Typography>
+                            </Alert>
+                          )}
+                          <FormControl fullWidth>
+                            <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Select Universities with Offers</InputLabel>
+                            <Select
+                              multiple
+                              value={phaseConfirmDialog.selectedUniversities}
+                              onChange={(e) => {
+                                setPhaseConfirmDialog(prev => ({
+                                  ...prev,
+                                  selectedUniversities: e.target.value
+                                }));
+                              }}
+                              input={<OutlinedInput label="Select Universities with Offers" />}
+                              renderValue={(selected) => (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {selected.map((value) => {
+                                    const university = universitiesList.find(u => u.id === value);
+                                    return (
+                                      <Chip
+                                        key={value}
+                                        label={university ? university.name : value}
+                                        size="small"
+                                        sx={{
+                                          backgroundColor: 'rgba(255,255,255,0.2)',
+                                          color: 'white',
+                                          '& .MuiChip-deleteIcon': {
+                                            color: 'rgba(255,255,255,0.7)'
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </Box>
+                              )}
+                              sx={{
+                                background: 'rgba(255,255,255,0.1)',
+                                borderRadius: 2,
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                color: 'white',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'rgba(255,255,255,0.3)'
+                                },
+                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'rgba(255,255,255,0.5)'
+                                },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'rgba(255,255,255,0.8)'
+                                },
+                                '& .MuiSelect-icon': {
+                                  color: 'rgba(255,255,255,0.7)'
+                                }
+                              }}
+                              MenuProps={{
+                                PaperProps: {
+                                  sx: {
+                                    maxHeight: 300,
+                                    bgcolor: 'background.paper'
+                                  }
+                                }
+                              }}
+                            >
+                              {universitiesList.map((university) => (
+                                <MenuItem key={university.id} value={university.id}>
+                                  <Checkbox
+                                    checked={phaseConfirmDialog.selectedUniversities.indexOf(university.id) > -1}
+                                    sx={{
+                                      color: 'rgba(255,255,255,0.7)',
+                                      '&.Mui-checked': {
+                                        color: 'primary.main'
+                                      }
+                                    }}
+                                  />
+                                  <Box>
+                                    <Typography variant="body1">{university.name}</Typography>
+                                    {university.country && (
+                                      <Typography variant="caption" color="textSecondary">
+                                        {university.country} {university.city ? `- ${university.city}` : ''}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          {phaseConfirmDialog.selectedUniversities.length > 0 && (
+                            <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'rgba(255,255,255,0.7)' }}>
+                              {phaseConfirmDialog.selectedUniversities.length} universit{phaseConfirmDialog.selectedUniversities.length === 1 ? 'y' : 'ies'} selected with offers
                             </Typography>
-                          </Alert>
-                        )}
-                      </Box>
-                    );
+                          )}
+                          {phaseConfirmDialog.selectedUniversities.length === 0 && (
+                            <Alert
+                              severity="info"
+                              sx={{
+                                mt: 1.5,
+                                background: 'rgba(33, 150, 243, 0.2)',
+                                color: 'white',
+                                border: '1px solid rgba(33, 150, 243, 0.4)',
+                                '& .MuiAlert-icon': { color: 'rgba(33, 150, 243, 0.9)' }
+                              }}
+                              icon={<InfoIcon />}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Please select at least one university that has sent an offer.
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Box>
+                      );
+                    }
+                  } catch (e) {
+                    return null;
                   }
-                } catch (e) {
                   return null;
-                }
-                return null;
-              })()}
+                })()}
 
               {/* University Selection for University Shortlisting Phase */}
               {phaseConfirmDialog.phase?.key === 'UNIVERSITY_SHORTLISTING' && (
@@ -6456,6 +6540,83 @@ function StudentDetails() {
                 </Box>
               )}
 
+              {/* Payment Fields Selection - Show for Payment Phases */}
+              {(PAYMENT_PHASES.includes(phaseConfirmDialog.phase?.key) || phaseConfirmDialog.phase?.key?.includes('PAYMENT') || phaseConfirmDialog.phase?.key?.includes('FEE') || (phaseConfirmDialog.phase?.key?.includes('DEPOSIT') && phaseConfirmDialog.phase?.key !== 'APPLICATION_SUBMISSION')) && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" sx={{
+                    fontWeight: 600,
+                    mb: 1.5,
+                    color: 'rgba(255,255,255,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <TrendingUpIcon sx={{ fontSize: 18 }} />
+                    Payment Details
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Payment Amount"
+                        value={phaseConfirmDialog.paymentAmount || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPhaseConfirmDialog(prev => ({
+                            ...prev,
+                            paymentAmount: val
+                          }));
+                        }}
+                        InputLabelProps={{
+                          style: { color: 'rgba(255,255,255,0.7)' }
+                        }}
+                        InputProps={{
+                          sx: {
+                            color: 'white',
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'rgba(255,255,255,0.3)'
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'rgba(255,255,255,0.5)'
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'rgba(255,255,255,0.8)'
+                            }
+                          }
+                        }}
+                        placeholder="Enter amount"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>Payment Type</Typography>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {['INITIAL', 'HALF', 'COMPLETE'].map((type) => (
+                          <Button
+                            key={type}
+                            variant={phaseConfirmDialog.paymentType === type ? 'contained' : 'outlined'}
+                            onClick={() => setPhaseConfirmDialog(prev => ({ ...prev, paymentType: type }))}
+                            sx={{
+                              flex: 1,
+                              minWidth: 'auto',
+                              textTransform: 'capitalize',
+                              color: 'white',
+                              borderColor: phaseConfirmDialog.paymentType === type ? 'transparent' : 'rgba(255,255,255,0.3)',
+                              background: phaseConfirmDialog.paymentType === type ? 'rgba(255,255,255,0.2)' : 'transparent',
+                              '&:hover': {
+                                background: phaseConfirmDialog.paymentType === type ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+                                borderColor: 'rgba(255,255,255,0.5)'
+                              }
+                            }}
+                          >
+                            {type.toLowerCase()}
+                          </Button>
+                        ))}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+
               <Alert
                 severity="info"
                 sx={{
@@ -6502,7 +6663,9 @@ function StudentDetails() {
                 (phaseConfirmDialog.phase?.key === 'INTERVIEW' && !phaseConfirmDialog.interviewStatus) ||
                 (phaseConfirmDialog.phase?.key === 'CAS_VISA' && !phaseConfirmDialog.casVisaStatus) ||
                 (phaseConfirmDialog.phase?.key === 'VISA_APPLICATION' && !phaseConfirmDialog.visaStatus) ||
-                (phaseConfirmDialog.phase?.key === 'FINANCIAL_TB_TEST' && !phaseConfirmDialog.financialOption)
+                (phaseConfirmDialog.phase?.key === 'FINANCIAL_TB_TEST' && !phaseConfirmDialog.financialOption) ||
+                ((phaseConfirmDialog.phase?.key === 'VISA_DECISION' || phaseConfirmDialog.phase?.key?.includes('VISA_DECISION')) && !phaseConfirmDialog.visaDecisionStatus) ||
+                ((PAYMENT_PHASES.includes(phaseConfirmDialog.phase?.key) || phaseConfirmDialog.phase?.key?.includes('PAYMENT') || phaseConfirmDialog.phase?.key?.includes('FEE') || (phaseConfirmDialog.phase?.key?.includes('DEPOSIT') && phaseConfirmDialog.phase?.key !== 'APPLICATION_SUBMISSION')) && (!phaseConfirmDialog.paymentAmount || !phaseConfirmDialog.paymentType))
               }
               sx={{
                 borderRadius: 2,
