@@ -597,7 +597,6 @@ const cleanCountryName = (country) => {
 // Helper function to get phases for a country
 const getPhasesForCountry = (country) => {
   if (!country) {
-    console.log('[getPhasesForCountry] No country provided, defaulting to UK');
     return PROCESS_STEPS['United Kingdom']; // Default to UK if no country
   }
 
@@ -605,16 +604,12 @@ const getPhasesForCountry = (country) => {
   const cleanedCountry = cleanCountryName(country);
   const normalizedCountry = normalizeCountryName(cleanedCountry);
 
-  console.log(`[getPhasesForCountry] Input: "${country}" -> Cleaned: "${cleanedCountry}" -> Normalized: "${normalizedCountry}"`);
-
   // Try exact match first (with cleaned and normalized)
   if (PROCESS_STEPS[cleanedCountry]) {
-    console.log(`[getPhasesForCountry] Found exact match: "${cleanedCountry}"`);
     return PROCESS_STEPS[cleanedCountry];
   }
 
   if (PROCESS_STEPS[normalizedCountry]) {
-    console.log(`[getPhasesForCountry] Found normalized match: "${normalizedCountry}"`);
     return PROCESS_STEPS[normalizedCountry];
   }
 
@@ -634,12 +629,10 @@ const getPhasesForCountry = (country) => {
   });
 
   if (matchedKey) {
-    console.log(`[getPhasesForCountry] Found case-insensitive match: "${matchedKey}"`);
     return PROCESS_STEPS[matchedKey];
   }
 
   // Default to UK if country not found
-  console.warn(`[getPhasesForCountry] Country "${country}" (cleaned: "${cleanedCountry}", normalized: "${normalizedCountry}") not found in PROCESS_STEPS. Defaulting to United Kingdom. Available countries:`, countryKeys);
   return PROCESS_STEPS['United Kingdom'];
 };
 
@@ -692,7 +685,6 @@ const StudentProgressBar = ({
 
     // Update if we have a country to set and it's different from current
     if (countryToSet && countryToSet !== selectedCountry) {
-      console.log(`[useEffect] Setting selectedCountry to: "${countryToSet}"`);
       setSelectedCountry(countryToSet);
     }
   }, [propSelectedCountry, countryProfiles]); // Don't include selectedCountry to avoid circular dependency
@@ -721,17 +713,11 @@ const StudentProgressBar = ({
             });
           }
           setPhaseMetadata(metadataObj);
-          console.log('[PhaseMetadata] Loaded metadata:', metadataObj);
         } else {
           setPhaseMetadata({});
         }
       } catch (error) {
         // Handle errors gracefully - allow button to show even without metadata
-        if (error.response?.status === 404 || error.response?.status === 500) {
-          console.warn('[PhaseMetadata] Phase metadata not available (table may not exist yet)');
-        } else {
-          console.warn('[PhaseMetadata] Error fetching phase metadata:', error.message);
-        }
         setPhaseMetadata({});
       } finally {
         setLoadingPhaseMetadata(false);
@@ -805,8 +791,6 @@ const StudentProgressBar = ({
     // If filtering removed all universities but we have universities with country info,
     // it might be a country name mismatch - show all as fallback with warning
     if (filtered.length === 0 && universities.length > 0) {
-      console.warn(`No universities matched country "${selectedCountry}". Showing all universities. Available countries:`,
-        [...new Set(universities.map(u => u?.country).filter(Boolean))]);
       return universities; // Show all as fallback
     }
 
@@ -837,7 +821,6 @@ const StudentProgressBar = ({
           }
         }
       } catch (e) {
-        console.error('Error parsing country profile notes:', e);
         // If parsing fails, return null to fall back to student notes
         return null;
       }
@@ -865,7 +848,6 @@ const StudentProgressBar = ({
           }
         }
       } catch (e) {
-        console.error('Error parsing student notes:', e);
         return null;
       }
     }
@@ -886,12 +868,8 @@ const StudentProgressBar = ({
         countryForPhases = cleanCountryName(countryForPhases);
       }
 
-      console.log(`[calculateProgress] Country resolution: propSelectedCountry="${propSelectedCountry}", selectedCountry="${selectedCountry}", countryProfiles[0]="${countryProfiles.length > 0 ? countryProfiles[0].country : 'N/A'}" -> Final (cleaned): "${countryForPhases}"`);
-
       // Get phases for the current country (or default to UK)
       const phases = getPhasesForCountry(countryForPhases);
-
-      console.log(`[calculateProgress] Got ${phases.length} phases. First phase: "${phases[0]?.label}", Last phase: "${phases[phases.length - 1]?.label}"`);
 
       let currentPhaseIndex = phases.findIndex(phase => phase.key === effectiveCurrentPhase);
 
@@ -994,7 +972,7 @@ const StudentProgressBar = ({
               canProceedToNext = true;
             }
           } catch (e) {
-            console.error('Error checking University Shortlisting completion:', e);
+            // Error checking University Shortlisting completion
           }
         }
 
@@ -1011,16 +989,6 @@ const StudentProgressBar = ({
         const phaseSpecificDocs = phaseDocInfo.documents;
         const phaseCanUpload = phaseDocInfo.canUpload;
 
-        // Debug logging for document calculation
-        if (isCurrent) {
-          console.log(`[calculateProgress] Phase: ${phase.key} (${phase.label})`, {
-            country: countryForPhases,
-            phaseSpecificDocs: phaseSpecificDocs,
-            phaseCanUpload: phaseCanUpload,
-            phaseRequiredDocs: phase.requiredDocs,
-            isCurrent: isCurrent
-          });
-        }
 
         // Use phase-specific documents if available, otherwise fall back to phase.requiredDocs
         // This allows us to show country+phase documents when rules exist, but still show
@@ -1288,7 +1256,6 @@ const StudentProgressBar = ({
           setPhaseMetadata(metadataObj);
         }
       } catch (metadataError) {
-        console.warn('[PhaseMetadata] Error refreshing metadata:', metadataError);
         // Don't fail the reopen if metadata refresh fails
       }
 
@@ -1329,8 +1296,6 @@ const StudentProgressBar = ({
         }
       }, 500); // Increased delay to ensure backend has updated
     } catch (error) {
-      console.error('Error reopening phase:', error);
-      console.error('Error response:', error.response?.data);
       const errorMessage = error.response?.data?.message || error.message || 'An error occurred while reopening the phase. Please try again.';
       showDialog('error', 'Failed to Reopen Phase', errorMessage);
     }
@@ -1634,18 +1599,6 @@ const StudentProgressBar = ({
                       {(() => {
                         const metadata = phaseMetadata[phase.key];
 
-                        // Debug logging
-                        if (phase.isCompleted) {
-                          console.log(`[EditButton] Phase ${phase.key}:`, {
-                            isCompleted: phase.isCompleted,
-                            selectedCountry: selectedCountry,
-                            metadata: metadata,
-                            status: metadata?.status,
-                            reopenCount: metadata?.reopenCount,
-                            maxReopen: metadata?.maxReopenAllowed ?? 2
-                          });
-                        }
-
                         // Show button if:
                         // 1. Phase is completed
                         // 2. Country is selected
@@ -1870,9 +1823,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error parsing university shortlist:', e);
-                          console.error('Student notes:', student?.notes);
-                          console.error('Country profile notes:', currentCountryProfile?.notes);
                           return (
                             <Box sx={{ mt: 1.5 }}>
                               <Typography variant="caption" color="error" sx={{ fontSize: '0.65rem' }}>
@@ -2011,7 +1961,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error displaying application universities:', e);
                           return (
                             <Box sx={{ mt: 1.5 }}>
                               <Typography variant="caption" color="error" sx={{ fontSize: '0.65rem' }}>
@@ -2042,13 +1991,7 @@ const StudentProgressBar = ({
 
                             // If filtering resulted in empty but we have universities, show all as fallback
                             if (universities.length === 0 && offers.universities.length > 0) {
-                              const hasCountryInfo = offers.universities.some(u => u?.country);
-                              if (hasCountryInfo) {
-                                console.warn(`Country filter "${selectedCountry}" didn't match any universities with offers. Showing all.`);
-                                universities = offers.universities; // Show all as fallback
-                              } else {
-                                universities = offers.universities; // No country info - show all
-                              }
+                              universities = offers.universities; // Show all as fallback
                             }
 
                             // Merge with accepted applications (already filtered by country above)
@@ -2127,7 +2070,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error parsing universities with offers:', e);
                           return null;
                         }
                         return null;
@@ -2256,7 +2198,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error parsing universities for Initial Payment:', e);
                           return (
                             <Box sx={{ mt: 1.5 }}>
                               <Typography variant="caption" color="error" sx={{ fontSize: '0.65rem' }}>
@@ -2580,7 +2521,7 @@ const StudentProgressBar = ({
                                 decisionStatus = studentNotes.visaDecisionStatus.status;
                               }
                             } catch (e) {
-                              console.warn('Error parsing student notes for visa decision:', e);
+                              // Error parsing student notes for visa decision
                             }
                           }
 
@@ -2639,7 +2580,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error displaying visa decision status:', e);
                           return null;
                         }
                         return null;
@@ -2697,7 +2637,6 @@ const StudentProgressBar = ({
                             );
                           }
                         } catch (e) {
-                          console.error('Error displaying selected countries for Enrollment:', e);
                           return null;
                         }
                         return null;
@@ -2729,21 +2668,6 @@ const StudentProgressBar = ({
                           onUploadDocuments &&
                           (phase.key === 'DOCUMENT_COLLECTION' || selectedCountry) &&
                           enrollmentAllowsUpload;
-
-                        // Debug logging for upload button visibility
-                        if (phase.isCurrent) {
-                          console.log(`[UploadButton] Phase: ${phase.key} (${phase.label})`, {
-                            isCurrent: phase.isCurrent,
-                            requiredDocs: phase.requiredDocs,
-                            requiredDocsLength: phase.requiredDocs?.length || 0,
-                            hasRequiredDocs: hasRequiredDocs,
-                            selectedCountry: selectedCountry,
-                            canUpload: phase.canUpload,
-                            hasOnUploadDocuments: !!onUploadDocuments,
-                            isDocumentCollection: phase.key === 'DOCUMENT_COLLECTION',
-                            shouldShow: shouldShow
-                          });
-                        }
 
                         return shouldShow;
                       })() && (
@@ -2823,7 +2747,6 @@ const StudentProgressBar = ({
                         );
                       }
                     } catch (e) {
-                      console.error('Error parsing enrollment university:', e);
                       return null;
                     }
                     return null;

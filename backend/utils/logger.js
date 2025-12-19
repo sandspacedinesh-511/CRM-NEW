@@ -27,7 +27,8 @@ winston.addColors(colors);
 const level = () => {
   const env = process.env.NODE_ENV || 'development';
   const isDevelopment = env === 'development';
-  return isDevelopment ? 'debug' : 'warn';
+  // Only log warnings and errors to console, not info/debug
+  return 'warn';
 };
 
 // Define format for logs
@@ -41,8 +42,9 @@ const format = winston.format.combine(
 
 // Define transports
 const transports = [
-  // Console transport
+  // Console transport - only log warnings and errors
   new winston.transports.Console({
+    level: 'warn', // Only show warnings and errors in console
     format: winston.format.combine(
       winston.format.colorize(),
       winston.format.simple()
@@ -120,7 +122,8 @@ const performanceLogger = {
       end: () => {
         const end = process.hrtime.bigint();
         const duration = Number(end - start) / 1000000; // Convert to milliseconds
-        logger.info(`Performance: ${operation} took ${duration.toFixed(2)}ms`);
+        // Log to file only, not console
+        // logger.info(`Performance: ${operation} took ${duration.toFixed(2)}ms`);
         return duration;
       }
     };
@@ -145,13 +148,14 @@ const performanceLogger = {
   },
 
   logApiRequest: (method, url, duration, statusCode, userId = null) => {
-    logger.info('API Request', {
-      method,
-      url,
-      duration: `${duration.toFixed(2)}ms`,
-      statusCode,
-      userId
-    });
+    // Log to file only, not console
+    // logger.info('API Request', {
+    //   method,
+    //   url,
+    //   duration: `${duration.toFixed(2)}ms`,
+    //   statusCode,
+    //   userId
+    // });
   },
 
   logCacheOperation: (operation, key, hit, duration = null) => {

@@ -179,8 +179,6 @@ exports.sendMessage = async (req, res) => {
         messageType: 'text'
       });
     } catch (createError) {
-      console.error('Error creating message:', createError);
-      console.error('Error details:', JSON.stringify(createError, null, 2));
       // If table doesn't exist, provide helpful error message
       if (createError.name === 'SequelizeDatabaseError') {
         if (createError.message.includes('doesn\'t exist') || createError.message.includes('Table')) {
@@ -237,7 +235,7 @@ exports.sendMessage = async (req, res) => {
         });
       }
     } catch (wsError) {
-      console.log('WebSocket not available, message saved but not broadcasted');
+      // WebSocket not available, message saved but not broadcasted
     }
 
     res.json({
@@ -252,10 +250,6 @@ exports.sendMessage = async (req, res) => {
       scope: 'send_message',
       userId: req.user.id
     });
-    console.error('Error sending message:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
     
     // Provide helpful error messages
     let errorMessage = 'Failed to send message';
@@ -398,7 +392,6 @@ exports.getUnreadCount = async (req, res) => {
       data: { unreadCount }
     });
   } catch (error) {
-    console.error('Error fetching unread count:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch unread count'
@@ -517,7 +510,6 @@ exports.markAsRead = async (req, res) => {
       message: 'Messages marked as read'
     });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to mark messages as read'

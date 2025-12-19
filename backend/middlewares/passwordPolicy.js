@@ -38,7 +38,6 @@ const checkPasswordChangeRequired = async (req, res, next) => {
     // Password change requirement check removed - field doesn't exist in database
     next();
   } catch (error) {
-    console.error('Password change check error:', error);
     next();
   }
 };

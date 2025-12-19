@@ -132,7 +132,6 @@ const deleteFile = async (key) => {
     await s3.send(command);
     return true;
   } catch (error) {
-    console.error('Error deleting file from S3:', error);
     return false;
   }
 };
@@ -150,7 +149,6 @@ const copyFile = async (sourceKey, destinationKey) => {
     await s3.send(command);
     return true;
   } catch (error) {
-    console.error('Error copying file in S3:', error);
     return false;
   }
 };
@@ -186,7 +184,6 @@ const getFileMetadata = async (key) => {
       metadata: result.Metadata
     };
   } catch (error) {
-    console.error('Error getting file metadata:', error);
     return null;
   }
 };
@@ -203,7 +200,6 @@ const listFiles = async (prefix = 'uploads/', maxKeys = 100) => {
     const result = await s3.send(command);
     return result.Contents || [];
   } catch (error) {
-    console.error('Error listing files:', error);
     return [];
   }
 };

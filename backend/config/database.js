@@ -12,12 +12,11 @@ if (process.env.NODE_ENV === 'production') {
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
-  console.error(' Missing required environment variables:', missingVars.join(', '));
-  console.error('Please check your .env file and ensure all database credentials are set.');
   process.exit(1);
 }
 
-// Log database config (without sensitive data)const sequelize = new Sequelize(
+// Log database config (without sensitive data)
+const sequelize = new Sequelize(
   process.env.DB_NAME,
   process.env.DB_USER,
   process.env.DB_PASSWORD || undefined,
@@ -25,7 +24,7 @@ if (missingVars.length > 0) {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: false, // Disable SQL query logging
     
     // SSL Configuration for production
     dialectOptions: {
@@ -82,9 +81,10 @@ if (missingVars.length > 0) {
 
 sequelize
   .authenticate()
-  .then(() => {  })
+  .then(() => {
+  })
   .catch(err => {
-    console.error('Unable to connect to the database:', err);
+    // Database connection error
   });
 
 module.exports = sequelize; 

@@ -379,10 +379,6 @@ function StudentDetails() {
 
   // Enhanced utility functions
   const calculateStudentStats = useCallback(() => {
-    console.log('📊 Calculating student stats...');
-    console.log('📄 Documents:', documents);
-    console.log('📋 Applications:', applications);
-    console.log('👤 Student phase:', student?.currentPhase);
 
     const totalDocs = documents.length;
     const pendingDocs = documents.filter(doc => doc.status === 'PENDING').length;
@@ -402,7 +398,6 @@ function StudentDetails() {
       progressPercentage: Math.round(progressPercentage)
     };
 
-    console.log('📊 Calculated stats:', stats);
     setStudentStats(stats);
   }, [documents, applications, student]);
 
@@ -1409,9 +1404,6 @@ function StudentDetails() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Fetching student details for ID:', id);
-
-      console.log('🚀 Starting to fetch student data...');
 
       // Fetch core data first (required)
       const [
@@ -1421,19 +1413,15 @@ function StudentDetails() {
         notesResponse
       ] = await Promise.all([
         axiosInstance.get(`/counselor/students/${id}`).catch(err => {
-          console.error('❌ Student details API failed:', err);
           throw err;
         }),
         axiosInstance.get(`/counselor/students/${id}/documents`).catch(err => {
-          console.error('❌ Documents API failed:', err);
           throw err;
         }),
         axiosInstance.get(`/counselor/students/${id}/applications`).catch(err => {
-          console.error('❌ Applications API failed:', err);
           throw err;
         }),
         axiosInstance.get(`/counselor/students/${id}/notes`).catch(err => {
-          console.error('❌ Notes API failed:', err);
           throw err;
         })
       ]);
@@ -1442,31 +1430,15 @@ function StudentDetails() {
       let activitiesResponse = null;
       try {
         activitiesResponse = await axiosInstance.get(`/counselor/students/${id}/activities`);
-        console.log('✅ Activities API succeeded');
       } catch (err) {
-        console.error('❌ Activities API failed (non-critical):', err);
-        console.log('⚠️ Continuing without activities data');
         activitiesResponse = { data: { success: true, data: [] } }; // Fallback to empty array
       }
-
-      console.log('✅ All API calls completed successfully');
-
-      console.log('📄 Documents response:', documentsResponse.data);
 
       const studentData = studentResponse.data.success ? studentResponse.data.data : studentResponse.data;
       const documentsData = documentsResponse.data.success ? documentsResponse.data.data : documentsResponse.data;
       const applicationsData = applicationsResponse.data.success ? applicationsResponse.data.data : applicationsResponse.data;
       const notesData = notesResponse.data.success ? notesResponse.data.data : notesResponse.data;
       const activitiesData = activitiesResponse.data.success ? activitiesResponse.data.data : activitiesResponse.data;
-
-      console.log('📄 Processed documents data:', documentsData);
-      console.log('📄 Documents array length:', documentsData?.length || 0);
-      console.log('📄 Activities data:', activitiesData);
-      console.log('📄 Activities with user info:', activitiesData?.map(a => ({
-        id: a.id,
-        description: a.description,
-        user: a.user
-      })));
 
       setStudent(studentData);
       setEditData(studentData);
@@ -1920,12 +1892,6 @@ function StudentDetails() {
         return;
       }
 
-      console.log('Uploading document:', {
-        file: uploadData.file.name,
-        type: uploadData.type,
-        size: uploadData.file.size
-      });
-
       const formData = new FormData();
       formData.append('file', uploadData.file);
       formData.append('type', uploadData.type);
@@ -1938,20 +1904,12 @@ function StudentDetails() {
       formData.append('remarks', uploadData.remarks);
       formData.append('priority', uploadData.priority);
 
-      console.log('Sending request to:', `/counselor/students/${id}/documents/upload`);
-      console.log('FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}:`, value);
-      }
-
       const response = await axiosInstance.post(`/counselor/students/${id}/documents/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
         timeout: 30000 // 30 second timeout
       });
-
-      console.log('Upload response:', response.data);
 
       // Close dialog and reset form
       setOpenUploadDialog(false);
@@ -1972,11 +1930,6 @@ function StudentDetails() {
       await fetchStudentDetails();
       showSnackbar('Document uploaded successfully', 'success');
     } catch (error) {
-      console.error('Error uploading document:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error headers:', error.response?.headers);
-
       let errorMessage = 'Failed to upload document. Please try again.';
 
       if (error.response?.data?.message) {
@@ -3119,9 +3072,6 @@ function StudentDetails() {
   );
 
   const renderDocuments = () => {
-    console.log('🎨 Rendering documents tab');
-    console.log('📄 Documents state:', documents);
-    console.log('📄 Documents length:', documents?.length || 0);
 
     return (
       <Card sx={{
@@ -4021,9 +3971,6 @@ function StudentDetails() {
 
 
   const renderQuickActions = () => {
-    console.log('🎯 Rendering Quick Actions component');
-    console.log('🎯 Student ID:', id);
-    console.log('🎯 Student data:', student);
 
     return (
       <Card sx={{
@@ -4044,7 +3991,6 @@ function StudentDetails() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => {
-                  console.log('📄 Upload Document button clicked');
                   setUploadPhaseInfo(null);
                   setFilteredDocumentTypes(DOCUMENT_TYPES);
                   setUploadData(prev => ({ ...prev, type: '' }));

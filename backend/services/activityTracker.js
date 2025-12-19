@@ -49,7 +49,7 @@ const trackActivity = async (counselorId, activityType, description = null, meta
 
         await CounselorActivity.create(activityData);
     } catch (error) {
-        console.error('Error tracking counselor activity:', error);
+        // Error tracking counselor activity
     }
 };
 

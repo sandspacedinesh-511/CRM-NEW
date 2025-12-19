@@ -54,7 +54,6 @@ try {
   });
 
   redis.on('close', () => {
-    logger.warn('Redis client connection closed');
     redisConnected = false;
   });
 
@@ -235,7 +234,6 @@ const cacheUtils = {
         await redis.publish(channel, serializedMessage);
         return true;
       } else {
-        logger.info(`Redis not available, would publish to ${channel}:`, message);
         return true;
       }
     } catch (error) {
@@ -267,7 +265,6 @@ const cacheUtils = {
 
       return subscriber;
     } else {
-      logger.warn(`Redis not available, cannot subscribe to ${channel}`);
       return {
         unsubscribe: () => {},
         on: () => {}

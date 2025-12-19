@@ -5,14 +5,14 @@ const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
-    if (!token) {      return res.status(401).json({ 
+    if (!token) {
+      return res.status(401).json({ 
         message: 'Access token required',
         errorType: 'NO_TOKEN'
       });
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error('Auth middleware: JWT_SECRET is not configured');
       return res.status(500).json({ 
         message: 'Server configuration error',
         errorType: 'CONFIG_ERROR'
@@ -22,13 +22,15 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ where: { id: decoded.id } });
 
-    if (!user) {      return res.status(401).json({ 
+    if (!user) {
+      return res.status(401).json({ 
         message: 'Invalid token - user not found',
         errorType: 'USER_NOT_FOUND'
       });
     }
 
-    if (!user.active) {      return res.status(401).json({ 
+    if (!user.active) {
+      return res.status(401).json({ 
         message: 'Account is inactive',
         errorType: 'ACCOUNT_INACTIVE'
       });
@@ -38,8 +40,6 @@ const auth = async (req, res, next) => {
     req.token = token;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error.message);
-    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
         message: 'Invalid token',

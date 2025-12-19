@@ -8,7 +8,6 @@ class DigitalOceanStorageService {
     // In production, require all environment variables
     if (process.env.NODE_ENV === 'production' && missingVars.length > 0) {
       const errorMessage = `Digital Ocean Spaces configuration missing in production: ${missingVars.join(', ')}`;
-      console.error('❌', errorMessage);
       throw new Error(errorMessage);
     }
     
@@ -64,14 +63,6 @@ class DigitalOceanStorageService {
         region: this.region
       };
     } catch (error) {
-      console.error('❌ Error uploading to DigitalOcean Spaces:', error);
-      console.error('📋 Error details:', {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        statusCode: error.statusCode,
-        stack: error.stack
-      });
       throw new Error(`Failed to upload file: ${error.message}`);
     }
   }
@@ -92,7 +83,6 @@ class DigitalOceanStorageService {
       const url = await this.s3.getSignedUrlPromise('getObject', params);
       return url;
     } catch (error) {
-      console.error('Error generating presigned URL:', error);
       throw new Error(`Failed to generate file URL: ${error.message}`);
     }
   }
@@ -112,7 +102,6 @@ class DigitalOceanStorageService {
       await this.s3.deleteObject(params).promise();
       return true;
     } catch (error) {
-      console.error('Error deleting from Spaces:', error);
       throw new Error(`Failed to delete file: ${error.message}`);
     }
   }
@@ -183,7 +172,6 @@ class DigitalOceanStorageService {
       const result = await this.s3.listObjects(params).promise();
       return result.Contents || [];
     } catch (error) {
-      console.error('Error listing files:', error);
       throw new Error(`Failed to list files: ${error.message}`);
     }
   }
@@ -203,7 +191,6 @@ class DigitalOceanStorageService {
       const result = await this.s3.getObject(params).promise();
       return result.Body;
     } catch (error) {
-      console.error('Error downloading file:', error);
       throw new Error(`Failed to download file: ${error.message}`);
     }
   }

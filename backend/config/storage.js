@@ -37,7 +37,6 @@ class StorageService {
         bucket: BUCKET_NAME
       };
     } catch (error) {
-      console.error('Error uploading to Spaces:', error);
       throw new Error('Failed to upload file');
     }
   }
@@ -53,7 +52,6 @@ class StorageService {
 
       return await s3.getSignedUrlPromise('getObject', params);
     } catch (error) {
-      console.error('Error generating signed URL:', error);
       throw new Error('Failed to generate file URL');
     }
   }
@@ -69,7 +67,6 @@ class StorageService {
       await s3.deleteObject(params).promise();
       return true;
     } catch (error) {
-      console.error('Error deleting from Spaces:', error);
       throw new Error('Failed to delete file');
     }
   }

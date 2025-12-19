@@ -198,13 +198,15 @@ function DashboardLayout() {
     setNotificationAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e?.stopPropagation();
     handleProfileMenuClose();
     logout();
     navigate('/login');
   };
 
-  const handleProfileClick = () => {
+  const handleProfileClick = (e) => {
+    e.stopPropagation();
     handleProfileMenuClose();
     const role = user?.role;
     if (role === 'admin') {
@@ -220,7 +222,8 @@ function DashboardLayout() {
     }
   };
 
-  const handleSettingsClick = () => {
+  const handleSettingsClick = (e) => {
+    e.stopPropagation();
     handleProfileMenuClose();
     const role = user?.role;
     if (role === 'admin') {
@@ -236,7 +239,8 @@ function DashboardLayout() {
     }
   };
 
-  const handleSecurityClick = () => {
+  const handleSecurityClick = (e) => {
+    e.stopPropagation();
     handleProfileMenuClose();
     const role = user?.role;
     if (role === 'admin') {

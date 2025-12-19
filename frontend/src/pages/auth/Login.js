@@ -132,9 +132,6 @@ function Login() {
 
   useEffect(() => {
     setAnimate(true);
-    console.log('Login component mounted');
-    console.log('Current user:', user);
-    console.log('Current location:', location);
   }, [user, location]);
 
   const formik = useFormik({
@@ -145,7 +142,6 @@ function Login() {
     validationSchema: validationSchema,
     onSubmit: async (values) => {
       try {
-        console.log('Attempting login with:', values.email);
         setError(null);
         setLoginProgress(0);
         
@@ -161,7 +157,6 @@ function Login() {
         }, 100);
         
         const user = await login(values.email, values.password);
-        console.log('Login successful, user:', user);
         
         setLoginProgress(100);
         clearInterval(progressInterval);
@@ -178,12 +173,10 @@ function Login() {
             b2b_marketing: '/b2b-marketing/dashboard'
           };
           const redirectPath = roleRedirectMap[user.role] || '/';
-          console.log('Redirecting to:', redirectPath);
           navigate(redirectPath);
         }, 1500);
         
       } catch (error) {
-        console.error('Login error:', error);
         setLoginProgress(0);
         
         // Handle specific error types
@@ -559,9 +552,6 @@ function Login() {
                           <Button 
                             color="inherit" 
                             size="small" 
-                            onClick={() => {
-                              console.log('Contact administrator clicked');
-                            }}
                             sx={{ fontWeight: 600 }}
                           >
                             Contact Admin

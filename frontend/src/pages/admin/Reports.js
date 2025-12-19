@@ -219,11 +219,6 @@ function Reports() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching report data with params:', {
-        type: reportType,
-        startDate: dateRange.start,
-        endDate: dateRange.end
-      });
       
       const response = await axiosInstance.get('/admin/reports', {
         params: {
@@ -233,12 +228,8 @@ function Reports() {
         }
       });
       
-      console.log('Report data response:', response.data);
       setReportData(response.data.data);
     } catch (error) {
-      console.error('Error fetching report data:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       setError(`Failed to load report data: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
@@ -251,13 +242,6 @@ function Reports() {
 
   const handleExportReport = async (format = 'csv') => {
     try {
-      console.log('Exporting report with params:', {
-        type: exportType,
-        startDate: dateRange.start,
-        endDate: dateRange.end,
-        format
-      });
-      
       const response = await axiosInstance.get('/admin/reports/export', {
         params: {
           type: exportType, // Use exportType instead of reportType
@@ -268,8 +252,6 @@ function Reports() {
         responseType: 'blob'
       });
       
-      console.log('Export response received:', response.status, response.headers);
-      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -279,9 +261,6 @@ function Reports() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting report:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       let errorMessage = 'Failed to export report. Please try again.';
       
       if (error.response?.status === 400) {

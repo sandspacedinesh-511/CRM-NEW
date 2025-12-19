@@ -139,7 +139,6 @@ const getPhaseLabel = async (phaseKey, country) => {
       }
     }
   } catch (err) {
-    console.warn('Error fetching phase label:', err);
   }
 
   // Fallback: return phase key with spaces
@@ -214,7 +213,6 @@ exports.checkEmailAvailability = async (req, res) => {
     return res.json(result);
 
   } catch (error) {
-    console.error('Error checking email availability:', error);
     res.status(500).json({
       message: 'Error checking email availability'
     });
@@ -374,7 +372,6 @@ exports.getDashboardStats = async (req, res) => {
       ].sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
         .slice(0, 5);
     } catch (error) {
-      console.error('Error fetching tasks:', error);
       tasks = [];
     }
 
@@ -395,7 +392,6 @@ exports.getDashboardStats = async (req, res) => {
         count: parseInt(phase.getDataValue('count'))
       }));
     } catch (error) {
-      console.error('Error fetching phase distribution:', error);
     }
 
     // Get country-specific phase distribution
@@ -452,7 +448,6 @@ exports.getDashboardStats = async (req, res) => {
         };
       });
     } catch (error) {
-      console.error('Error fetching country progress:', error);
     }
 
     // Get university distribution
@@ -486,7 +481,6 @@ exports.getDashboardStats = async (req, res) => {
         count: parseInt(app.getDataValue('count'))
       }));
     } catch (error) {
-      console.error('Error fetching university distribution:', error);
     }
 
     const dashboardData = {
@@ -519,7 +513,6 @@ exports.getDashboardStats = async (req, res) => {
 
     res.json(dashboardData);
   } catch (error) {
-    console.error('Error fetching counsellor dashboard stats:', error);
     res.status(500).json({
       message: 'Error fetching dashboard statistics',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -556,7 +549,6 @@ exports.acceptLeadAssignment = async (req, res) => {
         await cacheUtils.del(previousCacheKey);
       }
     } catch (cacheError) {
-      console.error('Error clearing dashboard cache after lead acceptance:', cacheError);
       // Do not fail main request on cache issues
     }
 
@@ -625,18 +617,15 @@ exports.acceptLeadAssignment = async (req, res) => {
                   }
                 } catch (error) {
                   // Log but don't fail - country profile creation is not critical
-                  console.error(`Error creating country profile for ${country}:`, error.message);
                 }
               }
             } catch (error) {
-              console.error('Error auto-creating country profiles from interestedCountry:', error);
               // Do not fail the main request if this background update fails
             }
           }
         }
       }
     } catch (importedUpdateError) {
-      console.error('Error updating telecaller imported tasks on lead acceptance:', importedUpdateError);
       // Do not fail the main request if this background update fails
     }
 
@@ -645,7 +634,6 @@ exports.acceptLeadAssignment = async (req, res) => {
       message: 'Lead assignment accepted successfully'
     });
   } catch (error) {
-    console.error('Error accepting lead assignment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to accept lead assignment'
@@ -675,7 +663,6 @@ exports.getAvailableCounselors = async (req, res) => {
       data: counselors
     });
   } catch (error) {
-    console.error('Error fetching available counselors:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to load counselors list'
@@ -761,7 +748,6 @@ exports.shareLeadWithCounselor = async (req, res) => {
 
       await websocketService.sendNotification(targetCounselor.id, notification);
     } catch (notifyError) {
-      console.error('Failed to push counselor lead share notification:', notifyError);
       // Continue even if real-time notification fails; the API still succeeded
     }
 
@@ -774,7 +760,6 @@ exports.shareLeadWithCounselor = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error sharing lead with counselor:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to share lead with counselor'
@@ -947,7 +932,6 @@ exports.getStudents = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('Error fetching students:', error);
     res.status(500).json({
       message: 'Error fetching students',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -999,7 +983,6 @@ async function autoCreateCountryProfilesFromTargetCountries(studentId, targetCou
       }
     }
   } catch (e) {
-    console.warn('Failed to parse targetCountries for auto profile creation:', e);
     countries = [];
   }
 
@@ -1042,7 +1025,6 @@ async function autoCreateCountryProfilesFromTargetCountries(studentId, targetCou
       }
     } catch (error) {
       // Log but don't fail - country profile creation is not critical
-      console.error(`Error creating country profile for ${country}:`, error.message);
     }
   }
 }
@@ -1209,7 +1191,6 @@ exports.getStudentDetails = async (req, res) => {
           }
         }
       } catch (syncError) {
-        console.error('Error syncing interestedCountry from TelecallerImportedTask:', syncError);
         // Do not fail the request if sync fails
       }
     }
@@ -1380,10 +1361,8 @@ exports.updateStudent = async (req, res) => {
           try {
             await websocketService.sendNotification(student.marketingOwnerId, marketingNotification.toJSON());
           } catch (wsErr) {
-            console.error('Error sending marketing notification via websocket:', wsErr);
           }
         } catch (notifError) {
-          console.error('Error creating notification for marketing owner:', notifError);
           // Don't fail the request if notification creation fails
         }
       }
@@ -1437,12 +1416,10 @@ exports.updateStudent = async (req, res) => {
             try {
               await websocketService.sendNotification(telecallerLead.telecallerId, telecallerNotification.toJSON());
             } catch (wsErr) {
-              console.error('Error sending telecaller notification via websocket:', wsErr);
             }
           }
         }
       } catch (teleNotifErr) {
-        console.error('Error creating notification for telecaller:', teleNotifErr);
       }
     }
 
@@ -2539,10 +2516,8 @@ exports.createCountryProfile = async (req, res) => {
   try {
     const { studentId, country } = req.body;
 
-    console.log('Received request to create country profile:', { studentId, country, body: req.body });
 
     if (!studentId || !country) {
-      console.log('Validation failed - missing studentId or country:', { studentId, country });
       return res.status(400).json({
         success: false,
         message: 'Student ID and country are required',
@@ -2565,7 +2540,6 @@ exports.createCountryProfile = async (req, res) => {
     });
 
     if (!student) {
-      console.log('Student not found:', { studentId: studentIdInt, counselorId: req.user.id });
       return res.status(404).json({
         success: false,
         message: 'Student not found or you do not have access to this student'
@@ -2619,7 +2593,6 @@ exports.createCountryProfile = async (req, res) => {
       data: countryProfile
     });
   } catch (error) {
-    console.error('Error creating country profile:', error);
 
     // Handle Sequelize unique constraint error
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -2665,7 +2638,6 @@ exports.getStudentNotes = async (req, res) => {
       data: notes
     });
   } catch (error) {
-    console.error('Error fetching student notes:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching student notes'
@@ -2695,7 +2667,6 @@ exports.addNote = async (req, res) => {
 
     res.status(201).json(note);
   } catch (error) {
-    console.error('Error adding note:', error);
     res.status(500).json({ message: 'Error adding note' });
   }
 };
@@ -2718,7 +2689,6 @@ exports.updateNote = async (req, res) => {
     const note = await Note.findByPk(req.params.noteId);
     res.json(note);
   } catch (error) {
-    console.error('Error updating note:', error);
     res.status(500).json({ message: 'Error updating note' });
   }
 };
@@ -2740,7 +2710,6 @@ exports.deleteNote = async (req, res) => {
 
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
-    console.error('Error deleting note:', error);
     res.status(500).json({ message: 'Error deleting note' });
   }
 };
@@ -2782,7 +2751,6 @@ exports.getStudentActivities = async (req, res) => {
       data: activities
     });
   } catch (error) {
-    console.error('Error fetching student activities:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching student activities',
@@ -2812,7 +2780,6 @@ exports.getCounselorTasks = async (req, res) => {
       data: { tasks }
     });
   } catch (error) {
-    console.error('Error fetching counselor tasks:', error);
     res.status(500).json({ message: 'Error fetching tasks' });
   }
 };
@@ -2833,7 +2800,6 @@ exports.getStudentTasks = async (req, res) => {
 
     res.json(tasks);
   } catch (error) {
-    console.error('Error fetching student tasks:', error);
     res.status(500).json({ message: 'Error fetching student tasks' });
   }
 };
@@ -2863,7 +2829,6 @@ exports.createTask = async (req, res) => {
       data: task
     });
   } catch (error) {
-    console.error('Error creating task:', error);
     res.status(500).json({ message: 'Error creating task' });
   }
 };
@@ -2890,7 +2855,6 @@ exports.updateTask = async (req, res) => {
       data: task
     });
   } catch (error) {
-    console.error('Error updating task:', error);
     res.status(500).json({ message: 'Error updating task' });
   }
 };
@@ -2912,7 +2876,6 @@ exports.deleteTask = async (req, res) => {
 
     res.json({ message: 'Task deleted successfully' });
   } catch (error) {
-    console.error('Error deleting task:', error);
     res.status(500).json({ message: 'Error deleting task' });
   }
 };
@@ -2933,7 +2896,6 @@ exports.createGeneralTask = async (req, res) => {
       data: task
     });
   } catch (error) {
-    console.error('Error creating general task:', error);
     res.status(500).json({ message: 'Error creating task' });
   }
 };
@@ -2959,7 +2921,6 @@ exports.updateGeneralTask = async (req, res) => {
       data: task
     });
   } catch (error) {
-    console.error('Error updating general task:', error);
     res.status(500).json({ message: 'Error updating task' });
   }
 };
@@ -2980,7 +2941,6 @@ exports.deleteGeneralTask = async (req, res) => {
 
     res.json({ message: 'Task deleted successfully' });
   } catch (error) {
-    console.error('Error deleting general task:', error);
     res.status(500).json({ message: 'Error deleting task' });
   }
 };
@@ -3038,7 +2998,6 @@ exports.getUniversities = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching universities:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching universities'
@@ -3097,7 +3056,6 @@ exports.exportStudents = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=students.csv');
     res.send(csvData);
   } catch (error) {
-    console.error('Error exporting students:', error);
     res.status(500).json({ message: 'Error exporting students' });
   }
 };
@@ -3141,7 +3099,6 @@ exports.exportDocuments = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=documents.csv');
     res.send(csvData);
   } catch (error) {
-    console.error('Error exporting documents:', error);
     res.status(500).json({ message: 'Error exporting documents' });
   }
 };
@@ -3195,7 +3152,6 @@ exports.exportApplications = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=applications.csv');
     res.send(csvData);
   } catch (error) {
-    console.error('Error exporting applications:', error);
     res.status(500).json({ message: 'Error exporting applications' });
   }
 };
@@ -3223,7 +3179,6 @@ const getOrCreatePhaseMetadata = async (studentId, country, phaseName, defaultSt
   } catch (error) {
     // If table doesn't exist, return a mock object that won't cause errors
     if (error.name === 'SequelizeDatabaseError' || error.message?.includes('doesn\'t exist')) {
-      console.warn('[PhaseMetadata] Table does not exist yet, returning mock object');
       return {
         status: defaultStatus,
         reopenCount: 0,
@@ -3248,7 +3203,6 @@ const updatePhaseMetadataStatus = async (studentId, country, phaseName, newStatu
   } catch (error) {
     // If table doesn't exist, just return silently
     if (error.name === 'SequelizeDatabaseError' || error.message?.includes('doesn\'t exist')) {
-      console.warn('[PhaseMetadata] Table does not exist, skipping update');
       return null;
     }
     throw error;
@@ -3274,7 +3228,6 @@ const isPhaseLocked = async (studentId, country, phaseName) => {
   } catch (error) {
     // If table doesn't exist, phase is not locked
     if (error.name === 'SequelizeDatabaseError' || error.message?.includes('doesn\'t exist')) {
-      console.warn('[PhaseMetadata] Table does not exist, assuming phase is not locked');
       return false;
     }
     throw error;
@@ -3328,11 +3281,9 @@ exports.reopenPhase = async (req, res) => {
       // Check if we got a real metadata object (not a mock)
       if (!phaseMetadata || !phaseMetadata.update || typeof phaseMetadata.update !== 'function') {
         canUseMetadata = false;
-        console.warn('[PhaseMetadata] Table may not exist, proceeding without metadata tracking');
       }
     } catch (metadataError) {
       canUseMetadata = false;
-      console.warn('[PhaseMetadata] Error getting phase metadata, proceeding without tracking:', metadataError.message);
     }
 
     // Check if phase is already locked (only if metadata is available)
@@ -3354,7 +3305,6 @@ exports.reopenPhase = async (req, res) => {
             finalEditAllowed: false
           });
         } catch (updateError) {
-          console.warn('[PhaseMetadata] Error locking phase:', updateError.message);
         }
 
         return res.status(400).json({
@@ -3380,7 +3330,6 @@ exports.reopenPhase = async (req, res) => {
         phases = countryProcess.applicationProcess.steps || [];
       }
     } catch (err) {
-      console.warn('Error fetching country process:', err);
     }
 
     // Normalize phases to ensure they all have a 'key' property
@@ -3447,7 +3396,6 @@ exports.reopenPhase = async (req, res) => {
           ];
         }
       } catch (metadataErr) {
-        console.warn('Error fetching metadata for phase list:', metadataErr);
         // Fallback to default phases including VISA_DECISION
         normalizedPhases = [
           { key: 'DOCUMENT_COLLECTION', label: 'Document Collection' },
@@ -3494,17 +3442,12 @@ exports.reopenPhase = async (req, res) => {
         where: { studentId: id, country, phaseName }
       });
     } catch (metaErr) {
-      console.warn('Error checking metadata for phase:', metaErr);
     }
 
     const currentPhaseIndex = normalizedPhases.findIndex(p => p.key === countryProfile.currentPhase);
     const targetPhaseIndex = normalizedPhases.findIndex(p => p.key === phaseName);
 
     // Log for debugging
-    console.log(`[ReopenPhase] Validating reopen: phaseName=${phaseName}, country=${country}, currentPhase=${countryProfile.currentPhase}`);
-    console.log(`[ReopenPhase] Phase indices: currentPhaseIndex=${currentPhaseIndex}, targetPhaseIndex=${targetPhaseIndex}`);
-    console.log(`[ReopenPhase] Target phase metadata: ${targetPhaseMeta ? `status=${targetPhaseMeta.status}, reopenCount=${targetPhaseMeta.reopenCount}` : 'not found'}`);
-    console.log(`[ReopenPhase] Normalized phases count: ${normalizedPhases.length}, phases: ${normalizedPhases.map(p => p.key).join(', ')}`);
 
     // Validate that we're going backward
     // Strategy: Be very lenient - if phase exists in metadata OR is a known phase pattern, allow reopening
@@ -3523,7 +3466,6 @@ exports.reopenPhase = async (req, res) => {
         }
 
         // Allow reopening if phase is Completed or Current (Current means it was reopened before)
-        console.log(`[ReopenPhase] Phase ${phaseName} found in metadata but not in phase list for ${country}. Allowing reopen based on metadata (status: ${targetPhaseMeta.status}).`);
       } else {
         // Phase doesn't exist in metadata - this could mean:
         // 1. Phase was never completed (shouldn't be able to reopen)
@@ -3537,10 +3479,8 @@ exports.reopenPhase = async (req, res) => {
 
         if (isKnownPhase || currentPhaseIndex === -1) {
           // Known phase pattern or both phases are country-specific - allow reopening
-          console.log(`[ReopenPhase] Phase ${phaseName} not in metadata for ${country}, but ${isKnownPhase ? 'matches known pattern' : 'current phase also not in list'}. Allowing reopen (metadata will be created).`);
         } else {
           // Unknown phase and current phase is in list - this is suspicious, but still allow for flexibility
-          console.warn(`[ReopenPhase] Phase ${phaseName} not found in metadata or phase list for ${country}, but allowing reopen anyway for flexibility.`);
         }
       }
     } else {
@@ -3555,9 +3495,7 @@ exports.reopenPhase = async (req, res) => {
               message: `Phase ${phaseName} has not been started yet. Cannot reopen a phase that hasn't been completed.`
             });
           }
-          console.log(`[ReopenPhase] Current phase ${countryProfile.currentPhase} not in list, but target ${phaseName} is (status: ${targetPhaseMeta.status}). Allowing reopen.`);
         } else {
-          console.log(`[ReopenPhase] Current phase ${countryProfile.currentPhase} not in list, but target ${phaseName} is. Allowing reopen (metadata will be created).`);
         }
       } else if (targetPhaseIndex >= currentPhaseIndex) {
         // Both phases are in list - validate backward movement
@@ -3599,7 +3537,6 @@ exports.reopenPhase = async (req, res) => {
             try {
               await updatePhaseMetadataStatus(id, country, phaseKey, 'Pending');
             } catch (resetError) {
-              console.warn(`[PhaseMetadata] Error resetting phase ${phaseKey}:`, resetError.message);
             }
           }
         }
@@ -3608,10 +3545,8 @@ exports.reopenPhase = async (req, res) => {
         try {
           await phaseMetadata.reload();
         } catch (reloadError) {
-          console.warn('[PhaseMetadata] Error reloading metadata:', reloadError.message);
         }
       } catch (metadataUpdateError) {
-        console.warn('[PhaseMetadata] Error updating phase metadata, but phase was reopened:', metadataUpdateError.message);
         // Phase was already updated in country profile, so continue
       }
     } else {
@@ -3625,7 +3560,6 @@ exports.reopenPhase = async (req, res) => {
           }
         }
       } catch (resetError) {
-        console.warn('[PhaseMetadata] Error resetting phases:', resetError.message);
       }
     }
 
@@ -3645,7 +3579,6 @@ exports.reopenPhase = async (req, res) => {
         }
       });
     } catch (activityError) {
-      console.warn('[Activity] Error creating activity log:', activityError.message);
       // Don't fail the request if activity log fails
     }
 
@@ -3670,8 +3603,6 @@ exports.reopenPhase = async (req, res) => {
       phaseEnabled: true // Flag to indicate phase is now editable
     });
   } catch (error) {
-    console.error('Error reopening phase:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({
       message: 'Error reopening phase',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
@@ -3687,16 +3618,26 @@ exports.getPhaseMetadata = async (req, res) => {
     const { country } = req.query;
     const counselorId = req.user.id;
 
-    // Find student
+    // Find student - allow access if student exists and user is a counselor
+    // This allows counselors to view phase metadata for marketing leads or shared students
     const student = await Student.findOne({
       where: {
-        id,
-        counselorId
+        id
       }
     });
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Verify user has access: either assigned counselor, or user is a counselor (for viewing metadata)
+    const hasAccess = 
+      student.counselorId === counselorId || 
+      req.user.role === 'counselor' ||
+      req.user.role === 'admin';
+
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     if (!country) {
@@ -3716,7 +3657,6 @@ exports.getPhaseMetadata = async (req, res) => {
     } catch (dbError) {
       // If table doesn't exist yet, return empty array
       if (dbError.name === 'SequelizeDatabaseError' || dbError.message?.includes('doesn\'t exist')) {
-        console.warn('[PhaseMetadata] Table may not exist yet, returning empty array');
         return res.json({ phaseMetadata: [] });
       }
       throw dbError;
@@ -3733,8 +3673,6 @@ exports.getPhaseMetadata = async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Error getting phase metadata:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({
       message: 'Error getting phase metadata',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -3766,7 +3704,6 @@ exports.updateStudentPhase = async (req, res) => {
           try {
             return JSON.parse(notes);
           } catch (e) {
-            console.error('Error parsing notes as JSON:', e);
             // If parsing fails, return empty object
             return {};
           }
@@ -4043,7 +3980,6 @@ Need help? Contact your counselor for assistance.`;
         }
       } catch (lockCheckError) {
         // If table doesn't exist, assume phase is not locked and continue
-        console.warn('[PhaseMetadata] Error checking if phase is locked, assuming not locked:', lockCheckError.message);
       }
 
       // Get phases to determine if we're moving forward or backward
@@ -4058,7 +3994,6 @@ Need help? Contact your counselor for assistance.`;
           phases = countryProcess.applicationProcess.steps || [];
         }
       } catch (err) {
-        console.warn('Error fetching country process:', err);
       }
 
       // Normalize phases to ensure they all have a 'key' property
@@ -4122,7 +4057,6 @@ Need help? Contact your counselor for assistance.`;
         }
       } catch (metadataError) {
         // If phase metadata operations fail (e.g., table doesn't exist), log but don't fail the phase update
-        console.warn('[PhaseMetadata] Error updating phase metadata, continuing with phase update:', metadataError.message);
         // Continue with the phase update even if metadata update fails
       }
 
@@ -4827,7 +4761,6 @@ Need help? Contact your counselor for assistance.`;
         }
       });
     } catch (activityError) {
-      console.error(' Error creating phase change activity:', activityError);
     }
 
     // Notify marketing owner if student belongs to a marketing person
@@ -4924,12 +4857,10 @@ Need help? Contact your counselor for assistance.`;
           try {
             await websocketService.sendNotification(telecallerLead.telecallerId, telecallerNotification.toJSON());
           } catch (wsErr) {
-            console.error('Error sending telecaller notification via websocket:', wsErr);
           }
         }
       }
     } catch (teleNotifErr) {
-      console.error('Error creating notification for telecaller:', teleNotifErr);
     }
 
     // Clear dashboard cache to ensure stats update
@@ -4954,7 +4885,6 @@ Need help? Contact your counselor for assistance.`;
         } : null
       });
     } catch (wsError) {
-      console.error('Error broadcasting phase update via WebSocket:', wsError);
       // Don't fail the request if WebSocket broadcast fails
     }
 
@@ -4976,7 +4906,6 @@ Need help? Contact your counselor for assistance.`;
       } : null
     });
   } catch (error) {
-    console.error('Error updating student phase:', error);
     res.status(500).json({
       message: 'Error updating student phase',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -5034,7 +4963,6 @@ exports.getCounselorTasks = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching tasks:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to load tasks. Please try again later.'
@@ -5115,7 +5043,6 @@ exports.getProfile = async (req, res) => {
       data: profileData
     });
   } catch (error) {
-    console.error('Error fetching profile:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to load profile data. Please try again later.'
@@ -5166,7 +5093,6 @@ exports.updateProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error updating profile:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update profile. Please try again later.'
@@ -5240,7 +5166,6 @@ exports.uploadAvatar = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error uploading avatar:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to upload avatar. Please try again later.'
@@ -5261,7 +5186,6 @@ exports.clearDashboardCache = async (req, res) => {
       counselorId
     });
   } catch (error) {
-    console.error('Error clearing dashboard cache:', error);
     res.status(500).json({
       success: false,
       message: 'Error clearing dashboard cache'
@@ -5356,7 +5280,6 @@ exports.sendEmailToStudent = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error sending email:', error);
     res.status(500).json({
       success: false,
       message: 'Error sending email'

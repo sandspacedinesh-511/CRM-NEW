@@ -336,12 +336,20 @@ function TaskManager({ studentId }) {
           </List>
         )}
 
-        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-          <DialogTitle>
+        <Dialog 
+          open={openDialog} 
+          onClose={handleCloseDialog} 
+          maxWidth="sm" 
+          fullWidth
+          aria-labelledby="task-dialog-title"
+          aria-describedby="task-dialog-description"
+          disableEnforceFocus={true}
+        >
+          <DialogTitle id="task-dialog-title">
             {selectedTask ? 'Edit Task' : 'New Task'}
           </DialogTitle>
           <form onSubmit={handleSubmit}>
-            <DialogContent>
+            <DialogContent id="task-dialog-description">
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
@@ -371,14 +379,11 @@ function TaskManager({ studentId }) {
                       onChange={(e) => handleFormChange('type', e.target.value)}
                       label="Type"
                     >
-                      {TASK_TYPES.map((type) => {
-                        console.log('Rendering type option:', type);
-                        return (
-                          <MenuItem key={type} value={type}>
-                            {type.replace(/_/g, ' ')}
-                          </MenuItem>
-                        );
-                      })}
+                      {TASK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type.replace(/_/g, ' ')}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -391,14 +396,11 @@ function TaskManager({ studentId }) {
                       onChange={(e) => handleFormChange('priority', e.target.value)}
                       label="Priority"
                     >
-                      {PRIORITIES.map((priority) => {
-                        console.log('Rendering priority option:', priority);
-                        return (
-                          <MenuItem key={priority} value={priority}>
-                            {priority}
-                          </MenuItem>
-                        );
-                      })}
+                      {PRIORITIES.map((priority) => (
+                        <MenuItem key={priority} value={priority}>
+                          {priority}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>

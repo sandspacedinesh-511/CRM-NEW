@@ -27,6 +27,8 @@ import StudentManagement from './pages/admin/StudentManagement';
 import UniversityManagement from './pages/admin/UniversityManagement';
 import Settings from './pages/admin/Settings';
 import Reports from './pages/admin/Reports';
+import AdminProfile from './pages/admin/Profile';
+import AdminSecurity from './pages/admin/Security';
 import TelecallerManagement from './pages/admin/TelecallerManagement';
 import TelecallerDashboardAdmin from './pages/admin/TelecallerDashboardAdmin';
 import MarketingTeamManagement from './pages/admin/MarketingTeamManagement';
@@ -114,6 +116,8 @@ function App() {
                   <Route path="/admin/b2b-marketing-team/:id/leads" element={<B2BMarketingMemberLeadsAdmin />} />
                   <Route path="/admin/b2b-marketing-team/:id/leads" element={<B2BMarketingMemberLeadsAdmin />} />
                   <Route path="/admin/settings" element={<Settings />} />
+                  <Route path="/admin/profile" element={<AdminProfile />} />
+                  <Route path="/admin/security" element={<AdminSecurity />} />
 
                 </Route>
               </Route>

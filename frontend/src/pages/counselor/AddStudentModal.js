@@ -294,12 +294,10 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
     const documentEntries = Object.entries(documents).filter(([_, doc]) => doc.file);
 
     if (documentEntries.length === 0) {
-      console.log('📄 No documents to upload');
       return;
     }
 
     setUploading(true);
-    console.log(`📁 Uploading ${documentEntries.length} documents...`);
 
     for (const [docType, doc] of documentEntries) {
       try {
@@ -330,11 +328,9 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
           }
         );
 
-        console.log(`✅ Document ${docType} uploaded successfully:`, response.data);
         setUploadProgress(prev => ({ ...prev, [docType]: 100 }));
 
       } catch (error) {
-        console.error(`❌ Error uploading ${docType}:`, error);
         showSnackbar(`Failed to upload ${docType}: ${error.response?.data?.message || 'Unknown error'}`, 'error');
         throw error; // Stop the process if any document fails
       }
@@ -342,7 +338,6 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
 
     setUploading(false);
     setUploadProgress({});
-    console.log('🎉 All documents uploaded successfully!');
   };
 
   const handleFileChange = (docType, file) => {

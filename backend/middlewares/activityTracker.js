@@ -24,7 +24,6 @@ const trackCounselorActivity = (activityType, description = null) => {
         await trackActivity(req.user.id, activityType, description, metadata);
       }
     } catch (error) {
-      console.error('Error tracking counselor activity:', error);
       // Don't block the request if tracking fails
     }
     
@@ -46,7 +45,7 @@ const trackLoginActivity = async (req, res, next) => {
       await trackActivity(req.user.id, 'LOGIN', `Counselor ${req.user.name} logged in`, metadata);
     }
   } catch (error) {
-    console.error('Error tracking login activity:', error);
+    // Error tracking login activity
   }
   
   next();
@@ -65,7 +64,7 @@ const trackLogoutActivity = async (req, res, next) => {
       await trackActivity(req.user.id, 'LOGOUT', `Counselor ${req.user.name} logged out`, metadata);
     }
   } catch (error) {
-    console.error('Error tracking logout activity:', error);
+    // Error tracking logout activity
   }
   
   next();
@@ -97,7 +96,7 @@ const trackSessionDuration = async (req, res, next) => {
       }
     }
   } catch (error) {
-    console.error('Error tracking session duration:', error);
+    // Error tracking session duration
   }
   
   next();

@@ -166,12 +166,12 @@ function startServer() {
       }
     }));
 
-    // Logging middleware
-    app.use(morgan('combined', {
-      stream: {
-        write: (message) => logger.info(message.trim())
-      }
-    }));
+    // Logging middleware - disabled to reduce console output
+    // app.use(morgan('combined', {
+    //   stream: {
+    //     write: (message) => logger.info(message.trim())
+    //   }
+    // }));
 
     // Performance monitoring middleware
     app.use(performanceMonitor);
@@ -469,9 +469,9 @@ function startServer() {
       // Log Redis status after server starts
       setTimeout(() => {
         if (redisConnected()) {
-          logger.info(' Redis connected successfully');
+          // Redis connected successfully
         } else {
-          logger.warn(' Redis not available - using in-memory cache fallback');
+          // Redis not available - using in-memory cache fallback
         }
       }, 1000);
 
