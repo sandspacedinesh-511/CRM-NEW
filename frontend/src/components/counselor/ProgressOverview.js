@@ -132,11 +132,14 @@ const ProgressOverview = ({ students = [], countryProgress = [] }) => {
         return studentPhaseIndex > index;
       }).length;
 
+      // Completion rate = students who completed this phase / (students in phase + students who completed)
+      const totalStudentsInOrPastPhase = studentsInPhase + studentsCompleted;
+
       return {
         ...phase,
         completed: studentsCompleted,
         inPhase: studentsInPhase,
-        completionRate: studentsInPhase > 0 ? (studentsCompleted / studentsInPhase) * 100 : 0
+        completionRate: totalStudentsInOrPastPhase > 0 ? (studentsCompleted / totalStudentsInOrPastPhase) * 100 : 0
       };
     });
 
@@ -199,11 +202,14 @@ const ProgressOverview = ({ students = [], countryProgress = [] }) => {
         })
         .reduce((sum, phaseData) => sum + phaseData.count, 0);
 
+      // Completion rate = students who completed this phase / (students in phase + students who completed)
+      const totalStudentsInOrPastPhase = studentsInPhase + studentsCompleted;
+
       return {
         ...phase,
         completed: studentsCompleted,
         inPhase: studentsInPhase,
-        completionRate: studentsInPhase > 0 ? (studentsCompleted / studentsInPhase) * 100 : 0
+        completionRate: totalStudentsInOrPastPhase > 0 ? (studentsCompleted / totalStudentsInOrPastPhase) * 100 : 0
       };
     });
 

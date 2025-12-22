@@ -1213,23 +1213,25 @@ Need help? Contact your counselor for assistance.`;
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title={student.isPaused ? "Resume Application" : "Pause Application"}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (student.isPaused) {
-                                      handlePlayStudent(student);
-                                    } else {
-                                      handlePauseStudent(student);
-                                    }
-                                  }}
-                                  disabled={pauseLoading}
-                                  sx={{
-                                    color: student.isPaused ? theme.palette.success.main : theme.palette.warning.main
-                                  }}
-                                >
-                                  {student.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
-                                </IconButton>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (student.isPaused) {
+                                        handlePlayStudent(student);
+                                      } else {
+                                        handlePauseStudent(student);
+                                      }
+                                    }}
+                                    disabled={pauseLoading}
+                                    sx={{
+                                      color: student.isPaused ? theme.palette.success.main : theme.palette.warning.main
+                                    }}
+                                  >
+                                    {student.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                               <Tooltip title="Edit Student">
                                 <IconButton

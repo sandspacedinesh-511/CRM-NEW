@@ -741,20 +741,22 @@ function TelecallerCommunication() {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Call">
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                handleCall(lead.contactNumber, {
-                                  importedTaskId: lead.id,
-                                  name: lead.name,
-                                  source: 'COMMUNICATION_PAGE'
-                                })
-                              }
-                              disabled={!lead.contactNumber}
-                              color="primary"
-                            >
-                              <PhoneIcon />
-                            </IconButton>
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleCall(lead.contactNumber, {
+                                    importedTaskId: lead.id,
+                                    name: lead.name,
+                                    source: 'COMMUNICATION_PAGE'
+                                  })
+                                }
+                                disabled={!lead.contactNumber}
+                                color="primary"
+                              >
+                                <PhoneIcon />
+                              </IconButton>
+                            </span>
                           </Tooltip>
                         </Stack>
                       </TableCell>

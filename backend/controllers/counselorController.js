@@ -397,41 +397,48 @@ exports.getDashboardStats = async (req, res) => {
     // Get country-specific phase distribution
     let countryProgress = [];
     try {
-      const countryPhaseData = await ApplicationCountry.findAll({
+      // First, get all ApplicationCountry records with their students
+      const countryData = await ApplicationCountry.findAll({
         include: [{
           model: Student,
           as: 'student',
           where: { counselorId },
-          attributes: []
+          attributes: ['id', 'currentPhase']
         }],
-        attributes: [
-          'country',
-          'currentPhase',
-          [Sequelize.fn('COUNT', Sequelize.col('ApplicationCountry.id')), 'count']
-        ],
-        group: ['country', 'currentPhase']
+        attributes: ['id', 'country']
       });
 
-      // Group by country
+      // Group by country and then by student's currentPhase
       const countryMap = {};
-      countryPhaseData.forEach(item => {
+      countryData.forEach(item => {
         const country = item.country;
-        const phase = item.currentPhase;
-        const count = parseInt(item.getDataValue('count'));
+        const studentPhase = item.student?.currentPhase;
+        
+        if (!country || !studentPhase) return; // Skip invalid entries
 
         if (!countryMap[country]) {
           countryMap[country] = {
             country: country,
             totalStudents: 0,
-            phaseDistribution: []
+            phaseDistribution: {}
           };
         }
 
-        countryMap[country].totalStudents += count;
-        countryMap[country].phaseDistribution.push({
+        countryMap[country].totalStudents += 1;
+        
+        // Count phases for this country
+        if (!countryMap[country].phaseDistribution[studentPhase]) {
+          countryMap[country].phaseDistribution[studentPhase] = 0;
+        }
+        countryMap[country].phaseDistribution[studentPhase] += 1;
+      });
+
+      // Convert phaseDistribution object to array format
+      Object.keys(countryMap).forEach(country => {
+        countryMap[country].phaseDistribution = Object.entries(countryMap[country].phaseDistribution).map(([phase, count]) => ({
           phase: phase,
           count: count
-        });
+        }));
       });
 
       // Convert to array and calculate percentages
@@ -5354,8 +5361,32 @@ exports.pauseStudent = async (req, res) => {
     });
 
     // Clear cache
-    await cacheUtils.delete(`api:counselor/students:${counselorId}*`);
-    await cacheUtils.delete(`api:counselor/dashboard:${counselorId}*`);
+    await cacheUtils.clearPattern(`api:counselor/students:${counselorId}*`);
+    await cacheUtils.clearPattern(`api:counselor/dashboard:${counselorId}*`);
+
+    // Reload student to get fresh data
+    await student.reload();
+
+    // Broadcast student status update via WebSocket for real-time updates
+    try {
+      websocketService.broadcastToRoom(`counselor:${counselorId}`, 'student_status_updated', {
+        studentId: student.id,
+        isPaused: student.isPaused,
+        pauseReason: student.pauseReason,
+        pausedAt: student.pausedAt,
+        updatedAt: student.updatedAt
+      });
+      websocketService.broadcastToRoom(`student:${student.id}`, 'student_status_updated', {
+        studentId: student.id,
+        isPaused: student.isPaused,
+        pauseReason: student.pauseReason,
+        pausedAt: student.pausedAt,
+        updatedAt: student.updatedAt
+      });
+    } catch (wsError) {
+      // Don't fail the request if WebSocket broadcast fails
+      console.error('WebSocket broadcast error:', wsError);
+    }
 
     res.json({
       success: true,
@@ -5406,10 +5437,13 @@ exports.playStudent = async (req, res) => {
       });
     }
 
+    // If student is not paused, return success (idempotent operation)
+    // This handles cases where the student was already resumed or state is out of sync
     if (!student.isPaused) {
-      return res.status(400).json({
-        success: false,
-        message: 'Student application is not paused'
+      return res.json({
+        success: true,
+        message: 'Student application is already active',
+        data: student
       });
     }
 
@@ -5430,8 +5464,32 @@ exports.playStudent = async (req, res) => {
     });
 
     // Clear cache
-    await cacheUtils.delete(`api:counselor/students:${counselorId}*`);
-    await cacheUtils.delete(`api:counselor/dashboard:${counselorId}*`);
+    await cacheUtils.clearPattern(`api:counselor/students:${counselorId}*`);
+    await cacheUtils.clearPattern(`api:counselor/dashboard:${counselorId}*`);
+
+    // Reload student to get fresh data
+    await student.reload();
+
+    // Broadcast student status update via WebSocket for real-time updates
+    try {
+      websocketService.broadcastToRoom(`counselor:${counselorId}`, 'student_status_updated', {
+        studentId: student.id,
+        isPaused: student.isPaused,
+        pauseReason: null,
+        pausedAt: null,
+        updatedAt: student.updatedAt
+      });
+      websocketService.broadcastToRoom(`student:${student.id}`, 'student_status_updated', {
+        studentId: student.id,
+        isPaused: student.isPaused,
+        pauseReason: null,
+        pausedAt: null,
+        updatedAt: student.updatedAt
+      });
+    } catch (wsError) {
+      // Don't fail the request if WebSocket broadcast fails
+      console.error('WebSocket broadcast error:', wsError);
+    }
 
     res.json({
       success: true,
