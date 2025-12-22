@@ -456,7 +456,8 @@ function startServer() {
       process.exit(1);
     }
 
-    if (securityValidation.warnings.length > 0) {
+    // Only show security warnings in production mode (suppress in development)
+    if (securityValidation.warnings.length > 0 && process.env.NODE_ENV === 'production') {
       logger.warn('  Security warnings:');
       securityValidation.warnings.forEach(warning => logger.warn(`  - ${warning}`));
     }

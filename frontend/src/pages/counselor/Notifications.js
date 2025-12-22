@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
   Chip,
   Container,
   Divider,
@@ -22,7 +21,11 @@ import {
   ListItemText,
   Stack,
   Tooltip,
-  Typography
+  Typography,
+  Tabs,
+  Tab,
+  Badge,
+  CircularProgress
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -31,9 +34,10 @@ import {
   Assignment as TaskIcon,
   Description as DocumentIcon,
   School as ApplicationIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 import axiosInstance from '../../utils/axios';
 
@@ -54,6 +58,7 @@ function CounselorNotifications() {
   const [refreshing, setRefreshing] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [acceptedNotification, setAcceptedNotification] = useState(null);
+  const [tabValue, setTabValue] = useState(0); // 0: Unread, 1: Read, 2: All
 
   const loadNotifications = async () => {
     try {
@@ -135,190 +140,303 @@ function CounselorNotifications() {
     }
   };
 
-  return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Card
+  const handleDelete = async (notificationId) => {
+    try {
+      await axiosInstance.delete(`/notifications/${notificationId}`);
+      setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  const filteredNotifications = () => {
+    switch (tabValue) {
+      case 0: // Unread
+        return notifications.filter(n => !n.isRead);
+      case 1: // Read
+        return notifications.filter(n => n.isRead);
+      case 2: // All
+        return notifications;
+      default:
+        return notifications;
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const readCount = notifications.filter(n => n.isRead).length;
+
+  if (loading) {
+    return (
+      <Box
         sx={{
-          borderRadius: 3,
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          boxShadow: `0 10px 30px ${alpha(theme.palette.common.black, 0.06)}`
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          minHeight: '70vh',
+          gap: 3
         }}
       >
-        <CardHeader
-          avatar={
-            <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-              <NotificationsIcon />
-            </Avatar>
-          }
-          title={
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Notifications
-            </Typography>
-          }
-          subheader="All updates and alerts relevant to your counseling work."
-          action={
-            <Tooltip title="Refresh">
-              <span>
-                <IconButton
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  sx={{ borderRadius: 2 }}
-                >
-                  <RefreshIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          }
-        />
-        <Divider />
-        <CardContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
+        <CircularProgress size={64} thickness={4} />
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          Loading notifications...
+        </Typography>
+      </Box>
+    );
+  }
 
-          {loading ? (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                py: 6,
-                gap: 2
-              }}
-            >
-              <NotificationsIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                Loading notifications…
+  return (
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Header Section */}
+      <Box
+        sx={{
+          mb: 4,
+          display: 'flex',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2
+        }}
+      >
+        <Box>
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              color: theme.palette.primary.main,
+              mb: 1
+            }}
+          >
+            Notifications
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 500 }}>
+            Stay updated with all your marketing activities and updates.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<RefreshIcon />}
+          onClick={handleRefresh}
+          disabled={refreshing}
+          sx={{
+            bgcolor: '#03A9F4',
+            color: 'white',
+            borderRadius: 2,
+            fontWeight: 600,
+            textTransform: 'none',
+            px: 3,
+            '&:hover': {
+              bgcolor: '#0288D1'
+            }
+          }}
+        >
+          Refresh
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Tabs Section */}
+      <Card sx={{ borderRadius: 3, mb: 3 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, newValue) => setTabValue(newValue)}
+            sx={{
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem',
+                minHeight: 64,
+                px: 3
+              },
+              '& .Mui-selected': {
+                color: theme.palette.primary.main,
+                borderBottom: `2px solid ${theme.palette.primary.main}`
+              }
+            }}
+          >
+            <Tab
+              label={
+                <Badge badgeContent={unreadCount} color="primary" sx={{ '& .MuiBadge-badge': { top: -8, right: -20 } }}>
+                  Unread
+                </Badge>
+              }
+            />
+            <Tab label="Read" />
+            <Tab label="All" />
+          </Tabs>
+        </Box>
+      </Card>
+
+      {/* Notifications List */}
+      <Card sx={{ borderRadius: 3 }}>
+        <CardContent>
+          {filteredNotifications().length === 0 ? (
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+              <NotificationsIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                No notifications found
               </Typography>
-            </Box>
-          ) : notifications.length === 0 ? (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                py: 6,
-                gap: 1
-              }}
-            >
-              <NotificationsIcon sx={{ fontSize: 40, color: theme.palette.text.disabled }} />
-              <Typography variant="body1" color="text.secondary">
-                No notifications right now.
+              <Typography variant="body2" color="text.secondary">
+                {tabValue === 0
+                  ? 'You have no unread notifications.'
+                  : tabValue === 1
+                  ? 'You have no read notifications.'
+                  : 'You have no notifications yet.'}
               </Typography>
             </Box>
           ) : (
-            <List>
-              {notifications.map((n) => (
-                <Box key={n.id || n._id || `${n.type}-${n.time}`} sx={{ mb: 1.5 }}>
-                  <ListItem
-                    alignItems="flex-start"
-                    sx={{
-                      borderRadius: 2,
-                      border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
-                      backgroundColor: n.isRead
-                        ? theme.palette.background.paper
-                        : alpha(theme.palette.primary.light, 0.08)
-                    }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar
-                        sx={{
-                          bgcolor:
-                            n.type === 'application'
-                              ? theme.palette.success.main
-                              : n.type === 'document'
-                                ? theme.palette.info.main
-                                : theme.palette.warning.main
-                        }}
-                      >
-                        {typeIconMap[n.type] || <NotificationsIcon />}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            <List sx={{ px: 0 }}>
+              {filteredNotifications().map((n, index) => {
+                const isUnread = !n.isRead;
+                const notificationDate = n.timestamp
+                  ? new Date(n.timestamp)
+                  : n.createdAt
+                    ? new Date(n.createdAt)
+                    : null;
+
+                return (
+                  <Box key={n.id || n._id || `${n.type}-${n.time}`}>
+                    <ListItem
+                      sx={{
+                        alignItems: 'flex-start',
+                        px: 2,
+                        py: 2.5,
+                        backgroundColor: isUnread
+                          ? alpha(theme.palette.primary.main, 0.05)
+                          : 'transparent',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                        }
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar
+                          sx={{
+                            bgcolor: '#4CAF50',
+                            color: 'white',
+                            width: 48,
+                            height: 48
+                          }}
+                        >
+                          {typeIconMap[n.type] || <ApplicationIcon />}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              fontWeight: isUnread ? 700 : 600,
+                              mb: 0.5,
+                              color: 'text.primary'
+                            }}
+                          >
                             {n.title || 'Notification'}
                           </Typography>
-                          {n.priority && (
-                            <Chip
-                              size="small"
-                              label={n.priority.toUpperCase()}
-                              color={
-                                n.priority === 'high'
-                                  ? 'error'
-                                  : n.priority === 'medium'
-                                    ? 'warning'
-                                    : 'default'
-                              }
-                              variant="outlined"
-                            />
-                          )}
-                        </Stack>
-                      }
-                      secondary={
-                        <>
-                          <Typography component="span" variant="body2" color="text.secondary">
-                            {n.message}
-                          </Typography>
-                          <Typography component="span" variant="caption" color="text.disabled" sx={{ display: 'block' }}>
-                            {n.time
-                              ? n.time
-                              : n.timestamp
-                                ? formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })
-                                : n.createdAt
-                                  ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })
-                                  : ''}
-                          </Typography>
-                          {n.type === 'lead_assignment' && !n.isRead && (
-                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="primary"
-                                sx={{ textTransform: 'none', borderRadius: 2 }}
-                                onClick={() => handleAcceptAssignment(n)}
+                        }
+                        secondary={
+                          <>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              component="span" 
+                              sx={{ display: 'block', mb: 1 }}
+                            >
+                              {n.message}
+                            </Typography>
+                            {notificationDate && (
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary" 
+                                component="span" 
+                                sx={{ display: 'block' }}
                               >
-                                Accept Lead
-                              </Button>
-                              {n.sharedLeadId && (
+                                {format(notificationDate, 'MMM d, yyyy, h:mm a')} (
+                                {formatDistanceToNow(notificationDate, { addSuffix: true })})
+                              </Typography>
+                            )}
+                            {n.type === 'lead_assignment' && !n.isRead && (
+                              <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                                 <Button
                                   size="small"
-                                  variant="outlined"
-                                  color="error"
+                                  variant="contained"
+                                  color="primary"
                                   sx={{ textTransform: 'none', borderRadius: 2 }}
-                                  onClick={() => handleRejectAssignment(n)}
+                                  onClick={() => handleAcceptAssignment(n)}
                                 >
-                                  Reject
+                                  Accept Lead
                                 </Button>
-                              )}
-                            </Stack>
-                          )}
-                        </>
-                      }
-                      secondaryTypographyProps={{ component: 'div' }}
-                    />
-                  </ListItem>
-                </Box>
-              ))}
+                                {n.sharedLeadId && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    sx={{ textTransform: 'none', borderRadius: 2 }}
+                                    onClick={() => handleRejectAssignment(n)}
+                                  >
+                                    Reject
+                                  </Button>
+                                )}
+                              </Stack>
+                            )}
+                          </>
+                        }
+                        secondaryTypographyProps={{ component: 'div' }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ ml: 2 }}>
+                        {n.priority && (
+                          <Chip
+                            label={n.priority}
+                            size="small"
+                            sx={{
+                              bgcolor: n.priority === 'high'
+                                ? theme.palette.error.main
+                                : n.priority === 'medium'
+                                  ? '#FFC107'
+                                  : theme.palette.grey[400],
+                              color: n.priority === 'high' || n.priority === 'medium' ? 'white' : 'text.primary',
+                              fontWeight: 600,
+                              height: 24,
+                              fontSize: '0.75rem',
+                              borderRadius: '12px'
+                            }}
+                          />
+                        )}
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(n.id || n._id)}
+                            sx={{
+                              bgcolor: alpha(theme.palette.error.main, 0.1),
+                              color: theme.palette.error.main,
+                              width: 32,
+                              height: 32,
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.error.main, 0.2)
+                              }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </ListItem>
+                    {index !== filteredNotifications().length - 1 && (
+                      <Divider component="li" sx={{ mx: 2 }} />
+                    )}
+                  </Box>
+                );
+              })}
             </List>
           )}
-
-          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
-            <Button
-              variant="outlined"
-              size="small"
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing…' : 'Refresh'}
-            </Button>
-          </Stack>
         </CardContent>
       </Card>
 

@@ -176,20 +176,24 @@ const performanceLogger = {
   },
 
   logCacheOperation: (operation, key, hit, duration = null) => {
-    logger.info('Cache Operation', {
-      operation,
-      key,
-      hit,
-      duration: duration ? `${duration.toFixed(2)}ms` : undefined
-    });
+    // Only log cache operations in debug mode to reduce console noise
+    // Uncomment the line below if you need to debug cache operations
+    // logger.debug('Cache Operation', {
+    //   operation,
+    //   key,
+    //   hit,
+    //   duration: duration ? `${duration.toFixed(2)}ms` : undefined
+    // });
   },
 
   logWebSocketEvent: (event, userId, data = {}) => {
-    logger.info('WebSocket Event', {
-      event,
-      userId,
-      dataSize: JSON.stringify(data).length
-    });
+    // Only log WebSocket events in debug mode to reduce console noise
+    // Uncomment the line below if you need to debug WebSocket events
+    // logger.debug('WebSocket Event', {
+    //   event,
+    //   userId,
+    //   dataSize: JSON.stringify(data).length
+    // });
   },
 
   logRealTimeUpdate: (type, entityId, userId, changes = {}) => {

@@ -362,6 +362,8 @@ class WebSocketService {
   // Send lead status update (when lead is assigned/accepted)
   async sendLeadStatusUpdate(userId, leadStatusData) {
     this.broadcastToUser(userId, 'lead_status_update', leadStatusData);
+    // Also broadcast to all admins so any admin viewing lead lists can see the update
+    this.broadcastToRoom('admin:all', 'lead_status_update', leadStatusData);
     performanceLogger.logWebSocketEvent('lead_status_update', userId, {
       dataSize: JSON.stringify(leadStatusData).length
     });
