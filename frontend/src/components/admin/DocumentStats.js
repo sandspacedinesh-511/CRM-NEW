@@ -18,7 +18,7 @@ import {
   Error as ErrorIcon,
   Pending as PendingIcon
 } from '@mui/icons-material';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -84,7 +84,7 @@ const DocumentStats = ({ data }) => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -100,6 +100,7 @@ const DocumentStats = ({ data }) => {
                     borderRadius: 8
                   }}
                 />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
