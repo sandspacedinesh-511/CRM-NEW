@@ -1780,8 +1780,38 @@ function StudentDetails() {
       }
     });
 
+    // Listen for student status update events (pause/resume)
+    const cleanupStatusUpdate = onEvent('student_status_updated', (statusData) => {
+      console.log('📡 Status update received via WebSocket:', statusData);
+
+      // Only process updates for the current student
+      if (statusData.studentId && statusData.studentId !== parseInt(id)) {
+        return;
+      }
+
+      // Update student state immediately
+      setStudent(prev => prev ? {
+        ...prev,
+        isPaused: statusData.isPaused,
+        pauseReason: statusData.pauseReason,
+        pausedAt: statusData.pausedAt,
+        updatedAt: statusData.updatedAt || new Date().toISOString()
+      } : prev);
+
+      // Show snackbar notification
+      if (statusData.isPaused) {
+        showSnackbar('Student application paused', 'warning');
+      } else {
+        showSnackbar('Student application resumed', 'success');
+      }
+
+      // Refresh to get complete data
+      fetchStudentDetails();
+    });
+
     return () => {
       cleanupPhaseUpdate?.();
+      cleanupStatusUpdate?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, user?.id, id, onEvent, joinRoom]);
@@ -1829,11 +1859,23 @@ function StudentDetails() {
   const handlePlayStudent = async () => {
     try {
       setPauseLoading(true);
+      
+      // Optimistically update the UI immediately
+      setStudent(prev => prev ? {
+        ...prev,
+        isPaused: false,
+        pauseReason: null,
+        pausedAt: null
+      } : prev);
+
       await axiosInstance.post(`/counselor/students/${id}/play`);
       showSnackbar('Student application resumed successfully!', 'success');
+      // Refresh to ensure data consistency (WebSocket will also update, but this ensures sync)
       fetchStudentDetails();
     } catch (error) {
       console.error('Error resuming student:', error);
+      // Revert optimistic update on error
+      fetchStudentDetails();
       showSnackbar(error.response?.data?.message || 'Failed to resume student application. Please try again.', 'error');
     } finally {
       setPauseLoading(false);
@@ -1848,16 +1890,31 @@ function StudentDetails() {
 
     try {
       setPauseLoading(true);
-      await axiosInstance.post(`/counselor/students/${id}/pause`, {
-        reason: pauseReason.trim()
-      });
-      showSnackbar('Student application paused successfully!', 'success');
+      const reasonText = pauseReason.trim();
+      
+      // Optimistically update the UI immediately
+      setStudent(prev => prev ? {
+        ...prev,
+        isPaused: true,
+        pauseReason: reasonText,
+        pausedAt: new Date().toISOString()
+      } : prev);
+
       setPauseDialogOpen(false);
       setPauseReason('');
+
+      await axiosInstance.post(`/counselor/students/${id}/pause`, {
+        reason: reasonText
+      });
+      
+      showSnackbar('Student application paused successfully!', 'success');
+      // Refresh to ensure data consistency (WebSocket will also update, but this ensures sync)
       fetchStudentDetails();
     } catch (error) {
       console.error('Error pausing student:', error);
       console.error('Error response:', error.response?.data);
+      // Revert optimistic update on error
+      fetchStudentDetails();
       const errorMessage = error.response?.data?.message || error.message || 'Failed to pause student application. Please try again.';
       showSnackbar(errorMessage, 'error');
     } finally {
@@ -2719,22 +2776,24 @@ function StudentDetails() {
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title={student?.isPaused ? "Resume Application" : "Pause Application"}>
-              <IconButton
-                onClick={student?.isPaused ? handlePlayStudent : handlePauseStudent}
-                disabled={pauseLoading}
-                sx={{
-                  bgcolor: student?.isPaused ? 'success.main' : 'warning.main',
-                  color: 'white',
-                  '&:hover': { 
-                    bgcolor: student?.isPaused ? 'success.dark' : 'warning.dark' 
-                  },
-                  '&:disabled': {
-                    bgcolor: 'grey.300'
-                  }
-                }}
-              >
-                {student?.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
-              </IconButton>
+              <span>
+                <IconButton
+                  onClick={student?.isPaused ? handlePlayStudent : handlePauseStudent}
+                  disabled={pauseLoading}
+                  sx={{
+                    bgcolor: student?.isPaused ? 'success.main' : 'warning.main',
+                    color: 'white',
+                    '&:hover': { 
+                      bgcolor: student?.isPaused ? 'success.dark' : 'warning.dark' 
+                    },
+                    '&:disabled': {
+                      bgcolor: 'grey.300'
+                    }
+                  }}
+                >
+                  {student?.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title="Edit Student">
               <IconButton
@@ -3163,26 +3222,35 @@ function StudentDetails() {
               >
                 Export All
               </Button>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => {
-                  setUploadPhaseInfo(null);
-                  setFilteredDocumentTypes(DOCUMENT_TYPES);
-                  setUploadData(prev => ({ ...prev, type: '' }));
-                  setOpenUploadDialog(true);
-                }}
-                sx={{
-                  borderRadius: 2,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
-                  '&:hover': {
-                    boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
-                  }
-                }}
-              >
-                Upload Document
-              </Button>
+              <Tooltip title={student?.isPaused ? "Cannot upload documents while student is paused. Please resume the student first." : "Upload Document"}>
+                <span style={{ display: 'inline-block' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      setUploadPhaseInfo(null);
+                      setFilteredDocumentTypes(DOCUMENT_TYPES);
+                      setUploadData(prev => ({ ...prev, type: '' }));
+                      setOpenUploadDialog(true);
+                    }}
+                    disabled={student?.isPaused}
+                    sx={{
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                      '&:hover': {
+                        boxShadow: '0 6px 20px rgba(33, 150, 243, 0.4)',
+                      },
+                      '&:disabled': {
+                        background: theme.palette.action.disabledBackground,
+                        boxShadow: 'none'
+                      }
+                    }}
+                  >
+                    Upload Document
+                  </Button>
+                </span>
+              </Tooltip>
             </Box>
           </Box>
 

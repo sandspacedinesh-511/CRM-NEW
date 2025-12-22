@@ -1,5 +1,5 @@
 const Redis = require('ioredis');
-const logger = require('../utils/logger');
+const { logger } = require('../utils/logger');
 
 const redisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -67,6 +67,78 @@ try {
 }
 
 const memoryCache = new Map();
+const MAX_MEMORY_CACHE_SIZE = 1000; // Maximum number of entries in memory cache
+const MEMORY_CACHE_CLEANUP_INTERVAL = 60000; // Clean up expired entries every 60 seconds
+
+// Cleanup expired entries from memory cache
+const cleanupMemoryCache = () => {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [key, cached] of memoryCache.entries()) {
+    if (now > cached.expiry) {
+      memoryCache.delete(key);
+      cleaned++;
+    }
+  }
+  
+  // If cache is still too large, remove oldest entries
+  if (memoryCache.size > MAX_MEMORY_CACHE_SIZE) {
+    const entries = Array.from(memoryCache.entries())
+      .sort((a, b) => a[1].expiry - b[1].expiry); // Sort by expiry time
+    
+    const toRemove = memoryCache.size - MAX_MEMORY_CACHE_SIZE;
+    for (let i = 0; i < toRemove; i++) {
+      memoryCache.delete(entries[i][0]);
+    }
+    
+    if (toRemove > 0) {
+      logger.warn(`Memory cache exceeded limit, removed ${toRemove} oldest entries`);
+    }
+  }
+  
+  if (cleaned > 0) {
+    // Use info level instead of debug since debug may not be available in all logger configurations
+    logger.info(`Cleaned up ${cleaned} expired cache entries`);
+  }
+};
+
+// Start periodic cleanup (store reference for potential cleanup)
+let cleanupIntervalId = null;
+const startCleanupInterval = () => {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+  }
+  cleanupIntervalId = setInterval(cleanupMemoryCache, MEMORY_CACHE_CLEANUP_INTERVAL);
+};
+
+// Start cleanup interval
+startCleanupInterval();
+
+// Export function to get memory cache stats (for monitoring)
+const getMemoryCacheStats = () => {
+  const now = Date.now();
+  let expiredCount = 0;
+  let totalSize = 0;
+  
+  for (const cached of memoryCache.values()) {
+    try {
+      totalSize += JSON.stringify(cached.value).length;
+    } catch (e) {
+      // Skip if value can't be serialized (e.g., circular references)
+    }
+    if (now > cached.expiry) {
+      expiredCount++;
+    }
+  }
+  
+  return {
+    size: memoryCache.size,
+    expiredCount,
+    totalSizeBytes: totalSize,
+    totalSizeMB: (totalSize / 1024 / 1024).toFixed(2)
+  };
+};
 
 const cacheUtils = {
   async set(key, value, ttl = 300) {
@@ -76,6 +148,11 @@ const cacheUtils = {
         await redis.setex(key, ttl, serializedValue);
         return true;
       } else {
+        // Cleanup before adding new entry if cache is getting large
+        if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
+          cleanupMemoryCache();
+        }
+        
         memoryCache.set(key, {
           value,
           expiry: Date.now() + (ttl * 1000)
@@ -84,6 +161,11 @@ const cacheUtils = {
       }
     } catch (error) {
       logger.error('Cache set error:', error);
+      // Cleanup before adding new entry if cache is getting large
+      if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
+        cleanupMemoryCache();
+      }
+      
       memoryCache.set(key, {
         value,
         expiry: Date.now() + (ttl * 1000)
@@ -143,12 +225,21 @@ const cacheUtils = {
           await redis.del(...keys);
         }
       } else {
-        memoryCache.clear();
+        // Clear entries matching pattern from memory cache
+        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+        for (const key of memoryCache.keys()) {
+          if (regex.test(key)) {
+            memoryCache.delete(key);
+          }
+        }
       }
       return true;
     } catch (error) {
       logger.error('Cache clear pattern error:', error);
-      memoryCache.clear();
+      // Fallback: clear all if pattern matching fails
+      if (memoryCache.size > MAX_MEMORY_CACHE_SIZE) {
+        memoryCache.clear();
+      }
       return true;
     }
   },
@@ -276,5 +367,6 @@ const cacheUtils = {
 module.exports = {
   redis,
   cacheUtils,
-  redisConnected: () => redisConnected
+  redisConnected: () => redisConnected,
+  getMemoryCacheStats
 };

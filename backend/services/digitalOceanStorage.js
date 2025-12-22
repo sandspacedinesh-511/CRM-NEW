@@ -1,4 +1,6 @@
-const AWS = require('aws-sdk');
+const { S3Client, DeleteObjectCommand, HeadObjectCommand, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { Upload } = require('@aws-sdk/lib-storage');
 
 class DigitalOceanStorageService {
   constructor() {
@@ -11,20 +13,25 @@ class DigitalOceanStorageService {
       throw new Error(errorMessage);
     }
     
-    // Configure AWS SDK for DigitalOcean Spaces
+    // Configure AWS SDK v3 for DigitalOcean Spaces
     // Allow missing endpoint in development by falling back to a safe default
-    const endpointUrl = process.env.DO_SPACES_ENDPOINT || 'nyc3.digitaloceanspaces.com';
-    const spacesEndpoint = new AWS.Endpoint(endpointUrl);
+    // Ensure endpoint has https:// protocol
+    const rawEndpoint = process.env.DO_SPACES_ENDPOINT || 'nyc3.digitaloceanspaces.com';
+    const endpointUrl = rawEndpoint.startsWith('http') ? rawEndpoint : `https://${rawEndpoint}`;
     
-    this.s3 = new AWS.S3({
-      endpoint: spacesEndpoint,
-      accessKeyId: process.env.DO_SPACES_KEY,
-      secretAccessKey: process.env.DO_SPACES_SECRET,
-      region: process.env.DO_SPACES_REGION
+    this.endpointUrl = endpointUrl;
+    this.s3Client = new S3Client({
+      endpoint: endpointUrl,
+      region: process.env.DO_SPACES_REGION || 'us-east-1',
+      forcePathStyle: false, // DigitalOcean Spaces uses virtual-hosted-style
+      credentials: {
+        accessKeyId: process.env.DO_SPACES_KEY,
+        secretAccessKey: process.env.DO_SPACES_SECRET
+      }
     });
     
     this.bucket = process.env.DO_SPACES_BUCKET;
-    this.region = process.env.DO_SPACES_REGION;
+    this.region = process.env.DO_SPACES_REGION || 'us-east-1';
     
     if (missingVars.length > 0) {
     } else {
@@ -52,12 +59,22 @@ class DigitalOceanStorageService {
         Bucket: this.bucket,
         Key: key,
         Body: file.buffer,
-        ContentType: file.mimetype,
-        ACL: 'private' // Keep files private for security
+        ContentType: file.mimetype
       };
-      const result = await this.s3.upload(uploadParams).promise();
+
+      // Use Upload from @aws-sdk/lib-storage for multipart uploads
+      const upload = new Upload({
+        client: this.s3Client,
+        params: uploadParams
+      });
+
+      await upload.done();
+      
+      // Construct URL manually for DigitalOcean Spaces
+      const url = `${this.endpointUrl}/${this.bucket}/${key}`;
+      
       return {
-        url: result.Location,
+        url: url,
         key: key,
         bucket: this.bucket,
         region: this.region
@@ -74,13 +91,12 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new GetObjectCommand({
         Bucket: this.bucket,
-        Key: key,
-        Expires: expiresIn // URL expires in specified seconds
-      };
+        Key: key
+      });
 
-      const url = await this.s3.getSignedUrlPromise('getObject', params);
+      const url = await getSignedUrl(this.s3Client, command, { expiresIn });
       return url;
     } catch (error) {
       throw new Error(`Failed to generate file URL: ${error.message}`);
@@ -94,12 +110,12 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new DeleteObjectCommand({
         Bucket: this.bucket,
         Key: key
-      };
+      });
 
-      await this.s3.deleteObject(params).promise();
+      await this.s3Client.send(command);
       return true;
     } catch (error) {
       throw new Error(`Failed to delete file: ${error.message}`);
@@ -113,15 +129,15 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new HeadObjectCommand({
         Bucket: this.bucket,
         Key: key
-      };
+      });
 
-      await this.s3.headObject(params).promise();
+      await this.s3Client.send(command);
       return true;
     } catch (error) {
-      if (error.statusCode === 404) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
         return false;
       }
       throw error;
@@ -135,12 +151,12 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new HeadObjectCommand({
         Bucket: this.bucket,
         Key: key
-      };
+      });
 
-      const result = await this.s3.headObject(params).promise();
+      const result = await this.s3Client.send(command);
 
       return {
         size: result.ContentLength,
@@ -149,7 +165,7 @@ class DigitalOceanStorageService {
         etag: result.ETag
       };
     } catch (error) {
-      if (error.statusCode === 404) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
         return null;
       }
       throw error;
@@ -163,13 +179,13 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new ListObjectsV2Command({
         Bucket: this.bucket,
         Prefix: folder,
         MaxKeys: maxKeys
-      };
+      });
 
-      const result = await this.s3.listObjects(params).promise();
+      const result = await this.s3Client.send(command);
       return result.Contents || [];
     } catch (error) {
       throw new Error(`Failed to list files: ${error.message}`);
@@ -183,13 +199,18 @@ class DigitalOceanStorageService {
         throw new Error('DO_SPACES_BUCKET environment variable is not set');
       }
 
-      const params = {
+      const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: key
-      };
+      });
 
-      const result = await this.s3.getObject(params).promise();
-      return result.Body;
+      const result = await this.s3Client.send(command);
+      // Convert stream to buffer for consistency with v2 API
+      const chunks = [];
+      for await (const chunk of result.Body) {
+        chunks.push(chunk);
+      }
+      return Buffer.concat(chunks);
     } catch (error) {
       throw new Error(`Failed to download file: ${error.message}`);
     }

@@ -2672,38 +2672,47 @@ const StudentProgressBar = ({
                         return shouldShow;
                       })() && (
                           <Box sx={{ mt: 1.5 }}>
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<CloudUploadIcon />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Get current country for document filtering
-                                const currentCountry = propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
-                                onUploadDocuments({
-                                  phaseKey: phase.key,
-                                  phaseLabel: phase.label,
-                                  country: currentCountry,
-                                  requiredDocs: phase.requiredDocs,
-                                  missingDocs: phase.missingDocs || []
-                                });
-                              }}
-                              sx={{
-                                width: '100%',
-                                fontSize: '0.75rem',
-                                py: 0.5,
-                                backgroundColor: phase.color,
-                                '&:hover': {
-                                  backgroundColor: phase.color,
-                                  opacity: 0.9
-                                }
-                              }}
-                            >
-                              {phase.missingDocs && phase.missingDocs.length > 0
-                                ? `Upload Documents (${phase.missingDocs.length} missing)`
-                                : 'Upload Documents'
-                              }
-                            </Button>
+                            <Tooltip title={student?.isPaused ? "Cannot upload documents while student is paused. Please resume the student first." : ""}>
+                              <span style={{ display: 'inline-block', width: '100%' }}>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  startIcon={<CloudUploadIcon />}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Get current country for document filtering
+                                    const currentCountry = propSelectedCountry || selectedCountry || (countryProfiles.length > 0 ? countryProfiles[0].country : null);
+                                    onUploadDocuments({
+                                      phaseKey: phase.key,
+                                      phaseLabel: phase.label,
+                                      country: currentCountry,
+                                      requiredDocs: phase.requiredDocs,
+                                      missingDocs: phase.missingDocs || []
+                                    });
+                                  }}
+                                  disabled={student?.isPaused}
+                                  sx={{
+                                    width: '100%',
+                                    fontSize: '0.75rem',
+                                    py: 0.5,
+                                    backgroundColor: phase.color,
+                                    '&:hover': {
+                                      backgroundColor: phase.color,
+                                      opacity: student?.isPaused ? 1 : 0.9
+                                    },
+                                    '&:disabled': {
+                                      backgroundColor: theme.palette.action.disabledBackground,
+                                      color: theme.palette.action.disabled
+                                    }
+                                  }}
+                                >
+                                  {phase.missingDocs && phase.missingDocs.length > 0
+                                    ? `Upload Documents (${phase.missingDocs.length} missing)`
+                                    : 'Upload Documents'
+                                  }
+                                </Button>
+                              </span>
+                            </Tooltip>
                           </Box>
                         )}
                     </CardContent>
