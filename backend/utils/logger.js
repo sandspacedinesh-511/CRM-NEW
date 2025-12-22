@@ -1,5 +1,4 @@
 const winston = require('winston');
-const winston = require('winston');
 const Transport = require('winston-transport');
 const { SystemLog } = require('../models');
 
