@@ -58,13 +58,24 @@ class DatabaseTransport extends Transport {
     delete meta.message;
     delete meta.timestamp;
 
+    // Parse timestamp to ensure it's a valid Date object
+    let timestamp = new Date();
+    if (info.timestamp) {
+      // If timestamp is a string, parse it; otherwise use it if it's already a Date
+      const parsedDate = typeof info.timestamp === 'string' ? new Date(info.timestamp) : info.timestamp;
+      // Only use parsed date if it's valid
+      if (parsedDate instanceof Date && !isNaN(parsedDate.getTime())) {
+        timestamp = parsedDate;
+      }
+    }
+
     // Create log entry in database
     SystemLog.create({
       level: info.level,
       type: this.type,
       message: info.message,
       meta: Object.keys(meta).length > 0 ? meta : null,
-      timestamp: info.timestamp || new Date()
+      timestamp: timestamp
     }).catch(err => {
       console.error('Error saving log to database:', err);
     });
