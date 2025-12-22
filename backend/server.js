@@ -447,8 +447,12 @@ function startServer() {
     // Validate environment security before starting server
     const securityValidation = validateEnvironmentSecurity();
     if (!securityValidation.isValid) {
+      console.error('CRITICAL: Security validation failed'); // Added debug log
       logger.error(' Security validation failed:');
-      securityValidation.errors.forEach(error => logger.error(`  - ${error}`));
+      securityValidation.errors.forEach(error => {
+        console.error(`Validation Error: ${error}`); // Added debug log
+        logger.error(`  - ${error}`);
+      });
       process.exit(1);
     }
 

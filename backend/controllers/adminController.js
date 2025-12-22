@@ -62,7 +62,7 @@ exports.getDashboardStats = async (req, res) => {
     const activeApplications = await Student.count({
       where: { currentPhase: { [Op.not]: 'DOCUMENT_COLLECTION' } }
     });
-    
+
     // Count completed students (status = 'COMPLETED') for success rate calculation
     const completedStudentsCount = await Student.count({
       where: { status: 'COMPLETED' }
@@ -685,12 +685,12 @@ exports.getCounselors = async (req, res) => {
       const pendingApplications = students.filter(
         student => student.status === 'ACTIVE'
       ).length;
-      
+
       // Calculate success rate: (completed students / total students) * 100
       const successRate = totalStudents > 0
         ? Math.round((completedStudents / totalStudents) * 100)
         : 0;
-      
+
       return {
         id: counselor.id,
         name: counselor.name,
@@ -2334,7 +2334,7 @@ exports.getStudents = async (req, res) => {
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
 
-    const { search, phase, status, counselorId, page = 1, limit = 10 } = req.query;
+    const { search, phase, status, counselorId, startDate, endDate, page = 1, limit = 10 } = req.query;
 
     const where = {};
     if (search) {
@@ -2352,6 +2352,14 @@ exports.getStudents = async (req, res) => {
     }
     if (counselorId && counselorId !== '') {
       where.counselorId = parseInt(counselorId) || counselorId;
+    }
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end day
+      where.createdAt = {
+        [Op.between]: [start, end]
+      };
     }
 
     // Get table name for ApplicationCountry

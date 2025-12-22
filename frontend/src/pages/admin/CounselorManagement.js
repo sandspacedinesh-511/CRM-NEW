@@ -779,11 +779,11 @@ function CounselorManagement() {
                 </TableCell>
                 <TableCell>
                   <TableSortLabel
-                    active={orderBy === 'rating'}
-                    direction={orderBy === 'rating' ? order : 'asc'}
-                    onClick={() => handleSort('rating')}
+                    active={orderBy === 'completedStudents'}
+                    direction={orderBy === 'completedStudents' ? order : 'asc'}
+                    onClick={() => handleSort('completedStudents')}
                   >
-                    Rating
+                    Completed Students
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Status</TableCell>
@@ -912,9 +912,9 @@ function CounselorManagement() {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <StarIcon sx={{ color: 'warning.main', fontSize: 16 }} />
-                            <Typography variant="body2">
-                              {counselor.rating || 'N/A'}
+                            <SchoolIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                              {counselor.completedStudents || 0}
                             </Typography>
                           </Box>
                         </TableCell>

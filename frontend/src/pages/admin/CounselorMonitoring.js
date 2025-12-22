@@ -169,6 +169,10 @@ function CounselorMonitoring() {
   const [selectedCounselorId, setSelectedCounselorId] = useState('');
   const [selectedActivityType, setSelectedActivityType] = useState('');
 
+  // Student list filters in details dialog
+  const [studentStartDate, setStudentStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [studentEndDate, setStudentEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
   // Real-time updates
   const [realTimeActivities, setRealTimeActivities] = useState([]);
   const [realTimeLoading, setRealTimeLoading] = useState(false);
@@ -220,7 +224,7 @@ function CounselorMonitoring() {
       const response = await axiosInstance.get(`/admin/counselor-monitoring/${counselorId}?${params}`);
       setCounselorDetails(response.data.data);
       setDetailsDialogOpen(true);
-      
+
       // Fetch students for this counselor
       await fetchStudentsForCounselor(counselorId);
     } catch (error) {
@@ -237,10 +241,12 @@ function CounselorMonitoring() {
       const response = await axiosInstance.get('/admin/students', {
         params: {
           counselorId,
+          startDate: studentStartDate,
+          endDate: studentEndDate,
           limit: 100
         }
       });
-      
+
       if (response.data.success) {
         setStudents(response.data.data.students || []);
       }
@@ -280,6 +286,14 @@ function CounselorMonitoring() {
     fetchMonitoringData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, selectedCounselorId, selectedActivityType]);
+
+  // Refresh students when student list filters change
+  useEffect(() => {
+    if (selectedCounselor) {
+      fetchStudentsForCounselor(selectedCounselor.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentStartDate, studentEndDate]);
 
   useEffect(() => {
     fetchRealTimeActivities();
@@ -875,7 +889,45 @@ function CounselorMonitoring() {
 
                 <Divider sx={{ my: 2 }} />
 
-                <Typography variant="h6" sx={{ mb: 2 }}>Students</Typography>
+                <Divider sx={{ my: 2 }} />
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                  <Typography variant="h6">Students</Typography>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <TextField
+                      type="date"
+                      label="From"
+                      value={studentStartDate}
+                      onChange={(e) => setStudentStartDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      sx={{ width: 150 }}
+                    />
+                    <TextField
+                      type="date"
+                      label="To"
+                      value={studentEndDate}
+                      onChange={(e) => setStudentEndDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      sx={{ width: 150 }}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Filter Summary */}
+                <Card sx={{ mb: 3, bgcolor: alpha(theme.palette.primary.main, 0.05), border: '1px dashed ' + alpha(theme.palette.primary.main, 0.3) }} variant="outlined">
+                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Students in range: <Box component="span" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '1.1em' }}>{students.length}</Box>
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Total Applications in range: <Box component="span" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '1.1em' }}>{students.reduce((acc, curr) => acc + (curr.applications?.length || 0), 0)}</Box>
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
                 {studentsLoading ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                     <CircularProgress size={24} />

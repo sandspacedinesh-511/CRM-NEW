@@ -47,11 +47,11 @@ exports.uploadDocument = async (req, res) => {
     // Get studentId from route parameter or body
     const studentId = req.params.id || req.body.studentId;
     const { type, description, expiryDate, issueDate, issuingAuthority, documentNumber, countryOfIssue, remarks, priority } = req.body;
-    
+
     // Validate and normalize priority value
     const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-    const normalizedPriority = priority && validPriorities.includes(priority.toUpperCase()) 
-      ? priority.toUpperCase() 
+    const normalizedPriority = priority && validPriorities.includes(priority.toUpperCase())
+      ? priority.toUpperCase()
       : 'MEDIUM';
 
     // Verify student belongs to counselor
@@ -114,15 +114,26 @@ exports.uploadDocument = async (req, res) => {
       // Digital Ocean is configured, proceed with real upload
       const storageServiceInstance = new DigitalOceanStorageService();
       try {
+        console.log('Attempting upload to DigitalOcean Spaces...');
         uploadResult = await storageServiceInstance.uploadFile(req.file, 'documents');
+        console.log('Upload to DigitalOcean Spaces successful:', uploadResult);
       } catch (storageError) {
         console.error('❌ DigitalOcean Spaces upload failed:', storageError);
+        console.error('Stack:', storageError.stack);
 
         // In non-production, gracefully fall back to local storage if bucket/credentials are misconfigured
-        if (process.env.NODE_ENV !== 'production' && (storageError.code === 'NoSuchBucket' || storageError.message?.includes('NoSuchBucket'))) {
-          console.warn('⚠️ Falling back to local file storage due to missing DigitalOcean bucket (non-production only).');
-          uploadResult = await useLocalStorage();
+        // OR if there is ANY error in development mode
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('⚠️ Falling back to local file storage due to DigitalOcean error (non-production only).');
+          try {
+            uploadResult = await useLocalStorage();
+            console.log('Fallback to local storage successful:', uploadResult);
+          } catch (localError) {
+            console.error('❌ Local storage fallback also failed:', localError);
+            throw new Error('Both cloud and local storage uploads failed.');
+          }
         } else {
+          // In production, rethrow the error
           throw storageError;
         }
       }
@@ -145,9 +156,9 @@ exports.uploadDocument = async (req, res) => {
       'IPA_LETTER', 'MEDICAL_REPORT', 'STUDENT_VISA_APPROVAL', 'MEDICAL_TEST',
       'EMIRATES_ID_APPLICATION', 'OTHER'
     ];
-    
+
     const normalizedType = type && validTypes.includes(type) ? type : 'OTHER';
-    
+
     // Save document record to database
     const document = await Document.create({
       name: req.file.originalname,

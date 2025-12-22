@@ -44,13 +44,13 @@ const format = winston.format.combine(
 const transports = [
   // Console transport - only log warnings and errors
   new winston.transports.Console({
-    level: 'warn', // Only show warnings and errors in console
+    level: process.env.NODE_ENV === 'development' ? 'info' : 'warn',
     format: winston.format.combine(
       winston.format.colorize(),
       winston.format.simple()
     )
   }),
-  
+
   // Error log file
   new DailyRotateFile({
     filename: path.join(__dirname, '../logs/error-%DATE%.log'),
@@ -63,7 +63,7 @@ const transports = [
       winston.format.json()
     )
   }),
-  
+
   // Combined log file
   new DailyRotateFile({
     filename: path.join(__dirname, '../logs/combined-%DATE%.log'),
@@ -75,7 +75,7 @@ const transports = [
       winston.format.json()
     )
   }),
-  
+
   // Real-time operations log
   new DailyRotateFile({
     filename: path.join(__dirname, '../logs/realtime-%DATE%.log'),
@@ -88,7 +88,7 @@ const transports = [
       winston.format.json()
     )
   }),
-  
+
   // Performance log
   new DailyRotateFile({
     filename: path.join(__dirname, '../logs/performance-%DATE%.log'),
@@ -139,7 +139,7 @@ const performanceLogger = {
     } else {
       queryString = String(query);
     }
-    
+
     logger.info('Database Query', {
       query: queryString.substring(0, 200) + (queryString.length > 200 ? '...' : ''),
       duration: `${duration.toFixed(2)}ms`,

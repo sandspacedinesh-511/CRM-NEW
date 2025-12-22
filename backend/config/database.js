@@ -12,6 +12,7 @@ if (process.env.NODE_ENV === 'production') {
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
+  console.error('CRITICAL: Missing required environment variables for database:', missingVars);
   process.exit(1);
 }
 
@@ -25,7 +26,7 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false, // Disable SQL query logging
-    
+
     // SSL Configuration for production
     dialectOptions: {
       ssl: process.env.DB_SSL === 'true' ? {
@@ -33,7 +34,7 @@ const sequelize = new Sequelize(
         rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
       } : false
     },
-    
+
     // Enhanced connection pool for production
     pool: {
       max: parseInt(process.env.DB_POOL_MAX) || 20,
@@ -42,19 +43,19 @@ const sequelize = new Sequelize(
       idle: parseInt(process.env.DB_POOL_IDLE) || 10000,
       evict: parseInt(process.env.DB_POOL_EVICT) || 1000
     },
-    
+
     // Additional security options
     define: {
       timestamps: true,
       underscored: false,
       freezeTableName: true
     },
-    
+
     // Query options
     query: {
       raw: false
     },
-    
+
     // Retry configuration
     retry: {
       match: [

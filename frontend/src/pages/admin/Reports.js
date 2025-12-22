@@ -219,7 +219,7 @@ function Reports() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await axiosInstance.get('/admin/reports', {
         params: {
           type: reportType,
@@ -227,7 +227,7 @@ function Reports() {
           endDate: dateRange.end
         }
       });
-      
+
       setReportData(response.data.data);
     } catch (error) {
       setError(`Failed to load report data: ${error.response?.data?.message || error.message}`);
@@ -251,7 +251,7 @@ function Reports() {
         },
         responseType: 'blob'
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -262,7 +262,7 @@ function Reports() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       let errorMessage = 'Failed to export report. Please try again.';
-      
+
       if (error.response?.status === 400) {
         errorMessage = 'Invalid report type or parameters.';
       } else if (error.response?.status === 404) {
@@ -270,7 +270,7 @@ function Reports() {
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error while generating report.';
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -300,10 +300,10 @@ function Reports() {
               <AssessmentIcon sx={{ fontSize: 28 }} />
             </Avatar>
             <Box>
-              <Typography 
-                variant="h4" 
-                component="h1" 
-                sx={{ 
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
                   fontWeight: 700,
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                   WebkitBackgroundClip: 'text',
@@ -344,8 +344,8 @@ function Reports() {
               variant="contained"
               startIcon={<DownloadIcon />}
               onClick={() => handleExportReport('csv')}
-              sx={{ 
-                borderRadius: 2, 
+              sx={{
+                borderRadius: 2,
                 textTransform: 'none',
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
               }}
@@ -356,8 +356,8 @@ function Reports() {
               variant="contained"
               startIcon={<DownloadIcon />}
               onClick={() => handleExportReport('json')}
-              sx={{ 
-                borderRadius: 2, 
+              sx={{
+                borderRadius: 2,
                 textTransform: 'none',
                 background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`
               }}
@@ -368,9 +368,9 @@ function Reports() {
         </Box>
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 3,
               borderRadius: 2,
               '& .MuiAlert-icon': { fontSize: '1.5rem' }
@@ -434,8 +434,8 @@ function Reports() {
                 fullWidth
                 startIcon={<SearchIcon />}
                 onClick={fetchReportData}
-                sx={{ 
-                  borderRadius: 2, 
+                sx={{
+                  borderRadius: 2,
                   textTransform: 'none',
                   py: 1.5
                 }}
@@ -448,8 +448,8 @@ function Reports() {
 
         {/* Tabs */}
         <Paper sx={{ mb: 3, borderRadius: 2 }}>
-          <Tabs 
-            value={activeTab} 
+          <Tabs
+            value={activeTab}
             onChange={(e, newValue) => setActiveTab(newValue)}
             sx={{
               borderBottom: 1,
@@ -461,29 +461,29 @@ function Reports() {
               }
             }}
           >
-            <Tab 
-              icon={<AssessmentIcon />} 
-              label="Overview" 
+            <Tab
+              icon={<AssessmentIcon />}
+              label="Overview"
               iconPosition="start"
             />
-            <Tab 
-              icon={<PeopleIcon />} 
-              label="Students" 
+            <Tab
+              icon={<PeopleIcon />}
+              label="Students"
               iconPosition="start"
             />
-            <Tab 
-              icon={<SchoolIcon />} 
-              label="Universities" 
+            <Tab
+              icon={<SchoolIcon />}
+              label="Universities"
               iconPosition="start"
             />
-            <Tab 
-              icon={<PsychologyIcon />} 
-              label="Counselors" 
+            <Tab
+              icon={<PsychologyIcon />}
+              label="Counselors"
               iconPosition="start"
             />
-            <Tab 
-              icon={<TimelineIcon />} 
-              label="Applications" 
+            <Tab
+              icon={<TimelineIcon />}
+              label="Applications"
               iconPosition="start"
             />
           </Tabs>
@@ -494,137 +494,115 @@ function Reports() {
           {activeTab === 0 && (
             <Grid container spacing={3}>
               {/* Student Statistics */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardHeader
-                title="Student Statistics"
-                avatar={<ChartIcon color="primary" />}
-                action={
-                  <IconButton onClick={fetchReportData}>
-                    <RefreshIcon />
-                  </IconButton>
-                }
-              />
-              <CardContent>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={reportData.studentStats?.map(stat => ({
-                          name: stat.currentPhase,
-                          value: stat.count
-                        })) || []}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label
-                      >
-                        {(reportData.studentStats || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Application Statistics */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardHeader
-                title="Application Statistics"
-                avatar={<TimelineIcon color="primary" />}
-                action={
-                  <IconButton onClick={fetchReportData}>
-                    <RefreshIcon />
-                  </IconButton>
-                }
-              />
-              <CardContent>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={reportData.applicationStats?.map(stat => ({
-                      name: stat.applicationStatus,
-                      value: stat.count
-                    })) || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <ChartTooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#8884d8" name="Applications" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Counselor Performance */}
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader
-                title="Counselor Performance"
-                avatar={<AssessmentIcon color="primary" />}
-              />
-              <CardContent>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Counselor</TableCell>
-                        <TableCell align="right">Total Students</TableCell>
-                        <TableCell align="right">Active Applications</TableCell>
-                        <TableCell align="right">Success Rate</TableCell>
-                        <TableCell align="right">Avg. Response Time</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {(reportData.counselorPerformance || []).map((counselor) => (
-                        <TableRow key={counselor.id}>
-                          <TableCell>{counselor.name}</TableCell>
-                          <TableCell align="right">{counselor.totalStudents || 0}</TableCell>
-                          <TableCell align="right">{counselor.activeApplications || 0}</TableCell>
-                          <TableCell align="right">{counselor.successRate || 0}%</TableCell>
-                          <TableCell align="right">{counselor.avgResponseTime || 0} hours</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* University Statistics */}
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader
-                title="University Statistics"
-                avatar={<SchoolIcon color="primary" />}
-              />
-              <CardContent>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={reportData.universityStats || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <ChartTooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#8884d8" name="Total Applications" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardHeader
+                    title="Student Statistics"
+                    avatar={<ChartIcon color="primary" />}
+                    action={
+                      <IconButton onClick={fetchReportData}>
+                        <RefreshIcon />
+                      </IconButton>
+                    }
+                  />
+                  <CardContent>
+                    <Box sx={{ height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={reportData.studentStats?.map(stat => ({
+                              name: stat.currentPhase,
+                              value: stat.count
+                            })) || []}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                          >
+                            {(reportData.studentStats || []).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </CardContent>
+                </Card>
               </Grid>
+
+              {/* Application Statistics */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardHeader
+                    title="Application Statistics"
+                    avatar={<TimelineIcon color="primary" />}
+                    action={
+                      <IconButton onClick={fetchReportData}>
+                        <RefreshIcon />
+                      </IconButton>
+                    }
+                  />
+                  <CardContent>
+                    <Box sx={{ height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={reportData.applicationStats?.map(stat => ({
+                          name: stat.applicationStatus,
+                          value: stat.count
+                        })) || []}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <ChartTooltip />
+                          <Legend />
+                          <Bar dataKey="value" fill="#8884d8" name="Applications" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Counselor Performance */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardHeader
+                    title="Counselor Performance"
+                    avatar={<AssessmentIcon color="primary" />}
+                  />
+                  <CardContent>
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Counselor</TableCell>
+                            <TableCell align="right">Total Students</TableCell>
+                            <TableCell align="right">Active Applications</TableCell>
+                            <TableCell align="right">Success Rate</TableCell>
+                            <TableCell align="right">Avg. Response Time</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {(reportData.counselorPerformance || []).map((counselor) => (
+                            <TableRow key={counselor.id}>
+                              <TableCell>{counselor.name}</TableCell>
+                              <TableCell align="right">{counselor.totalStudents || 0}</TableCell>
+                              <TableCell align="right">{counselor.activeApplications || 0}</TableCell>
+                              <TableCell align="right">{counselor.successRate || 0}%</TableCell>
+                              <TableCell align="right">{counselor.avgResponseTime || 0} hours</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+
             </Grid>
           )}
 
@@ -803,15 +781,15 @@ function Reports() {
                               <TableCell align="right">{counselor.totalStudents || 0}</TableCell>
                               <TableCell align="right">{counselor.activeApplications || 0}</TableCell>
                               <TableCell align="right">
-                                <Chip 
+                                <Chip
                                   label={`${counselor.successRate || 0}%`}
                                   color={counselor.successRate >= 80 ? 'success' : counselor.successRate >= 60 ? 'warning' : 'error'}
                                   size="small"
                                 />
                               </TableCell>
                               <TableCell align="right">
-                                <LinearProgress 
-                                  variant="determinate" 
+                                <LinearProgress
+                                  variant="determinate"
                                   value={counselor.successRate || 0}
                                   sx={{ width: 60, height: 8, borderRadius: 4 }}
                                 />
