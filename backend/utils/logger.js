@@ -1,6 +1,7 @@
 const winston = require('winston');
-const DailyRotateFile = require('winston-daily-rotate-file');
-const path = require('path');
+const winston = require('winston');
+const Transport = require('winston-transport');
+const { SystemLog } = require('../models');
 
 // Define log levels
 const levels = {
@@ -41,8 +42,41 @@ const format = winston.format.combine(
 );
 
 // Define transports
+// Custom Database Transport
+class DatabaseTransport extends Transport {
+  constructor(opts) {
+    super(opts);
+    this.type = opts.type || 'system';
+  }
+
+  log(info, callback) {
+    setImmediate(() => {
+      this.emit('logged', info);
+    });
+
+    const meta = { ...info };
+    delete meta.level;
+    delete meta.message;
+    delete meta.timestamp;
+
+    // Create log entry in database
+    SystemLog.create({
+      level: info.level,
+      type: this.type,
+      message: info.message,
+      meta: Object.keys(meta).length > 0 ? meta : null,
+      timestamp: info.timestamp || new Date()
+    }).catch(err => {
+      console.error('Error saving log to database:', err);
+    });
+
+    callback();
+  }
+}
+
+// Define transports
 const transports = [
-  // Console transport - only log warnings and errors
+  // Console transport for local development
   new winston.transports.Console({
     level: process.env.NODE_ENV === 'development' ? 'info' : 'warn',
     format: winston.format.combine(
@@ -51,55 +85,28 @@ const transports = [
     )
   }),
 
-  // Error log file
-  new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
+  // Database transport for errors
+  new DatabaseTransport({
     level: 'error',
-    maxSize: '20m',
-    maxFiles: '14d',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    )
+    type: 'error'
   }),
 
-  // Combined log file
-  new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/combined-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    maxSize: '20m',
-    maxFiles: '14d',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    )
+  // Database transport for general operations (combined)
+  new DatabaseTransport({
+    type: 'system' // Default type for combined logs
+    // level: 'info' is implied by logger level
   }),
 
-  // Real-time operations log
-  new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/realtime-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
+  // Database transport for real-time operations
+  new DatabaseTransport({
     level: 'info',
-    maxSize: '20m',
-    maxFiles: '7d',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    )
+    type: 'realtime'
   }),
 
-  // Performance log
-  new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/performance-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
+  // Database transport for performance
+  new DatabaseTransport({
     level: 'info',
-    maxSize: '20m',
-    maxFiles: '7d',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    )
+    type: 'performance'
   })
 ];
 

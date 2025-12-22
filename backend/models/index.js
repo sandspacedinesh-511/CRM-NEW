@@ -147,6 +147,8 @@ Reminder.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 // Initialize Country model
 const CountryModel = Country(sequelize);
 
+const SystemLog = require('./SystemLog');
+
 module.exports = {
   User,
   Student,
@@ -165,5 +167,6 @@ module.exports = {
   Notification,
   SharedLead,
   Message,
-  Reminder
+  Reminder,
+  SystemLog
 };
