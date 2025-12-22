@@ -177,7 +177,7 @@ function ApplicationForm({
 
   // Update intake terms when university/country changes
   useEffect(() => {
-    console.log('🔄 University selection changed:', {
+    console.log('  University selection changed:', {
       universityId: formData.universityId,
       universities: universities.length,
       countryProcesses: Object.keys(countryProcesses).length
@@ -185,38 +185,38 @@ function ApplicationForm({
     
     if (formData.universityId) {
       const university = universities.find(u => u.id === formData.universityId);
-      console.log('🏫 Selected university:', university);
+      console.log('  Selected university:', university);
       
       if (university) {
         // Get country from university data
         const country = university.country || 'default';
-        console.log('🌍 University country:', country);
+        console.log('  University country:', country);
         setSelectedCountry(country);
         
         // Try to get intake terms from country processes first, then fallback to predefined terms
         let intakeTerms = [];
         if (countryProcesses[country] && countryProcesses[country].intakeTerms) {
           intakeTerms = countryProcesses[country].intakeTerms;
-          console.log('📋 Using country process intake terms:', intakeTerms);
+          console.log('  Using country process intake terms:', intakeTerms);
         } else if (INTAKE_TERMS[country]) {
           intakeTerms = INTAKE_TERMS[country];
-          console.log('📋 Using predefined intake terms for', country, ':', intakeTerms);
+          console.log('  Using predefined intake terms for', country, ':', intakeTerms);
         } else {
           intakeTerms = INTAKE_TERMS['default'];
-          console.log('📋 Using default intake terms:', intakeTerms);
+          console.log('  Using default intake terms:', intakeTerms);
         }
         
         setCountryIntakeTerms(intakeTerms);
         
         // Set default intake term if not already set
         if (!formData.intakeTerm && intakeTerms.length > 0) {
-          console.log('🎯 Setting default intake term:', intakeTerms[0]);
+          console.log('  Setting default intake term:', intakeTerms[0]);
           setFormData(prev => ({ ...prev, intakeTerm: intakeTerms[0] }));
         }
       }
     } else {
       // Reset intake terms when no university is selected
-      console.log('🔄 Resetting intake terms - no university selected');
+      console.log('  Resetting intake terms - no university selected');
       setCountryIntakeTerms([]);
       setSelectedCountry('');
     }

@@ -7,7 +7,7 @@ const { ApplicationCountry, PhaseMetadata } = require('../models');
  */
 async function initializePhaseMetadata() {
   try {
-    console.log('🔄 Starting phase metadata initialization...');
+    console.log('  Starting phase metadata initialization...');
     
     // Get all country profiles
     const countryProfiles = await ApplicationCountry.findAll({
@@ -110,14 +110,14 @@ async function initializePhaseMetadata() {
       }
     }
     
-    console.log('\n✅ Phase metadata initialization completed!');
+    console.log('\n  Phase metadata initialization completed!');
     console.log(`   Created: ${created} records`);
     console.log(`   Skipped: ${skipped} records (already exist)`);
     console.log(`   Errors: ${errors} records`);
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error initializing phase metadata:', error);
+    console.error('  Error initializing phase metadata:', error);
     process.exit(1);
   }
 }
@@ -125,11 +125,11 @@ async function initializePhaseMetadata() {
 // Run the migration
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return initializePhaseMetadata();
   })
   .catch(error => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });
 

@@ -13,7 +13,7 @@ async function fixApplicationCountryPhaseColumn() {
     `);
     
     if (tables.length === 0) {
-      console.log('ℹ️  Table applicationcountry does not exist yet. This is normal for a fresh database.');
+      console.log('   Table applicationcountry does not exist yet. This is normal for a fresh database.');
       process.exit(0);
     }
     
@@ -27,7 +27,7 @@ async function fixApplicationCountryPhaseColumn() {
     `);
     
     if (columns.length === 0) {
-      console.log('ℹ️  Column currentPhase does not exist yet.');
+      console.log('   Column currentPhase does not exist yet.');
       process.exit(0);
     }
     
@@ -39,13 +39,13 @@ async function fixApplicationCountryPhaseColumn() {
     
     // If it's already VARCHAR/STRING, no need to change
     if (dataType === 'varchar' || dataType === 'text' || dataType === 'char') {
-      console.log('✅ Column is already VARCHAR/STRING type. No changes needed.');
+      console.log('  Column is already VARCHAR/STRING type. No changes needed.');
       process.exit(0);
     }
     
     // If it's ENUM, convert to VARCHAR
     if (dataType === 'enum') {
-      console.log('\n🔄 Converting currentPhase from ENUM to VARCHAR(255)...');
+      console.log('\n  Converting currentPhase from ENUM to VARCHAR(255)...');
       
       try {
         await sequelize.query(`
@@ -54,14 +54,14 @@ async function fixApplicationCountryPhaseColumn() {
           DEFAULT 'DOCUMENT_COLLECTION'
         `);
         
-        console.log('✅ Successfully converted currentPhase from ENUM to VARCHAR(255)');
+        console.log('  Successfully converted currentPhase from ENUM to VARCHAR(255)');
         console.log('   This allows country-specific phases like OFFER_LETTER_AUSTRALIA to be stored.');
       } catch (error) {
-        console.error('❌ Error converting column:', error.message);
+        console.error('  Error converting column:', error.message);
         
         // If the error is about data truncation or invalid values, try a different approach
         if (error.message.includes('Data truncated') || error.message.includes('Invalid default value')) {
-          console.log('\n⚠️  Attempting alternative approach: Setting default to NULL first...');
+          console.log('\n   Attempting alternative approach: Setting default to NULL first...');
           try {
             await sequelize.query(`
               ALTER TABLE applicationcountry 
@@ -75,9 +75,9 @@ async function fixApplicationCountryPhaseColumn() {
               ALTER COLUMN currentPhase SET DEFAULT 'DOCUMENT_COLLECTION'
             `);
             
-            console.log('✅ Successfully converted using alternative approach');
+            console.log('  Successfully converted using alternative approach');
           } catch (altError) {
-            console.error('❌ Alternative approach also failed:', altError.message);
+            console.error('  Alternative approach also failed:', altError.message);
             throw altError;
           }
         } else {
@@ -85,13 +85,13 @@ async function fixApplicationCountryPhaseColumn() {
         }
       }
     } else {
-      console.log(`ℹ️  Column is of type ${dataType}. No conversion needed.`);
+      console.log(`   Column is of type ${dataType}. No conversion needed.`);
     }
     
-    console.log('\n✅ Migration completed successfully.');
+    console.log('\n  Migration completed successfully.');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error fixing ApplicationCountry phase column:', error);
+    console.error('  Error fixing ApplicationCountry phase column:', error);
     process.exit(1);
   }
 }
@@ -99,11 +99,11 @@ async function fixApplicationCountryPhaseColumn() {
 // Run the fix
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return fixApplicationCountryPhaseColumn();
   })
   .catch(error => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });
 

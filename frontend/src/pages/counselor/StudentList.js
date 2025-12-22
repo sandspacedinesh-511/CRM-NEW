@@ -50,7 +50,7 @@ import {
   AccountBalanceWalletOutlinedAlt as AccountBalanceWalletOutlinedAltIcon, AccountTreeOutlinedAlt as AccountTreeOutlinedAltIcon,
   Speed as SpeedIcon, Star as StarIcon, Bolt as BoltIcon, MoreVert as MoreVertIcon, ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon, Close as CloseIcon, Download as DownloadIcon, Upload as UploadIcon,
-  Flag as FlagIcon, Message as MessageIcon
+  Flag as FlagIcon, Message as MessageIcon, Pause as PauseIcon, PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -105,6 +105,10 @@ function StudentList() {
   const [countryDialogOpen, setCountryDialogOpen] = useState(false);
   const [selectedStudentForCountry, setSelectedStudentForCountry] = useState(null);
   const [countryLoading, setCountryLoading] = useState(false);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [selectedStudentForPause, setSelectedStudentForPause] = useState(null);
+  const [pauseReason, setPauseReason] = useState('');
+  const [pauseLoading, setPauseLoading] = useState(false);
 
   const navigate = useNavigate();
   const theme = useTheme();
@@ -274,6 +278,54 @@ function StudentList() {
     navigate(`/counselor/students/${studentId}/edit`);
   };
 
+  const handlePauseStudent = (student) => {
+    setSelectedStudentForPause(student);
+    setPauseReason('');
+    setPauseDialogOpen(true);
+  };
+
+  const handlePlayStudent = async (student) => {
+    try {
+      setPauseLoading(true);
+      await axiosInstance.post(`/counselor/students/${student.id}/play`);
+      setSuccess('Student application resumed successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+      fetchStudents();
+    } catch (error) {
+      console.error('Error resuming student:', error);
+      setError(error.response?.data?.message || 'Failed to resume student application. Please try again.');
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (!pauseReason.trim()) {
+      setError('Please enter a reason for pausing the application');
+      return;
+    }
+
+    if (!selectedStudentForPause) return;
+
+    try {
+      setPauseLoading(true);
+      await axiosInstance.post(`/counselor/students/${selectedStudentForPause.id}/pause`, {
+        reason: pauseReason.trim()
+      });
+      setSuccess('Student application paused successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+      setPauseDialogOpen(false);
+      setSelectedStudentForPause(null);
+      setPauseReason('');
+      fetchStudents();
+    } catch (error) {
+      console.error('Error pausing student:', error);
+      setError(error.response?.data?.message || 'Failed to pause student application. Please try again.');
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return;
 
@@ -326,14 +378,14 @@ function StudentList() {
           `• ${doc.replace(/_/g, ' ')}`
         ).join('\n');
 
-        const detailedMessage = `🚫 Cannot proceed to ${errorData.phaseName} phase
+        const detailedMessage = `  Cannot proceed to ${errorData.phaseName} phase
 
 ${errorData.phaseDescription || ''}
 
-📋 Missing Required Documents:
+  Missing Required Documents:
 ${missingDocsList}
 
-💡 Next Steps:
+  Next Steps:
 1. Upload the missing documents in the Documents section
 2. Ensure documents are in PDF, JPG, or PNG format
 3. Wait for document approval (if applicable)
@@ -964,6 +1016,8 @@ Need help? Contact your counselor for assistance.`;
                       onEditStudent={handleEditStudent}
                       onShareLead={handleOpenShareDialog}
                       onCreateCountryProfile={handleOpenCountryDialog}
+                      onPauseStudent={handlePauseStudent}
+                      onPlayStudent={handlePlayStudent}
                     />
                   </Grid>
                 ))}
@@ -1158,6 +1212,25 @@ Need help? Contact your counselor for assistance.`;
                                   <PersonAddIcon />
                                 </IconButton>
                               </Tooltip>
+                              <Tooltip title={student.isPaused ? "Resume Application" : "Pause Application"}>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (student.isPaused) {
+                                      handlePlayStudent(student);
+                                    } else {
+                                      handlePauseStudent(student);
+                                    }
+                                  }}
+                                  disabled={pauseLoading}
+                                  sx={{
+                                    color: student.isPaused ? theme.palette.success.main : theme.palette.warning.main
+                                  }}
+                                >
+                                  {student.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+                                </IconButton>
+                              </Tooltip>
                               <Tooltip title="Edit Student">
                                 <IconButton
                                   size="small"
@@ -1280,7 +1353,7 @@ Need help? Contact your counselor for assistance.`;
               border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
             }}>
               <Typography variant="body2" color="error" sx={{ fontWeight: 600, mb: 1 }}>
-                ⚠️ Warning: This will delete:
+                  Warning: This will delete:
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 • Student profiles and personal information<br />
@@ -1393,6 +1466,106 @@ Need help? Contact your counselor for assistance.`;
               disabled={!shareTargetCounselorId || shareLoading}
             >
               {shareLoading ? 'Sharing…' : 'Share Lead'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Pause Student Dialog */}
+        <Dialog
+          open={pauseDialogOpen}
+          onClose={() => {
+            if (!pauseLoading) {
+              setPauseDialogOpen(false);
+              setSelectedStudentForPause(null);
+              setPauseReason('');
+            }
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            pb: 2
+          }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: alpha(theme.palette.warning.main, 0.1),
+              color: theme.palette.warning.main
+            }}>
+              <PauseIcon />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Pause Application
+              </Typography>
+              {selectedStudentForPause && (
+                <Typography variant="body2" color="textSecondary">
+                  For {selectedStudentForPause.firstName} {selectedStudentForPause.lastName}
+                </Typography>
+              )}
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+              Please provide a reason for pausing this student's application. This will temporarily halt the application progress.
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Pause Reason"
+              placeholder="Enter the reason for pausing the application..."
+              value={pauseReason}
+              onChange={(e) => setPauseReason(e.target.value)}
+              required
+              disabled={pauseLoading}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3, gap: 2 }}>
+            <Button
+              onClick={() => {
+                if (!pauseLoading) {
+                  setPauseDialogOpen(false);
+                  setSelectedStudentForPause(null);
+                  setPauseReason('');
+                }
+              }}
+              disabled={pauseLoading}
+              variant="outlined"
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmPause}
+              disabled={!pauseReason.trim() || pauseLoading}
+              variant="contained"
+              color="warning"
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3
+              }}
+            >
+              {pauseLoading ? 'Pausing...' : 'Pause Application'}
             </Button>
           </DialogActions>
         </Dialog>

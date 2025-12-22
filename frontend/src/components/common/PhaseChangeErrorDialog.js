@@ -113,7 +113,7 @@ const PhaseChangeErrorDialog = ({ open, onClose, errorData, onGoToDocuments }) =
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: '#2c3e50' }}>
-              🎯 Target Phase: {phaseName}
+                Target Phase: {phaseName}
             </Typography>
             {country && (
               <Chip 

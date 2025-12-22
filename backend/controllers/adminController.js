@@ -1583,7 +1583,11 @@ exports.getMarketingMemberLeadsAdmin = async (req, res) => {
       sharingStatus: pendingShareMap[s.id] ? 'pending' : (s.counselorId ? 'accepted' : null),
       sharedLeadId: pendingShareMap[s.id]?.id,
       documentCount: documentCountMap[s.id] || 0,
-      createdAt: s.createdAt
+      createdAt: s.createdAt,
+      isPaused: s.isPaused || false,
+      pauseReason: s.pauseReason || null,
+      pausedAt: s.pausedAt || null,
+      pausedBy: s.pausedBy || null
     }));
 
     res.json({
@@ -1743,7 +1747,11 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       sharingStatus: pendingShareMap[s.id] ? 'pending' : (s.counselorId ? 'accepted' : null),
       sharedLeadId: pendingShareMap[s.id]?.id,
       documentCount: documentCountMap[s.id] || 0,
-      createdAt: s.createdAt
+      createdAt: s.createdAt,
+      isPaused: s.isPaused || false,
+      pauseReason: s.pauseReason || null,
+      pausedAt: s.pausedAt || null,
+      pausedBy: s.pausedBy || null
     }));
 
     res.json({

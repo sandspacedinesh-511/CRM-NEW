@@ -30,6 +30,8 @@ router.put('/students/:id', cacheInvalidation(['api:counselor/students*', 'api:c
 router.patch('/students/:id/phase', cacheInvalidation(['api:counselor/students*', 'api:counselor/dashboard*']), counselorController.updateStudentPhase);
 router.post('/students/:id/phase/reopen', cacheInvalidation(['api:counselor/students*', 'api:counselor/dashboard*']), counselorController.reopenPhase);
 router.get('/students/:id/phase-metadata', counselorController.getPhaseMetadata);
+router.post('/students/:id/pause', cacheInvalidation(['api:counselor/students*', 'api:counselor/dashboard*']), counselorController.pauseStudent);
+router.post('/students/:id/play', cacheInvalidation(['api:counselor/students*', 'api:counselor/dashboard*']), counselorController.playStudent);
 router.delete('/students/:id', cacheInvalidation(['api:counselor/students*', 'api:counselor/dashboard*']), counselorController.deleteStudent);
 router.get('/students/export', counselorController.exportStudents);
 

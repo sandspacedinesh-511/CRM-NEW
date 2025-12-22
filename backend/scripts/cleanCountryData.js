@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 async function cleanCountryData() {
   try {
-    console.log('🔄 Starting country data cleanup...\n');
+    console.log('  Starting country data cleanup...\n');
 
     // 1) Remove duplicates that would collide AFTER cleaning
     console.log('🧹 Removing potential duplicate ApplicationCountry rows before cleaning...');
@@ -62,21 +62,21 @@ async function cleanCountryData() {
     `);
     console.log('   ✓ Students.targetCountries normalized.\n');
 
-    console.log('✅ Country data cleanup completed successfully.');
+    console.log('  Country data cleanup completed successfully.');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Country data cleanup failed:', error);
+    console.error('  Country data cleanup failed:', error);
     process.exit(1);
   }
 }
 
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return cleanCountryData();
   })
   .catch((error) => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });
 

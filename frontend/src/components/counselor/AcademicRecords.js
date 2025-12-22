@@ -354,7 +354,7 @@ function AcademicRecords({ studentId }) {
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>${metadata.name}</h2>
                 <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0066cc;">
-                  <p style="margin: 0; color: #0066cc;"><strong>ℹ️ This is a metadata-only record. No certificate file is attached.</strong></p>
+                  <p style="margin: 0; color: #0066cc;"><strong>  This is a metadata-only record. No certificate file is attached.</strong></p>
                   <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">To upload a certificate file, edit this record and use the "Upload Certificate" field.</p>
                 </div>
                 <h3>Document Information</h3>
@@ -382,7 +382,7 @@ function AcademicRecords({ studentId }) {
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>${metadata.name}</h2>
                 <div style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0066cc;">
-                  <p style="margin: 0; color: #0066cc;"><strong>ℹ️ This is a metadata-only record. No certificate file is attached.</strong></p>
+                  <p style="margin: 0; color: #0066cc;"><strong>  This is a metadata-only record. No certificate file is attached.</strong></p>
                   <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">To upload a certificate file, edit this record and use the "Upload Certificate" field.</p>
                 </div>
                 <p><strong>Description:</strong> ${metadata.description || 'No description available'}</p>

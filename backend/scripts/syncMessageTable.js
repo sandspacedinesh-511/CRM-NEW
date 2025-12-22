@@ -3,15 +3,15 @@ const { Message } = require('../models');
 
 async function syncMessageTable() {
     try {
-        console.log('🔄 Connecting to database...');
+        console.log('  Connecting to database...');
         await sequelize.authenticate();
-        console.log('✅ Database connection established');
+        console.log('  Database connection established');
 
-        console.log('🔄 Syncing Message model...');
+        console.log('  Syncing Message model...');
         await Message.sync({ alter: true });
-        console.log('✅ Message table created/updated successfully');
+        console.log('  Message table created/updated successfully');
 
-        console.log('\n📊 Message Table Structure:');
+        console.log('\n  Message Table Structure:');
         console.log('- id (INTEGER, PRIMARY KEY, AUTO_INCREMENT)');
         console.log('- studentId (INTEGER, FOREIGN KEY -> Students.id)');
         console.log('- senderId (INTEGER, FOREIGN KEY -> Users.id)');
@@ -23,10 +23,10 @@ async function syncMessageTable() {
         console.log('- createdAt (TIMESTAMP)');
         console.log('- updatedAt (TIMESTAMP)');
 
-        console.log('\n✅ Database sync completed successfully!');
+        console.log('\n  Database sync completed successfully!');
         process.exit(0);
     } catch (error) {
-        console.error('❌ Error syncing database:', error);
+        console.error('  Error syncing database:', error);
         process.exit(1);
     }
 }

@@ -15,7 +15,7 @@ async function fixIndexes() {
     });
     
     if (indexes.length > 10) {
-      console.log('\n⚠️  Warning: Table has many indexes. This might cause issues.');
+      console.log('\n   Warning: Table has many indexes. This might cause issues.');
       console.log('   Consider removing redundant indexes manually.');
     }
     
@@ -24,7 +24,7 @@ async function fixIndexes() {
     const countryCodeIndexes = indexes.filter(idx => idx.Column_name === 'countryCode');
     
     if (countryIndexes.length > 1) {
-      console.log('\n⚠️  Found multiple indexes on "country" column. Removing duplicates...');
+      console.log('\n   Found multiple indexes on "country" column. Removing duplicates...');
       // Keep only the unique index
       const uniqueIndex = countryIndexes.find(idx => idx.Non_unique === 0);
       const duplicateIndexes = countryIndexes.filter(idx => idx.Key_name !== uniqueIndex?.Key_name);
@@ -32,15 +32,15 @@ async function fixIndexes() {
       for (const idx of duplicateIndexes) {
         try {
           await sequelize.query(`DROP INDEX \`${idx.Key_name}\` ON CountryApplicationProcess`);
-          console.log(`   ✅ Dropped duplicate index: ${idx.Key_name}`);
+          console.log(`     Dropped duplicate index: ${idx.Key_name}`);
         } catch (err) {
-          console.log(`   ⚠️  Could not drop index ${idx.Key_name}: ${err.message}`);
+          console.log(`      Could not drop index ${idx.Key_name}: ${err.message}`);
         }
       }
     }
     
     if (countryCodeIndexes.length > 1) {
-      console.log('\n⚠️  Found multiple indexes on "countryCode" column. Removing duplicates...');
+      console.log('\n   Found multiple indexes on "countryCode" column. Removing duplicates...');
       // Keep only the unique index
       const uniqueIndex = countryCodeIndexes.find(idx => idx.Non_unique === 0);
       const duplicateIndexes = countryCodeIndexes.filter(idx => idx.Key_name !== uniqueIndex?.Key_name);
@@ -48,21 +48,21 @@ async function fixIndexes() {
       for (const idx of duplicateIndexes) {
         try {
           await sequelize.query(`DROP INDEX \`${idx.Key_name}\` ON CountryApplicationProcess`);
-          console.log(`   ✅ Dropped duplicate index: ${idx.Key_name}`);
+          console.log(`     Dropped duplicate index: ${idx.Key_name}`);
         } catch (err) {
-          console.log(`   ⚠️  Could not drop index ${idx.Key_name}: ${err.message}`);
+          console.log(`      Could not drop index ${idx.Key_name}: ${err.message}`);
         }
       }
     }
     
-    console.log('\n✅ Index cleanup completed.');
+    console.log('\n  Index cleanup completed.');
     process.exit(0);
   } catch (error) {
     if (error.message.includes("doesn't exist")) {
-      console.log('ℹ️  Table CountryApplicationProcess does not exist yet. This is normal for a fresh database.');
+      console.log('   Table CountryApplicationProcess does not exist yet. This is normal for a fresh database.');
       process.exit(0);
     } else {
-      console.error('❌ Error fixing indexes:', error);
+      console.error('  Error fixing indexes:', error);
       process.exit(1);
     }
   }
@@ -71,10 +71,10 @@ async function fixIndexes() {
 // Run the fix
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return fixIndexes();
   })
   .catch(error => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });

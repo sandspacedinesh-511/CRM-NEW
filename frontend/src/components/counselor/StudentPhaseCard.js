@@ -24,7 +24,10 @@ import {
   CalendarToday as CalendarIcon,
   TrendingUp as TrendingUpIcon,
   Add as AddIcon,
-  Message as MessageIcon
+  Message as MessageIcon,
+  Pause as PauseIcon,
+  PlayArrow as PlayArrowIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { format, isValid } from 'date-fns';
 
@@ -62,7 +65,9 @@ const StudentPhaseCard = ({
   onViewDocuments, 
   onViewApplications,
   onShareLead,
-  onCreateCountryProfile
+  onCreateCountryProfile,
+  onPauseStudent,
+  onPlayStudent
 }) => {
   // Helper function to safely format dates
   const safeFormatDate = (dateString, formatString) => {
@@ -262,6 +267,62 @@ const StudentPhaseCard = ({
                 </Badge>
               </Tooltip>
             )}
+            {student.isPaused && (
+              <Chip
+                label="Paused"
+                size="small"
+                sx={{
+                  backgroundColor: `${theme.palette.warning.main}15`,
+                  color: theme.palette.warning.main,
+                  border: `1px solid ${theme.palette.warning.main}30`,
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  borderRadius: 2,
+                  height: 24,
+                  '& .MuiChip-label': { px: 1.2 }
+                }}
+              />
+            )}
+            <Tooltip title={student.isPaused ? "Resume Application" : "Pause Application"}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (student.isPaused) {
+                    onPlayStudent?.(student);
+                  } else {
+                    onPauseStudent?.(student);
+                  }
+                }}
+                sx={{
+                  color: student.isPaused ? theme.palette.success.main : theme.palette.warning.main,
+                  '&:hover': {
+                    backgroundColor: student.isPaused 
+                      ? `${theme.palette.success.main}15` 
+                      : `${theme.palette.warning.main}15`,
+                  }
+                }}
+              >
+                {student.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit Student">
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditStudent?.(student.id);
+                }}
+                sx={{
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: `${theme.palette.primary.main}15`,
+                  }
+                }}
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="More actions">
               <IconButton 
                 size="small" 
@@ -318,23 +379,34 @@ const StudentPhaseCard = ({
               Application Progress
             </Typography>
             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 600 }}>
-              {Math.round(getPhaseProgress())}%
+              {student.isPaused ? 'Paused' : `${Math.round(getPhaseProgress())}%`}
             </Typography>
           </Box>
           <LinearProgress
             variant="determinate"
-            value={getPhaseProgress()}
+            value={student.isPaused ? 0 : getPhaseProgress()}
             sx={{
               height: 10,
               borderRadius: 5,
-              backgroundColor: `${PHASE_COLORS[student.currentPhase]}15`,
+              backgroundColor: student.isPaused 
+                ? `${theme.palette.warning.main}15` 
+                : `${PHASE_COLORS[student.currentPhase]}15`,
               '& .MuiLinearProgress-bar': {
-                background: `linear-gradient(90deg, ${PHASE_COLORS[student.currentPhase]}, ${PHASE_COLORS[student.currentPhase]}CC)`,
+                background: student.isPaused
+                  ? `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.warning.main}CC)`
+                  : `linear-gradient(90deg, ${PHASE_COLORS[student.currentPhase]}, ${PHASE_COLORS[student.currentPhase]}CC)`,
                 borderRadius: 5,
-                boxShadow: `0 2px 8px ${PHASE_COLORS[student.currentPhase]}40`,
+                boxShadow: student.isPaused
+                  ? `0 2px 8px ${theme.palette.warning.main}40`
+                  : `0 2px 8px ${PHASE_COLORS[student.currentPhase]}40`,
               }
             }}
           />
+          {student.isPaused && student.pauseReason && (
+            <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block', fontStyle: 'italic' }}>
+              Reason: {student.pauseReason}
+            </Typography>
+          )}
           
           {/* Phase Steps Indicator */}
           <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>

@@ -116,6 +116,26 @@ const Student = sequelize.define('Student', {
       key: 'id'
     }
   },
+  isPaused: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  pauseReason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  pausedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  pausedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

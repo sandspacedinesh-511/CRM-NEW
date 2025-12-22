@@ -217,14 +217,14 @@ function CounselorDashboard() {
           `• ${doc.replace(/_/g, ' ')}`
         ).join('\n');
 
-        const detailedMessage = `🚫 Cannot proceed to ${errorData.phaseName} phase
+        const detailedMessage = `  Cannot proceed to ${errorData.phaseName} phase
 
 ${errorData.phaseDescription || ''}
 
-📋 Missing Required Documents:
+  Missing Required Documents:
 ${missingDocsList}
 
-💡 Next Steps:
+  Next Steps:
 1. Upload the missing documents in the Documents section
 2. Ensure documents are in PDF, JPG, or PNG format
 3. Wait for document approval (if applicable)

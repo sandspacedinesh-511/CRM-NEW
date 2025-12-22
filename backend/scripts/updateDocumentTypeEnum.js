@@ -2,7 +2,7 @@ const sequelize = require('../config/database');
 
 async function updateDocumentTypeEnum() {
   try {
-    console.log('🔄 Updating Document type ENUM...');
+    console.log('  Updating Document type ENUM...');
     
     // Get the database name from config
     const dbName = sequelize.config.database;
@@ -33,12 +33,12 @@ async function updateDocumentTypeEnum() {
     
     await sequelize.query(query);
     
-    console.log('✅ Document type ENUM updated successfully!');
+    console.log('  Document type ENUM updated successfully!');
     console.log(`   Added ${newEnumValues.length} document types`);
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error updating Document type ENUM:', error);
+    console.error('  Error updating Document type ENUM:', error);
     console.error('   Error details:', error.message);
     process.exit(1);
   }

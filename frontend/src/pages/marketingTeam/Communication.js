@@ -38,7 +38,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Tooltip
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -1015,6 +1016,25 @@ function MarketingCommunication() {
                                       : 'default'
                                 }
                               />
+                              {lead.isPaused && (
+                                <Chip
+                                  label="Paused"
+                                  size="small"
+                                  color="warning"
+                                  sx={{ ml: 0.5 }}
+                                />
+                              )}
+                              {lead.isPaused && lead.pauseReason && (
+                                <Tooltip title={`Pause Reason: ${lead.pauseReason}`} arrow>
+                                  <Chip
+                                    label="View Reason"
+                                    size="small"
+                                    variant="outlined"
+                                    color="warning"
+                                    sx={{ ml: 0.5, cursor: 'help' }}
+                                  />
+                                </Tooltip>
+                              )}
                             </Stack>
                           }
                           secondary={
@@ -1096,6 +1116,27 @@ function MarketingCommunication() {
                                     <Typography component="span" variant="body2" color="text.secondary" sx={{ display: 'block' }}>
                                       Created: {format(new Date(lead.createdAt), 'PPp')}
                                     </Typography>
+                                  )}
+                                  {lead.isPaused && lead.pauseReason && (
+                                    <Box sx={{ 
+                                      mt: 1, 
+                                      p: 1.5, 
+                                      bgcolor: alpha(theme.palette.warning.main, 0.1),
+                                      borderRadius: 1,
+                                      border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`
+                                    }}>
+                                      <Typography component="span" variant="body2" sx={{ fontWeight: 600, color: 'warning.main', display: 'block', mb: 0.5 }}>
+                                          Application Paused
+                                      </Typography>
+                                      <Typography component="span" variant="body2" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic' }}>
+                                        Reason: {lead.pauseReason}
+                                      </Typography>
+                                      {lead.pausedAt && (
+                                        <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                          Paused on: {format(new Date(lead.pausedAt), 'PPp')}
+                                        </Typography>
+                                      )}
+                                    </Box>
                                   )}
                                 </>
                               )}
@@ -1231,6 +1272,21 @@ function MarketingCommunication() {
                     {selectedLead.phone}
                   </Typography>
                 )}
+                {selectedLead?.isPaused && (
+                  <Box sx={{ mt: 1 }}>
+                    <Chip
+                      label="Application Paused"
+                      size="small"
+                      color="warning"
+                      sx={{ mb: 0.5 }}
+                    />
+                    {selectedLead?.pauseReason && (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 0.5 }}>
+                        Reason: {selectedLead.pauseReason}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Box>
             </Stack>
             <IconButton onClick={handleCloseDialog} size="small">
@@ -1245,6 +1301,25 @@ function MarketingCommunication() {
             </Box>
           ) : (
             <Box>
+              {/* Pause Status Alert */}
+              {selectedLeadDetails?.isPaused && selectedLeadDetails?.pauseReason && (
+                <Alert 
+                  severity="warning" 
+                  sx={{ mb: 3 }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Application is Currently Paused
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Reason:</strong> {selectedLeadDetails.pauseReason}
+                  </Typography>
+                  {selectedLeadDetails.pausedAt && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      Paused on: {format(new Date(selectedLeadDetails.pausedAt), 'PPp')}
+                    </Typography>
+                  )}
+                </Alert>
+              )}
               {/* Application Progress Section - Display for selected country */}
               {selectedLeadDetails && (
                 <Box sx={{ mb: 4 }}>
@@ -1291,7 +1366,7 @@ function MarketingCommunication() {
                             {uniqueCountryProfiles.map((profile) => (
                               <MenuItem key={profile.id || profile.country} value={profile.country}>
                                 {profile.country}
-                                {profile.preferredCountry && ' ⭐'}
+                                {profile.preferredCountry && '  '}
                               </MenuItem>
                             ))}
                           </Select>

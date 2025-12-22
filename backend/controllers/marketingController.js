@@ -136,7 +136,11 @@ const formatLeadRecord = (studentInstance) => {
     completionYear: student.completionYear ?? notesData.completionYear ?? null,
     countries: countries.join(', '), // Return as comma-separated string for frontend compatibility
     parentsAnnualIncome: student.parentsAnnualIncome ?? notesData.parentsAnnualIncome ?? null,
-    ageInDays
+    ageInDays,
+    isPaused: student.isPaused || false,
+    pauseReason: student.pauseReason || null,
+    pausedAt: student.pausedAt || null,
+    pausedBy: student.pausedBy || null
   };
 };
 

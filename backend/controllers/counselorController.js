@@ -1600,7 +1600,7 @@ exports.createDocument = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error creating document:', error);
+    console.error('  Error creating document:', error);
     res.status(500).json({
       message: 'Error creating document',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -5283,6 +5283,166 @@ exports.sendEmailToStudent = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error sending email'
+    });
+  }
+};
+
+// Pause student application
+exports.pauseStudent = async (req, res) => {
+  try {
+    const counselorId = req.user.id;
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    console.log('Pause request received:', { id, counselorId, reason, body: req.body, bodyKeys: Object.keys(req.body || {}) });
+
+    // Validate reason
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pause reason is required'
+      });
+    }
+
+    const reasonStr = typeof reason === 'string' ? reason.trim() : String(reason).trim();
+    if (reasonStr === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Pause reason cannot be empty'
+      });
+    }
+
+    const student = await Student.findOne({
+      where: {
+        id,
+        counselorId
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or you do not have permission to pause this student'
+      });
+    }
+
+    if (student.isPaused) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student application is already paused'
+      });
+    }
+
+    const updateData = {
+      isPaused: true,
+      pauseReason: reasonStr,
+      pausedAt: new Date(),
+      pausedBy: counselorId
+    };
+
+    console.log('Updating student with:', updateData);
+
+    await student.update(updateData);
+
+    // Track activity
+    await trackActivity({
+      type: 'STUDENT_PAUSED',
+      userId: counselorId,
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      description: `Application paused: ${reason.trim()}`
+    });
+
+    // Clear cache
+    await cacheUtils.delete(`api:counselor/students:${counselorId}*`);
+    await cacheUtils.delete(`api:counselor/dashboard:${counselorId}*`);
+
+    res.json({
+      success: true,
+      message: 'Student application paused successfully',
+      data: student
+    });
+  } catch (error) {
+    console.error('Error pausing student:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Check if it's a database column error
+    if (error.name === 'SequelizeDatabaseError' || error.message?.includes('column') || error.message?.includes('Unknown column')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database schema error. Please ensure the database has been migrated with the pause fields (isPaused, pauseReason, pausedAt, pausedBy).'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Error pausing student application',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Resume (play) student application
+exports.playStudent = async (req, res) => {
+  try {
+    const counselorId = req.user.id;
+    const { id } = req.params;
+
+    const student = await Student.findOne({
+      where: {
+        id,
+        counselorId
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    if (!student.isPaused) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student application is not paused'
+      });
+    }
+
+    await student.update({
+      isPaused: false,
+      pauseReason: null,
+      pausedAt: null,
+      pausedBy: null
+    });
+
+    // Track activity
+    await trackActivity({
+      type: 'STUDENT_RESUMED',
+      userId: counselorId,
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      description: 'Application resumed'
+    });
+
+    // Clear cache
+    await cacheUtils.delete(`api:counselor/students:${counselorId}*`);
+    await cacheUtils.delete(`api:counselor/dashboard:${counselorId}*`);
+
+    res.json({
+      success: true,
+      message: 'Student application resumed successfully',
+      data: student
+    });
+  } catch (error) {
+    console.error('Error resuming student:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error resuming student application'
     });
   }
 };

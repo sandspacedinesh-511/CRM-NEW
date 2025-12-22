@@ -975,6 +975,13 @@ function CounselorMonitoring() {
                                 size="small"
                                 color={student.status === 'COMPLETED' ? 'success' : 'default'}
                               />
+                              {student.isPaused && (
+                                <Chip
+                                  label="Paused"
+                                  size="small"
+                                  color="warning"
+                                />
+                              )}
                             </Box>
                           </CardContent>
                         </Card>

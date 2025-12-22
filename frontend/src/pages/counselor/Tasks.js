@@ -1255,7 +1255,7 @@ function Tasks() {
                     <Card sx={{ mb: 2 }}>
                       <CardContent>
                         <Typography variant="h6" sx={{ mb: 2 }}>
-                          🔄 In Progress ({groupedTasks.inProgress.length})
+                            In Progress ({groupedTasks.inProgress.length})
                         </Typography>
                         <List>
                           {groupedTasks.inProgress.map((task) => (
@@ -1281,7 +1281,7 @@ function Tasks() {
                     <Card sx={{ mb: 2 }}>
                       <CardContent>
                         <Typography variant="h6" sx={{ mb: 2 }}>
-                          ✅ Completed ({groupedTasks.completed.length})
+                            Completed ({groupedTasks.completed.length})
                         </Typography>
                         <List>
                           {groupedTasks.completed.map((task) => (

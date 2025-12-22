@@ -118,18 +118,18 @@ exports.uploadDocument = async (req, res) => {
         uploadResult = await storageServiceInstance.uploadFile(req.file, 'documents');
         console.log('Upload to DigitalOcean Spaces successful:', uploadResult);
       } catch (storageError) {
-        console.error('❌ DigitalOcean Spaces upload failed:', storageError);
+        console.error('  DigitalOcean Spaces upload failed:', storageError);
         console.error('Stack:', storageError.stack);
 
         // In non-production, gracefully fall back to local storage if bucket/credentials are misconfigured
         // OR if there is ANY error in development mode
         if (process.env.NODE_ENV !== 'production') {
-          console.warn('⚠️ Falling back to local file storage due to DigitalOcean error (non-production only).');
+          console.warn('  Falling back to local file storage due to DigitalOcean error (non-production only).');
           try {
             uploadResult = await useLocalStorage();
             console.log('Fallback to local storage successful:', uploadResult);
           } catch (localError) {
-            console.error('❌ Local storage fallback also failed:', localError);
+            console.error('  Local storage fallback also failed:', localError);
             throw new Error('Both cloud and local storage uploads failed.');
           }
         } else {
@@ -217,15 +217,15 @@ exports.uploadDocument = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error uploading document:', error);
-    console.error('📋 Error details:', {
+    console.error('  Error uploading document:', error);
+    console.error('  Error details:', {
       message: error.message,
       stack: error.stack,
       code: error.code,
       statusCode: error.statusCode,
       name: error.name
     });
-    console.error('📋 Full error object:', error);
+    console.error('  Full error object:', error);
 
     // Provide more specific error messages
     let errorMessage = 'Error uploading document';
@@ -384,7 +384,7 @@ exports.previewDocument = async (req, res) => {
           });
         }
       } catch (storageError) {
-        console.error('❌ Error checking DigitalOcean Spaces:', storageError);
+        console.error('  Error checking DigitalOcean Spaces:', storageError);
 
         // Fallback: Check if file exists locally (e.g. for dev/seed data)
         const fs = require('fs');
@@ -392,7 +392,7 @@ exports.previewDocument = async (req, res) => {
         const localPath = path.join(__dirname, '..', 'uploads', 'documents', path.basename(document.path));
 
         if (fs.existsSync(localPath)) {
-          console.log('⚠️ Serving local fallback for:', localPath);
+          console.log('  Serving local fallback for:', localPath);
           const previewableTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
 
           if (previewableTypes.includes(document.mimeType)) {

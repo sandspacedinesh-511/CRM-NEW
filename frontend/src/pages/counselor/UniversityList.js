@@ -372,7 +372,7 @@ function UniversityList() {
       'IRELAND': '🇮🇪', // Fallback for old values
       'NEW_ZEALAND': '🇳🇿' // Fallback for old values
     };
-    return flags[country] || '🌍';
+    return flags[country] || ' ';
   };
 
   const LoadingSkeleton = () => (

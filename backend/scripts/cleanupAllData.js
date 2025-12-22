@@ -39,7 +39,7 @@ async function cleanupAllData() {
                 transaction
             });
 
-            console.log(`📊 Found ${usersToDelete.length} users to delete:`);
+            console.log(`  Found ${usersToDelete.length} users to delete:`);
             usersToDelete.forEach(user => {
                 console.log(`   - ${user.name} (${user.email}) - Role: ${user.role}`);
             });
@@ -62,7 +62,7 @@ async function cleanupAllData() {
                 transaction
             });
 
-            console.log(`📊 Found ${studentsToDelete.length} students/leads to delete:`);
+            console.log(`  Found ${studentsToDelete.length} students/leads to delete:`);
             studentsToDelete.forEach(student => {
                 console.log(`   - ${student.firstName} ${student.lastName} (${student.email})`);
             });
@@ -72,7 +72,7 @@ async function cleanupAllData() {
 
             // Step 3: Delete all related data in the correct order (child tables first)
 
-            console.log('🗑️  Deleting Reminders...');
+            console.log('   Deleting Reminders...');
             const remindersDeleted = await Reminder.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -84,7 +84,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${remindersDeleted} reminders\n`);
 
-            console.log('🗑️  Deleting Messages...');
+            console.log('   Deleting Messages...');
             const messagesDeleted = await Message.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -97,7 +97,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${messagesDeleted} messages\n`);
 
-            console.log('🗑️  Deleting Shared Leads...');
+            console.log('   Deleting Shared Leads...');
             const sharedLeadsDeleted = await SharedLead.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -110,7 +110,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${sharedLeadsDeleted} shared leads\n`);
 
-            console.log('🗑️  Deleting Notifications...');
+            console.log('   Deleting Notifications...');
             const notificationsDeleted = await Notification.destroy({
                 where: {
                     userId: userIds
@@ -119,7 +119,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${notificationsDeleted} notifications\n`);
 
-            console.log('🗑️  Deleting Telecaller Imported Tasks...');
+            console.log('   Deleting Telecaller Imported Tasks...');
             const telecallerTasksDeleted = await TelecallerImportedTask.destroy({
                 where: {
                     telecallerId: telecallerIds
@@ -128,7 +128,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${telecallerTasksDeleted} telecaller imported tasks\n`);
 
-            console.log('🗑️  Deleting Tasks...');
+            console.log('   Deleting Tasks...');
             const tasksDeleted = await Task.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -140,7 +140,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${tasksDeleted} tasks\n`);
 
-            console.log('🗑️  Deleting Activities...');
+            console.log('   Deleting Activities...');
             const activitiesDeleted = await Activity.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -152,7 +152,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${activitiesDeleted} activities\n`);
 
-            console.log('🗑️  Deleting Counselor Activities...');
+            console.log('   Deleting Counselor Activities...');
             const counselorActivitiesDeleted = await CounselorActivity.destroy({
                 where: {
                     counselorId: counselorIds
@@ -161,7 +161,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${counselorActivitiesDeleted} counselor activities\n`);
 
-            console.log('🗑️  Deleting Notes...');
+            console.log('   Deleting Notes...');
             const notesDeleted = await Note.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -173,7 +173,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${notesDeleted} notes\n`);
 
-            console.log('🗑️  Deleting Documents...');
+            console.log('   Deleting Documents...');
             const documentsDeleted = await Document.destroy({
                 where: {
                     [sequelize.Sequelize.Op.or]: [
@@ -185,7 +185,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${documentsDeleted} documents\n`);
 
-            console.log('🗑️  Deleting Application Countries (student-country profiles)...');
+            console.log('   Deleting Application Countries (student-country profiles)...');
             const applicationCountriesDeleted = await ApplicationCountry.destroy({
                 where: {
                     studentId: studentIds
@@ -194,7 +194,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${applicationCountriesDeleted} application countries\n`);
 
-            console.log('🗑️  Deleting Student University Applications...');
+            console.log('   Deleting Student University Applications...');
             const applicationsDeleted = await StudentUniversityApplication.destroy({
                 where: {
                     studentId: studentIds
@@ -203,7 +203,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${applicationsDeleted} university applications\n`);
 
-            console.log('🗑️  Deleting Students/Leads...');
+            console.log('   Deleting Students/Leads...');
             const studentsDeletedCount = await Student.destroy({
                 where: {
                     id: studentIds
@@ -212,7 +212,7 @@ async function cleanupAllData() {
             });
             console.log(`   ✓ Deleted ${studentsDeletedCount} students/leads\n`);
 
-            console.log('🗑️  Deleting Users (Counselors, Telecallers, Marketing)...');
+            console.log('   Deleting Users (Counselors, Telecallers, Marketing)...');
             const usersDeletedCount = await User.destroy({
                 where: {
                     id: userIds
@@ -224,8 +224,8 @@ async function cleanupAllData() {
             // Commit transaction
             await transaction.commit();
 
-            console.log('✅ Cleanup completed successfully!\n');
-            console.log('📊 Summary:');
+            console.log('  Cleanup completed successfully!\n');
+            console.log('  Summary:');
             console.log(`   - Users deleted: ${usersDeletedCount}`);
             console.log(`   - Students/Leads deleted: ${studentsDeletedCount}`);
             console.log(`   - University Applications deleted: ${applicationsDeleted}`);
@@ -247,7 +247,7 @@ async function cleanupAllData() {
         }
 
     } catch (error) {
-        console.error('❌ Error during cleanup:', error);
+        console.error('  Error during cleanup:', error);
         throw error;
     } finally {
         await sequelize.close();

@@ -2813,7 +2813,7 @@ const StudentProgressBar = ({
                         )}
                         {(phase.isCurrent || phase.isNextPhase) && phase.missingDocs.length > 0 && (
                           <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                            ⚠️ Missing: {phase.missingDocs.join(', ')}
+                              Missing: {phase.missingDocs.join(', ')}
                           </Typography>
                         )}
                       </Box>

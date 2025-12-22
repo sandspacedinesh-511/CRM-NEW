@@ -225,7 +225,7 @@ const MultiCountryDashboard = () => {
   };
 
   const getCountryFlag = (country) => {
-    if (!country) return '🏳️';
+    if (!country) return ' ';
     
     const normalizedCountry = country.trim().toUpperCase();
     const flagMap = {
@@ -260,7 +260,7 @@ const MultiCountryDashboard = () => {
       'CHINA': '🇨🇳',
       'INDIA': '🇮🇳'
     };
-    return flagMap[normalizedCountry] || '🏳️';
+    return flagMap[normalizedCountry] || ' ';
   };
 
   // Get statistics for each country

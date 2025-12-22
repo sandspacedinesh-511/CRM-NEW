@@ -8,7 +8,7 @@ async function fixIndexes() {
     const [indexes] = await sequelize.query(`SHOW INDEXES FROM \`${table}\``);
 
     if (!indexes || indexes.length === 0) {
-      console.log('ℹ️  No indexes found on table.');
+      console.log('   No indexes found on table.');
       process.exit(0);
     }
 
@@ -62,28 +62,28 @@ async function fixIndexes() {
     }
 
     if (!toDrop.length) {
-      console.log('✅ No redundant indexes to drop.');
+      console.log('  No redundant indexes to drop.');
       process.exit(0);
     }
 
-    console.log(`⚠️  Found ${toDrop.length} redundant index(es). Dropping...`);
+    console.log(`   Found ${toDrop.length} redundant index(es). Dropping...`);
     for (const idx of toDrop) {
       try {
         await sequelize.query(`DROP INDEX \`${idx.name}\` ON \`${table}\``);
-        console.log(`   ✅ Dropped index: ${idx.name} (${idx.columns.join(', ')})`);
+        console.log(`     Dropped index: ${idx.name} (${idx.columns.join(', ')})`);
       } catch (err) {
-        console.log(`   ⚠️  Could not drop index ${idx.name}: ${err.message}`);
+        console.log(`      Could not drop index ${idx.name}: ${err.message}`);
       }
     }
 
-    console.log('✅ Index cleanup completed.');
+    console.log('  Index cleanup completed.');
     process.exit(0);
   } catch (error) {
     if (error.message && error.message.includes("doesn't exist")) {
-      console.log(`ℹ️  Table ${table} does not exist. This is normal for a fresh database.`);
+      console.log(`   Table ${table} does not exist. This is normal for a fresh database.`);
       process.exit(0);
     } else {
-      console.error('❌ Error fixing indexes:', error);
+      console.error('  Error fixing indexes:', error);
       process.exit(1);
     }
   }
@@ -92,11 +92,11 @@ async function fixIndexes() {
 sequelize
   .authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return fixIndexes();
   })
   .catch((error) => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });
 

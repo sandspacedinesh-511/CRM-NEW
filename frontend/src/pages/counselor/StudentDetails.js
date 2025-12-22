@@ -52,6 +52,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  Pause as PauseIcon,
+  PlayArrow as PlayArrowIcon,
   Add as AddIcon,
   Description as DocumentIcon,
   School as SchoolIcon,
@@ -334,6 +336,9 @@ function StudentDetails() {
   });
   const [openFileSizeDialog, setOpenFileSizeDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
+  const [pauseLoading, setPauseLoading] = useState(false);
 
   // Country profile state
   const [countryProfiles, setCountryProfiles] = useState([]);
@@ -1816,6 +1821,50 @@ function StudentDetails() {
     }
   };
 
+  const handlePauseStudent = () => {
+    setPauseReason('');
+    setPauseDialogOpen(true);
+  };
+
+  const handlePlayStudent = async () => {
+    try {
+      setPauseLoading(true);
+      await axiosInstance.post(`/counselor/students/${id}/play`);
+      showSnackbar('Student application resumed successfully!', 'success');
+      fetchStudentDetails();
+    } catch (error) {
+      console.error('Error resuming student:', error);
+      showSnackbar(error.response?.data?.message || 'Failed to resume student application. Please try again.', 'error');
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (!pauseReason.trim()) {
+      showSnackbar('Please enter a reason for pausing the application', 'error');
+      return;
+    }
+
+    try {
+      setPauseLoading(true);
+      await axiosInstance.post(`/counselor/students/${id}/pause`, {
+        reason: pauseReason.trim()
+      });
+      showSnackbar('Student application paused successfully!', 'success');
+      setPauseDialogOpen(false);
+      setPauseReason('');
+      fetchStudentDetails();
+    } catch (error) {
+      console.error('Error pausing student:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to pause student application. Please try again.';
+      showSnackbar(errorMessage, 'error');
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
   const handleDocumentMenuOpen = (event, document) => {
     setSelectedDocument(document);
     setDocumentMenuAnchor(event.currentTarget);
@@ -2023,7 +2072,7 @@ function StudentDetails() {
 
       showSnackbar('Document downloaded successfully', 'success');
     } catch (error) {
-      console.error('❌ Error downloading document:', error);
+      console.error('  Error downloading document:', error);
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
@@ -2045,7 +2094,7 @@ function StudentDetails() {
     try {
       setPreviewLoading(true);
       setPreviewFileName(document.name);
-      console.log('👁️ Attempting to preview document:', document.id, document.name);
+      console.log('  Attempting to preview document:', document.id, document.name);
 
       // For academic records with JSON metadata, create a formatted preview
       if (document.type === 'ACADEMIC_TRANSCRIPT' && document.description &&
@@ -2142,8 +2191,8 @@ function StudentDetails() {
         responseType: 'blob' // Expect blob for local files, will be overridden for JSON responses
       });
 
-      console.log('👁️ Preview response received:', response.data);
-      console.log('👁️ Response headers:', response.headers);
+      console.log('  Preview response received:', response.data);
+      console.log('  Response headers:', response.headers);
 
       // Check if response is JSON (DigitalOcean Spaces) or blob (local file)
       const contentType = response.headers['content-type'];
@@ -2181,7 +2230,7 @@ function StudentDetails() {
       showSnackbar('Failed to load document preview', 'error');
       setPreviewLoading(false);
     } catch (error) {
-      console.error('❌ Error previewing document:', error);
+      console.error('  Error previewing document:', error);
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
@@ -2215,15 +2264,15 @@ function StudentDetails() {
     }
 
     try {
-      console.log('🗑️ Attempting to delete document:', documentId);
+      console.log('  Attempting to delete document:', documentId);
       const response = await axiosInstance.delete(`/counselor/documents/${documentId}`);
-      console.log('🗑️ Delete response:', response.data);
+      console.log('  Delete response:', response.data);
 
       // Refresh documents list
       fetchStudentDetails();
       showSnackbar('Document deleted successfully', 'success');
     } catch (error) {
-      console.error('❌ Error deleting document:', error);
+      console.error('  Error deleting document:', error);
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error data:', error.response?.data);
@@ -2669,6 +2718,24 @@ function StudentDetails() {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title={student?.isPaused ? "Resume Application" : "Pause Application"}>
+              <IconButton
+                onClick={student?.isPaused ? handlePlayStudent : handlePauseStudent}
+                disabled={pauseLoading}
+                sx={{
+                  bgcolor: student?.isPaused ? 'success.main' : 'warning.main',
+                  color: 'white',
+                  '&:hover': { 
+                    bgcolor: student?.isPaused ? 'success.dark' : 'warning.dark' 
+                  },
+                  '&:disabled': {
+                    bgcolor: 'grey.300'
+                  }
+                }}
+              >
+                {student?.isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Edit Student">
               <IconButton
                 onClick={handleEdit}
@@ -4018,7 +4085,7 @@ function StudentDetails() {
                 variant="outlined"
                 startIcon={<SchoolIcon />}
                 onClick={() => {
-                  console.log('🎓 New Application button clicked');
+                  console.log('  New Application button clicked');
                   setOpenApplicationDialog(true);
                 }}
                 sx={{
@@ -4063,7 +4130,7 @@ function StudentDetails() {
                 variant="outlined"
                 startIcon={<EmailIcon />}
                 onClick={() => {
-                  console.log('📧 Send Email button clicked');
+                  console.log('  Send Email button clicked');
                   setOpenEmailDialog(true);
                 }}
                 sx={{
@@ -4085,7 +4152,7 @@ function StudentDetails() {
                 variant="outlined"
                 startIcon={<PrintIcon />}
                 onClick={() => {
-                  console.log('🖨️ Print Profile button clicked');
+                  console.log('  Print Profile button clicked');
                   handlePrintProfile();
                 }}
                 sx={{
@@ -4269,8 +4336,8 @@ function StudentDetails() {
   };
 
   const handleOpenNoteDialog = () => {
-    console.log('📝 Opening note dialog...');
-    console.log('📝 Current note text:', noteText);
+    console.log('  Opening note dialog...');
+    console.log('  Current note text:', noteText);
     setOpenNoteDialog(true);
   };
 
@@ -6882,7 +6949,7 @@ function StudentDetails() {
                   📄 {pendingFile?.name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  📏 Size: {pendingFile ? formatFileSize(pendingFile.size) : ''}
+                    Size: {pendingFile ? formatFileSize(pendingFile.size) : ''}
                 </Typography>
               </Box>
 
@@ -6961,6 +7028,104 @@ function StudentDetails() {
           onSave={handleCreateReminder}
           studentName={formatStudentName(student)}
         />
+
+        {/* Pause Student Dialog */}
+        <Dialog
+          open={pauseDialogOpen}
+          onClose={() => {
+            if (!pauseLoading) {
+              setPauseDialogOpen(false);
+              setPauseReason('');
+            }
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            pb: 2
+          }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: theme.palette.warning.main + '15',
+              color: theme.palette.warning.main
+            }}>
+              <PauseIcon />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Pause Application
+              </Typography>
+              {student && (
+                <Typography variant="body2" color="text.secondary">
+                  For {student.firstName} {student.lastName}
+                </Typography>
+              )}
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Please provide a reason for pausing this student's application. This will temporarily halt the application progress.
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Pause Reason"
+              placeholder="Enter the reason for pausing the application..."
+              value={pauseReason}
+              onChange={(e) => setPauseReason(e.target.value)}
+              required
+              disabled={pauseLoading}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3, gap: 2 }}>
+            <Button
+              onClick={() => {
+                if (!pauseLoading) {
+                  setPauseDialogOpen(false);
+                  setPauseReason('');
+                }
+              }}
+              disabled={pauseLoading}
+              variant="outlined"
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmPause}
+              disabled={!pauseReason.trim() || pauseLoading}
+              variant="contained"
+              color="warning"
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3
+              }}
+            >
+              {pauseLoading ? 'Pausing...' : 'Pause Application'}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Snackbar for notifications */}
         <Snackbar

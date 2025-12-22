@@ -26,7 +26,7 @@ async function fixTableIndexes(tableName, columnsToCheck) {
         for (const idx of duplicateIndexes) {
           try {
             await sequelize.query(`DROP INDEX \`${idx.Key_name}\` ON ${tableName}`);
-            console.log(`   ✅ Dropped duplicate index: ${idx.Key_name} on ${tableName}.${column}`);
+            console.log(`     Dropped duplicate index: ${idx.Key_name} on ${tableName}.${column}`);
           } catch (err) {
             // Ignore errors for indexes that don't exist
           }
@@ -36,7 +36,7 @@ async function fixTableIndexes(tableName, columnsToCheck) {
   } catch (error) {
     // If table doesn't exist, that's fine - it will be created
     if (!error.message.includes("doesn't exist")) {
-      console.log(`⚠️  Warning: Could not fix indexes on ${tableName}:`, error.message);
+      console.log(`   Warning: Could not fix indexes on ${tableName}:`, error.message);
     }
   }
 }
@@ -75,7 +75,7 @@ async function migrate() {
     
     // If it's the "too many keys" error, provide helpful message
     if (error.message && error.message.includes('Too many keys')) {
-      console.error('\n⚠️  ERROR: Too many indexes on a table (MySQL limit is 64 indexes per table).');
+      console.error('\n   ERROR: Too many indexes on a table (MySQL limit is 64 indexes per table).');
       console.error('   The error occurred on:', error.sql?.match(/`(\w+)`/)?.[1] || 'unknown table');
       console.error('   Please run one of these scripts:');
       console.error('   - node backend/scripts/fixCountryApplicationProcessIndexes.js');

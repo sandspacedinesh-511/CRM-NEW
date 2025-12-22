@@ -65,7 +65,7 @@ const SingleCountryAlert = () => {
       'Australia': '🇦🇺',
       'Germany': '🇩🇪'
     };
-    return flagMap[country] || '🏳️';
+    return flagMap[country] || ' ';
   };
 
   const handleAddApplication = (studentId) => {

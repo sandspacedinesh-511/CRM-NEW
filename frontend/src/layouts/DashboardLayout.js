@@ -143,7 +143,7 @@ function DashboardLayout() {
         const reminderMessage = notification.reminderMessage || notification.metadata?.reminderMessage || notification.message;
         const reminderTitle = notification.reminderTitle || notification.metadata?.reminderTitle;
 
-        console.log('🔔 Reminder notification:', { studentName, reminderMessage, reminderTitle }); // Debug log
+        console.log('  Reminder notification:', { studentName, reminderMessage, reminderTitle }); // Debug log
 
         // Show popup dialog for reminders
         setReminderDialogData({
@@ -155,7 +155,7 @@ function DashboardLayout() {
         });
         setReminderDialogOpen(true);
 
-        console.log('✅ Reminder dialog shown'); // Debug log
+        console.log('  Reminder dialog shown'); // Debug log
       } else {
         // Show snackbar notification for other types
         setSnackbarMessage(notification.message || notification.title);

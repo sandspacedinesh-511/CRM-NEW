@@ -3,13 +3,13 @@ const { sequelize, Reminder } = require('./models');
 
 async function syncReminderModel() {
     try {
-        console.log('🔄 Syncing Reminder model to database...');
+        console.log('  Syncing Reminder model to database...');
 
         // Sync only the Reminder model
         await Reminder.sync({ alter: true });
 
-        console.log('✅ Reminder table created/updated successfully!');
-        console.log('📋 Table structure:');
+        console.log('  Reminder table created/updated successfully!');
+        console.log('  Table structure:');
         console.log('   - id (INTEGER, PRIMARY KEY, AUTO_INCREMENT)');
         console.log('   - counselorId (INTEGER, FOREIGN KEY)');
         console.log('   - studentId (INTEGER, FOREIGN KEY)');
@@ -22,7 +22,7 @@ async function syncReminderModel() {
 
         process.exit(0);
     } catch (error) {
-        console.error('❌ Error syncing Reminder model:', error);
+        console.error('  Error syncing Reminder model:', error);
         process.exit(1);
     }
 }

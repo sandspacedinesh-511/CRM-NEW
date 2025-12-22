@@ -177,7 +177,7 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
       try {
         setLoading(true);
         console.log('🚀 Starting student creation process...');
-        console.log('📋 Form values:', values);
+        console.log('  Form values:', values);
 
         // Validate all required fields are filled
         const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'address', 'country', 'city', 'postalCode', 'intendedProgram', 'intendedUniversity', 'intendedCountry', 'nextIntakeDate', 'budget', 'previousEducation', 'workExperience', 'englishProficiency'];
@@ -240,7 +240,7 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
 
         // Create student
         const studentResponse = await axios.post('/counselor/students', values);
-        console.log('✅ Student created successfully:', studentResponse.data);
+        console.log('  Student created successfully:', studentResponse.data);
 
         const studentId = studentResponse.data.data.id;
 
@@ -262,11 +262,11 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
         }
 
       } catch (error) {
-        console.error('❌ Error creating student:', error);
-        console.error('❌ Error response:', error.response);
-        console.error('❌ Error status:', error.response?.status);
-        console.error('❌ Error data:', error.response?.data);
-        console.error('❌ Error message:', error.message);
+        console.error('  Error creating student:', error);
+        console.error('  Error response:', error.response);
+        console.error('  Error status:', error.response?.status);
+        console.error('  Error data:', error.response?.data);
+        console.error('  Error message:', error.message);
 
         if (error.response?.data?.errors) {
           // Handle validation errors from server
@@ -1192,10 +1192,10 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
                   onClick={async (e) => {
                     e.preventDefault();
                     console.log('🚀 Create Student button clicked');
-                    console.log('📋 Form values:', formik.values);
-                    console.log('📋 Form errors:', formik.errors);
-                    console.log('📋 Form touched:', formik.touched);
-                    console.log('📋 Form isValid:', formik.isValid);
+                    console.log('  Form values:', formik.values);
+                    console.log('  Form errors:', formik.errors);
+                    console.log('  Form touched:', formik.touched);
+                    console.log('  Form isValid:', formik.isValid);
 
                     // Force validation of all fields
                     await formik.validateForm();
@@ -1203,7 +1203,7 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
                     // Check if form is valid
                     if (Object.keys(formik.errors).length > 0) {
                       showSnackbar('Please fix all validation errors before creating the student', 'error');
-                      console.log('❌ Form has validation errors:', formik.errors);
+                      console.log('  Form has validation errors:', formik.errors);
                       return;
                     }
 
@@ -1213,7 +1213,7 @@ const AddStudentModal = ({ open, onClose, onStudentAdded }) => {
                       return;
                     }
 
-                    console.log('✅ Form is valid, proceeding with submission');
+                    console.log('  Form is valid, proceeding with submission');
                     formik.handleSubmit(e);
                   }}
                   disabled={loading || uploading || formik.isSubmitting}

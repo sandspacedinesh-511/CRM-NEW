@@ -135,9 +135,9 @@ export const getFileTypeCategory = (mimetype) => {
 // Get file icon based on type
 export const getFileIcon = (mimetype) => {
   if (mimetype === 'application/pdf') return '📄';
-  if (mimetype.includes('word')) return '📝';
-  if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return '📊';
-  if (mimetype.startsWith('image/')) return '🖼️';
+  if (mimetype.includes('word')) return ' ';
+  if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return ' ';
+  if (mimetype.startsWith('image/')) return ' ';
   return '📁';
 };
 

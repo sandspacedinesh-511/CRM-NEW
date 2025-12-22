@@ -3,7 +3,7 @@ const { Student, ApplicationCountry, StudentUniversityApplication, University } 
 
 async function migrateExistingData() {
   try {
-    console.log('🔄 Starting migration of existing data to country profiles...');
+    console.log('  Starting migration of existing data to country profiles...');
     
     // Get all students
     const students = await Student.findAll({
@@ -176,7 +176,7 @@ async function migrateExistingData() {
             });
             
             createdProfiles++;
-            console.log(`  ✅ Created profile for ${country} (Student ID: ${student.id})`);
+            console.log(`    Created profile for ${country} (Student ID: ${student.id})`);
           }
         }
         
@@ -186,12 +186,12 @@ async function migrateExistingData() {
       }
     }
     
-    console.log(`\n✅ Migration completed!`);
+    console.log(`\n  Migration completed!`);
     console.log(`   - Processed ${migratedCount} students`);
     console.log(`   - Created ${createdProfiles} new country profiles`);
     process.exit(0);
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error('  Migration failed:', error);
     process.exit(1);
   }
 }
@@ -227,10 +227,10 @@ function normalizeCountryName(country) {
 // Run the migration
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection established');
+    console.log('  Database connection established');
     return migrateExistingData();
   })
   .catch(error => {
-    console.error('❌ Database connection failed:', error);
+    console.error('  Database connection failed:', error);
     process.exit(1);
   });
