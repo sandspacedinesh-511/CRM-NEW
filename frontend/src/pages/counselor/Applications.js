@@ -129,7 +129,7 @@ const normalizeCountryName = (country) => {
   if (!country) return '';
   const normalized = country.trim();
   const upperNormalized = normalized.toUpperCase();
-  
+
   // Map variations to standard names
   const countryMap = {
     'UK': 'United Kingdom',
@@ -165,7 +165,7 @@ const normalizeCountryName = (country) => {
     'NEW ZEALAND': 'New Zealand',
     'NZ': 'New Zealand'
   };
-  
+
   return countryMap[upperNormalized] || normalized;
 };
 
@@ -238,12 +238,12 @@ function Applications() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Parse sortBy to extract sort field and order
       const sortParams = sortBy.split('_');
       const sortField = sortParams[0];
       const sortOrder = sortParams[1] === 'desc' ? 'DESC' : 'ASC';
-      
+
       const response = await axiosInstance.get('/counselor/applications', {
         params: {
           search: searchQuery,
@@ -318,7 +318,7 @@ function Applications() {
     try {
       setLoadingStudents(true);
       const response = await axiosInstance.get('/counselor/students');
-      const studentsList = response.data.success 
+      const studentsList = response.data.success
         ? (response.data.data?.students || [])
         : (response.data.rows || []);
 
@@ -328,10 +328,10 @@ function Applications() {
           try {
             const countryResponse = await axiosInstance.get(`/counselor/students/${student.id}/country-profiles`);
             const countryProfiles = countryResponse.data.success ? countryResponse.data.data : [];
-            
+
             // Extract unique countries
             const countries = countryProfiles.map(profile => profile.country);
-            
+
             return {
               ...student,
               countries: countries,
@@ -459,7 +459,7 @@ function Applications() {
 
   // Fetch country students data when Country-Based Management tab is selected
   useEffect(() => {
-    if (tabValue === 2 && countriesList.length === 0) {
+    if ((tabValue === 0 || tabValue === 2) && countriesList.length === 0) {
       fetchCountryStudentsData();
     }
   }, [tabValue]);
@@ -1670,8 +1670,8 @@ function Applications() {
                                         size="small"
                                         color={
                                           student.status === 'COMPLETED' ? 'success' :
-                                          student.status === 'REJECTED' ? 'error' :
-                                          student.status === 'DEFERRED' ? 'warning' : 'default'
+                                            student.status === 'REJECTED' ? 'error' :
+                                              student.status === 'DEFERRED' ? 'warning' : 'default'
                                         }
                                       />
                                     </TableCell>
@@ -1733,13 +1733,13 @@ function Applications() {
                   <Grid container spacing={3}>
                     {countriesList.map((country) => {
                       const normalizedCountry = normalizeCountryName(country);
-                      const countryStudents = allStudentsData.filter(student => 
+                      const countryStudents = allStudentsData.filter(student =>
                         student.countries && student.countries.some(c => normalizeCountryName(c) === normalizedCountry)
                       );
                       const countryProfile = allStudentsData
                         .flatMap(s => s.countryProfiles || [])
                         .find(p => normalizeCountryName(p.country) === normalizedCountry);
-                      
+
                       return (
                         <Grid item xs={12} sm={6} md={4} lg={3} key={country}>
                           <Card
@@ -1766,7 +1766,7 @@ function Applications() {
                                     page: 1
                                   }
                                 });
-                                
+
                                 // If no results and country name differs, try original
                                 if (!response.data.success || !response.data.data?.applications?.length) {
                                   if (normalizedCountry !== country) {
@@ -1779,11 +1779,11 @@ function Applications() {
                                     });
                                   }
                                 }
-                                
+
                                 if (response.data.success) {
                                   // Filter applications to match normalized country name
                                   const apps = response.data.data?.applications || [];
-                                  const filteredApps = apps.filter(app => 
+                                  const filteredApps = apps.filter(app =>
                                     normalizeCountryName(app.university?.country) === normalizedCountry
                                   );
                                   setAllApplicationsForCountry(filteredApps);
@@ -1851,7 +1851,7 @@ function Applications() {
 
                 {(() => {
                   const normalizedSelectedCountry = normalizeCountryName(selectedCountryForDetails);
-                  const countryStudents = allStudentsData.filter(student => 
+                  const countryStudents = allStudentsData.filter(student =>
                     student.countries && student.countries.some(c => normalizeCountryName(c) === normalizedSelectedCountry)
                   );
 
@@ -1871,8 +1871,8 @@ function Applications() {
                           p => normalizeCountryName(p.country) === normalizedSelected
                         );
                         const countryApplications = allApplicationsForCountry.filter(
-                          app => app.student?.id === student.id && 
-                                 normalizeCountryName(app.university?.country) === normalizedSelected
+                          app => app.student?.id === student.id &&
+                            normalizeCountryName(app.university?.country) === normalizedSelected
                         );
 
                         return (
@@ -1944,7 +1944,7 @@ function Applications() {
                                         Pending
                                       </Typography>
                                       <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5, color: 'warning.main' }}>
-                                        {countryApplications.filter(app => 
+                                        {countryApplications.filter(app =>
                                           ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(app.applicationStatus)
                                         ).length}
                                       </Typography>
@@ -1990,7 +1990,7 @@ function Applications() {
                                               </TableCell>
                                               <TableCell>
                                                 <Typography variant="body2">
-                                                  {app.applicationDeadline 
+                                                  {app.applicationDeadline
                                                     ? format(new Date(app.applicationDeadline), 'MMM d, yyyy')
                                                     : 'N/A'}
                                                 </Typography>
