@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import {
   Grid,
-  Paper,
   Typography,
   Box,
   Card,
@@ -11,14 +10,11 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
   CircularProgress,
   Alert,
   Button,
   Avatar,
   IconButton,
-  Tooltip,
-  LinearProgress,
   Fade,
   Grow,
   useTheme,
@@ -26,10 +22,10 @@ import {
   Container,
   Stack,
   Badge,
-  CardActions,
   CardHeader,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Chip
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -39,29 +35,15 @@ import {
   Add as AddIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
-  Error as ErrorIcon,
   Info as InfoIcon,
-  CalendarToday as CalendarIcon,
-  LocationOn as LocationIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
   Business as BusinessIcon,
   Assessment as AssessmentIcon,
   Timeline as TimelineIcon,
   PieChart as PieChartIcon,
-  BarChart as BarChartIcon,
   ShowChart as ShowChartIcon,
-  Notifications as NotificationsIcon,
-  Settings as SettingsIcon,
-  Dashboard as DashboardIcon,
   Speed as SpeedIcon,
   TrendingDown as TrendingDownIcon,
-  Star as StarIcon,
   Bolt as BoltIcon,
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
@@ -77,10 +59,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
-import { formatDistanceToNow, format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../utils/axios';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -737,7 +718,6 @@ function AdminDashboard() {
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                mb: 1,
                 mb: 1,
                 fontSize: { xs: '1.5rem', md: '2.5rem' },
                 lineHeight: 1.2,
