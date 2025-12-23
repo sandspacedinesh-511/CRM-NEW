@@ -2289,10 +2289,14 @@ exports.deleteUniversity = async (req, res) => {
     const { id } = req.params;
 
     const university = await University.findByPk(id);
+    const fs = require('fs');
+    fs.appendFileSync('debug_log.txt', `[${new Date().toISOString()}] Attempting to delete university. ID: ${id}. Found: ${university ? 'Yes' : 'No'}\n`);
+
     if (!university) {
+      fs.appendFileSync('debug_log.txt', `[${new Date().toISOString()}] University not found in DB with ID: ${id}\n`);
       return res.status(404).json({
         success: false,
-        message: 'University not found'
+        message: `University not found with ID: ${id}`
       });
     }
 
@@ -2363,6 +2367,78 @@ const mapExcelColumnToField = (excelColumn) => {
     'coursetypes': 'courseType'
   };
   return columnMap[normalized] || null;
+};
+
+exports.deleteUniversities = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No university IDs provided'
+      });
+    }
+
+    // Find universities that can be deleted (no associated students)
+    const universities = await University.findAll({
+      where: { id: ids }
+    });
+
+    if (universities.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No universities found with provided IDs'
+      });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const university of universities) {
+      const studentCount = await university.countStudents();
+      if (studentCount > 0) {
+        results.failed.push({
+          id: university.id,
+          name: university.name,
+          reason: 'Has associated students'
+        });
+      } else {
+        await university.destroy();
+        results.success.push({
+          id: university.id,
+          name: university.name
+        });
+      }
+    }
+
+    const successCount = results.success.length;
+    const failCount = results.failed.length;
+
+    let message = '';
+    if (successCount > 0 && failCount === 0) {
+      message = `Successfully deleted ${successCount} university(s)`;
+    } else if (successCount === 0 && failCount > 0) {
+      message = `Failed to delete ${failCount} university(s). They may have associated students.`;
+    } else {
+      message = `Deleted ${successCount} university(s). Failed to delete ${failCount} university(s).`;
+    }
+
+    res.json({
+      success: successCount > 0, // Considered successful if at least one was deleted
+      message,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error in bulk delete universities:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete universities. Please try again later.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
 
 exports.bulkImportUniversities = async (req, res) => {

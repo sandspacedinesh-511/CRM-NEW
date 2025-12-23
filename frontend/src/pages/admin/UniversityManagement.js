@@ -23,7 +23,10 @@ import {
   TextField,
   Grid,
   MenuItem,
-  Rating
+  Checkbox,
+  Tooltip,
+  Toolbar,
+  alpha
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -72,6 +75,7 @@ function UniversityManagement() {
   const [selectedCountry, setSelectedCountry] = useState('');
   const fileInputRef = useRef(null);
   const [selectedUniversity, setSelectedUniversity] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     country: '',
@@ -184,20 +188,20 @@ function UniversityManagement() {
       } else {
         response = await axiosInstance.post('/admin/universities', formData);
       }
-      
+
       if (response.data.success) {
         setSuccess(response.data.message);
         setOpenDialog(false);
-        
+
         // If adding a new university (not editing), set country filter to match the new university's country
         // This ensures the newly added university appears immediately in the table
         if (!selectedUniversity && formData.country) {
           setCountryFilter(formData.country);
         }
-        
+
         // Reset to first page to ensure the new university is visible
         setPage(0);
-        
+
         // Note: fetchUniversities() will be called automatically by useEffect when countryFilter or page changes
         // But we also call it here to ensure immediate refresh, especially when editing
         fetchUniversities();
@@ -221,6 +225,7 @@ function UniversityManagement() {
       if (response.data.success) {
         setSuccess(response.data.message);
         fetchUniversities();
+        setSelectedIds(prev => prev.filter(id => id !== universityId));
       } else {
         setError(response.data.message || 'Failed to delete university');
       }
@@ -229,6 +234,68 @@ function UniversityManagement() {
       setError(error.response?.data?.message || 'Failed to delete university. Please try again.');
     }
   };
+
+  const handleSelectAllClick = (event) => {
+    if (event.target.checked) {
+      const newSelecteds = universities.map((n) => n.id);
+      setSelectedIds(newSelecteds);
+      return;
+    }
+    setSelectedIds([]);
+  };
+
+  const handleClick = (event, id) => {
+    const selectedIndex = selectedIds.indexOf(id);
+    let newSelected = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selectedIds, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedIds.slice(1));
+    } else if (selectedIndex === selectedIds.length - 1) {
+      newSelected = newSelected.concat(selectedIds.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedIds.slice(0, selectedIndex),
+        selectedIds.slice(selectedIndex + 1),
+      );
+    }
+
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} university(s)?`)) {
+      return;
+    }
+
+    clearMessages();
+    try {
+      const response = await axiosInstance.post('/admin/universities/bulk-delete', { ids: selectedIds });
+
+      if (response.data.success) {
+        setSuccess(response.data.message);
+        fetchUniversities();
+        setSelectedIds([]);
+      } else {
+        // Even if some failed, we probably want to refresh
+        if (response.data.message.includes('Deleted')) {
+          setSuccess(response.data.message);
+          fetchUniversities();
+          setSelectedIds([]);
+        } else {
+          setError(response.data.message || 'Failed to delete universities');
+        }
+      }
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      setError(error.response?.data?.message || 'Failed to delete universities');
+    }
+  };
+
+  const isSelected = (id) => selectedIds.indexOf(id) !== -1;
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -370,11 +437,46 @@ function UniversityManagement() {
           </Alert>
         )}
 
+        {selectedIds.length > 0 && (
+          <Toolbar
+            sx={{
+              pl: { sm: 2 },
+              pr: { xs: 1, sm: 1 },
+              bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.action.activatedOpacity),
+            }}
+          >
+            <Typography
+              sx={{ flex: '1 1 100%' }}
+              color="inherit"
+              variant="subtitle1"
+              component="div"
+            >
+              {selectedIds.length} selected
+            </Typography>
+            <Tooltip title="Delete">
+              <IconButton onClick={handleBulkDelete}>
+                <DeleteIcon color="error" />
+              </IconButton>
+            </Tooltip>
+          </Toolbar>
+        )}
+
         <Paper>
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      color="primary"
+                      indeterminate={selectedIds.length > 0 && selectedIds.length < universities.length}
+                      checked={universities.length > 0 && selectedIds.length === universities.length}
+                      onChange={handleSelectAllClick}
+                      inputProps={{
+                        'aria-label': 'select all desserts',
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>University Name</TableCell>
                   <TableCell>Location</TableCell>
                   <TableCell>Ranking</TableCell>
@@ -385,77 +487,100 @@ function UniversityManagement() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {universities.map((university) => (
-                  <TableRow key={university.id}>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <SchoolIcon sx={{ mr: 1, color: 'primary.main' }} />
-                        <Box>
-                          <Typography variant="subtitle2">
-                            {university.name}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            <WebsiteIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                            <a
-                              href={university.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: 'inherit' }}
-                            >
-                              Visit Website
-                            </a>
-                          </Typography>
+                {universities.map((university) => {
+                  const isItemSelected = isSelected(university.id);
+                  const labelId = `enhanced-table-checkbox-${university.id}`;
+
+                  return (
+                    <TableRow
+                      hover
+                      role="checkbox"
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                      key={university.id}
+                      selected={isItemSelected}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="primary"
+                          checked={isItemSelected}
+                          onClick={(event) => handleClick(event, university.id)}
+                          inputProps={{
+                            'aria-labelledby': labelId,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <SchoolIcon sx={{ mr: 1, color: 'primary.main' }} />
+                          <Box>
+                            <Typography variant="subtitle2">
+                              {university.name}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              <WebsiteIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                              <a
+                                href={university.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'inherit' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Visit Website
+                              </a>
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <LocationIcon sx={{ mr: 0.5, fontSize: 'small' }} />
-                        {university.city}, {university.country}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {university.ranking ? `#${university.ranking}` : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {university.acceptanceRate ? `${university.acceptanceRate}%` : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={`IELTS: ${university.averageIELTS || 'N/A'}`}
-                        size="small"
-                        sx={{ mr: 0.5 }}
-                      />
-                      <Chip
-                        label={`GPA: ${university.averageGPA || 'N/A'}`}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={university.status}
-                        color={university.status === 'ACTIVE' ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(university)}
-                        sx={{ mr: 1 }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDelete(university.id)}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <LocationIcon sx={{ mr: 0.5, fontSize: 'small' }} />
+                          {university.city}, {university.country}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {university.ranking ? `#${university.ranking}` : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {university.acceptanceRate ? `${university.acceptanceRate}%` : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`IELTS: ${university.averageIELTS || 'N/A'}`}
+                          size="small"
+                          sx={{ mr: 0.5 }}
+                        />
+                        <Chip
+                          label={`GPA: ${university.averageGPA || 'N/A'}`}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={university.status}
+                          color={university.status === 'ACTIVE' ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(university)}
+                          sx={{ mr: 1 }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(university.id)}
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -682,7 +807,7 @@ function UniversityManagement() {
                 <Typography variant="body2">• Intake(s), Intakes</Typography>
                 <Typography variant="body2">• Course Type(s), Course Types</Typography>
               </Box>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -711,7 +836,7 @@ function UniversityManagement() {
 
               {importResults && (
                 <Box sx={{ mt: 2 }}>
-                  <Alert 
+                  <Alert
                     severity={importResults.failed > 0 ? 'warning' : 'success'}
                     sx={{ mb: 2 }}
                   >
@@ -719,7 +844,7 @@ function UniversityManagement() {
                       Import Results: {importResults.successful} successful, {importResults.failed} failed out of {importResults.total} total
                     </Typography>
                   </Alert>
-                  
+
                   {importResults.errors && importResults.errors.length > 0 && (
                     <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                       <Typography variant="subtitle2" sx={{ mb: 1 }}>Errors:</Typography>
