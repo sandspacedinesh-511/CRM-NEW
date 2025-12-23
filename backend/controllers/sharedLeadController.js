@@ -160,11 +160,82 @@ exports.acceptSharedLead = async (req, res) => {
         const student = sharedLead.student;
         const previousCounselorId = student.counselorId;
 
-        // Update SharedLead status
-        await sharedLead.update({ status: 'accepted' });
+        // IMPORTANT: Update SharedLead status to 'accepted' FIRST, then update student
+        // Use direct update to ensure it's saved
+        await SharedLead.update(
+            { status: 'accepted' },
+            { where: { id: sharedLead.id } }
+        );
+        
+        // Reload sharedLead to ensure we have the latest data
+        await sharedLead.reload();
+        
+        // Verify the SharedLead status was updated
+        const verifySharedLead = await SharedLead.findByPk(sharedLead.id, { attributes: ['id', 'status'] });
+        if (!verifySharedLead || verifySharedLead.status !== 'accepted') {
+            console.error(`ERROR: SharedLead ${sharedLead.id} status is still '${verifySharedLead?.status}' after update! Expected: 'accepted'`);
+            // Try one more time
+            await SharedLead.update({ status: 'accepted' }, { where: { id: sharedLead.id } });
+            console.log(`Retried: Updated SharedLead ${sharedLead.id} status to 'accepted'`);
+        } else {
+            console.log(`Verified: SharedLead ${sharedLead.id} status is correctly set to 'accepted'`);
+        }
 
-        // Assign student to new counselor
-        await student.update({ counselorId });
+        // Assign student to new counselor - use save() to ensure it's persisted
+        student.counselorId = counselorId;
+        await student.save();
+        
+        // Reload student to ensure we have the latest data
+        await student.reload();
+        
+        // CRITICAL: Cancel ALL other pending SharedLeads for this student
+        // This ensures no pending shares remain after acceptance
+        const canceledCount = await SharedLead.update(
+            { status: 'rejected' },
+            {
+                where: {
+                    studentId: student.id,
+                    status: 'pending',
+                    id: { [Op.ne]: sharedLead.id }
+                }
+            }
+        );
+        if (canceledCount[0] > 0) {
+            console.log(`Canceled ${canceledCount[0]} other pending SharedLead(s) for student ${student.id}`);
+        }
+        
+        // Verify the updates were saved
+        console.log(`Lead accepted: Student ${student.id} (counselorId: ${student.counselorId}) assigned to counselor ${counselorId}, SharedLead ${sharedLead.id} status: ${sharedLead.status}`);
+        
+        // Double-check: verify student has counselorId set by querying the database directly
+        const verifyStudent = await Student.findByPk(student.id, { attributes: ['id', 'counselorId'] });
+        if (!verifyStudent || !verifyStudent.counselorId) {
+            console.error(`ERROR: Student ${student.id} counselorId is still null after update! Expected: ${counselorId}, Got: ${verifyStudent?.counselorId}`);
+            // Try one more time with direct update
+            await Student.update({ counselorId }, { where: { id: student.id } });
+            console.log(`Retried: Updated student ${student.id} counselorId to ${counselorId}`);
+        } else {
+            console.log(`Verified: Student ${student.id} counselorId is correctly set to ${verifyStudent.counselorId}`);
+        }
+        
+        // Final verification: ensure NO pending SharedLeads remain for this student
+        const remainingPending = await SharedLead.count({
+            where: {
+                studentId: student.id,
+                status: 'pending'
+            }
+        });
+        if (remainingPending > 0) {
+            console.error(`ERROR: Student ${student.id} still has ${remainingPending} pending SharedLead(s) after acceptance! Attempting to fix...`);
+            // Force update all remaining pending SharedLeads
+            await SharedLead.update(
+                { status: 'rejected' },
+                { where: { studentId: student.id, status: 'pending' } }
+            );
+            console.log(`Fixed: Rejected all remaining pending SharedLeads for student ${student.id}`);
+        } else {
+            console.log(`Verified: No pending SharedLeads remain for student ${student.id}`);
+        }
 
         // Notify the sender
         const notificationData = {
@@ -182,13 +253,18 @@ exports.acceptSharedLead = async (req, res) => {
             await websocketService.sendNotification(sharedLead.senderId, notificationData);
             
             // Send lead status update for real-time UI update
-            await websocketService.sendLeadStatusUpdate(sharedLead.senderId, {
+            // This will broadcast to the sender and all admins
+            const leadStatusData = {
                 studentId: student.id,
                 sharedLeadId: sharedLead.id,
                 status: 'accepted',
                 counselorId: counselorId,
                 counselorName: req.user.name || 'Counselor'
-            });
+            };
+            
+            console.log(`Sending WebSocket lead_status_update to sender ${sharedLead.senderId} and all admins:`, leadStatusData);
+            await websocketService.sendLeadStatusUpdate(sharedLead.senderId, leadStatusData);
+            console.log(`WebSocket lead_status_update sent successfully`);
         } catch (e) {
             console.error("Failed to send socket notification", e);
         }

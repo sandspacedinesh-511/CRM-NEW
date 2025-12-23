@@ -96,10 +96,11 @@ function B2BMarketingMemberLeadsAdmin() {
       console.log('Lead status update received:', data);
       
       // Update the lead status in the leads list
-      setLeads((prevLeads) =>
-        prevLeads.map((lead) => {
-          // Check if this update is for this lead
+      setLeads((prevLeads) => {
+        const updated = prevLeads.map((lead) => {
+          // Check if this update is for this lead (match by studentId)
           if (lead.id === data.studentId || lead.studentId === data.studentId) {
+            console.log('Updating lead status:', lead.id, 'from', lead.sharingStatus, 'to', data.status);
             return {
               ...lead,
               sharingStatus: data.status === 'accepted' ? 'accepted' : lead.sharingStatus,
@@ -107,12 +108,37 @@ function B2BMarketingMemberLeadsAdmin() {
             };
           }
           return lead;
-        })
-      );
+        });
+        
+        // If we updated a lead to 'accepted', refresh the list after a short delay
+        // to ensure backend has persisted the changes
+        const wasUpdated = updated.some((lead, idx) => {
+          const prevLead = prevLeads[idx];
+          return lead.id === data.studentId && 
+                 data.status === 'accepted' &&
+                 prevLead?.sharingStatus !== 'accepted';
+        });
+        
+        if (wasUpdated) {
+          console.log('Lead was accepted, refreshing list in 1 second...');
+          setTimeout(() => {
+            loadLeads({
+              dateRange: dateRange === 'ALL' ? undefined : dateRange,
+              startDate: dateRange === 'custom' && startDate ? startDate : undefined,
+              endDate: dateRange === 'custom' && endDate ? endDate : undefined,
+              name: nameFilter.trim() || undefined,
+              email: emailFilter.trim() || undefined,
+              phone: phoneFilter.trim() || undefined
+            });
+          }, 1000);
+        }
+        
+        return updated;
+      });
     });
 
     return cleanup;
-  }, [isConnected, user, onEvent]);
+  }, [isConnected, user, onEvent, dateRange, startDate, endDate, nameFilter, emailFilter, phoneFilter, loadLeads]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

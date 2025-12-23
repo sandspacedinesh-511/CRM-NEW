@@ -457,10 +457,17 @@ function Applications() {
     fetchStudentsAndUniversities();
   }, [searchQuery, statusFilter, studentFilter, universityFilter, countryFilter, sortBy, page, rowsPerPage]);
 
-  // Fetch country students data when Country-Based Management tab is selected
+  // Fetch All Students by Country data on initial mount (shown in All Applications tab)
   useEffect(() => {
-    if ((tabValue === 0 || tabValue === 2) && countriesList.length === 0) {
-      fetchCountryStudentsData();
+    fetchAllStudentsWithCountries();
+  }, []); // Empty dependency array means this runs only once on mount
+
+  // Fetch country students data when switching to Country-Based Management tab (tabValue === 2)
+  // if data hasn't been loaded yet
+  useEffect(() => {
+    // Fetch data when on Country-Based Management tab if data hasn't been loaded
+    if (tabValue === 2 && allStudentsData.length === 0) {
+      fetchAllStudentsWithCountries();
     }
   }, [tabValue]);
 

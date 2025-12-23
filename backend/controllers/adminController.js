@@ -1703,7 +1703,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
 
     // Parallel fetch: document counts AND shared lead status
     const leadIds = leads.map(l => l.id);
-    const [documentCounts, pendingSharedLeads] = await Promise.all([
+    const [documentCounts, pendingSharedLeads, acceptedSharedLeads] = await Promise.all([
       Document.findAll({
         where: {
           studentId: { [Op.in]: leadIds },
@@ -1722,6 +1722,18 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
           status: 'pending'
         },
         raw: true
+      }),
+      // Also check for recently accepted SharedLeads to ensure data consistency
+      SharedLead.findAll({
+        where: {
+          studentId: { [Op.in]: leadIds },
+          status: 'accepted',
+          updatedAt: {
+            [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+          }
+        },
+        attributes: ['studentId', 'receiverId', 'updatedAt'],
+        raw: true
       })
     ]);
 
@@ -1735,24 +1747,86 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
     pendingSharedLeads.forEach(share => {
       pendingShareMap[share.studentId] = share;
     });
+    
+    // Fix any inconsistencies: if a SharedLead was accepted but student doesn't have counselorId
+    const studentsToFix = [];
+    if (acceptedSharedLeads && acceptedSharedLeads.length > 0) {
+      acceptedSharedLeads.forEach(acceptedShare => {
+        const student = leads.find(s => s.id === acceptedShare.studentId);
+        if (student && !student.counselorId) {
+          console.warn(`Fixing inconsistency: Student ${student.id} has accepted SharedLead but no counselorId. Setting to ${acceptedShare.receiverId}`);
+          studentsToFix.push({ studentId: student.id, counselorId: acceptedShare.receiverId });
+        }
+      });
+      
+      // Update students that have accepted SharedLeads but no counselorId
+      if (studentsToFix.length > 0) {
+        await Promise.all(
+          studentsToFix.map(({ studentId, counselorId }) =>
+            Student.update({ counselorId }, { where: { id: studentId } })
+          )
+        );
+        // Reload affected students
+        const fixedStudentIds = studentsToFix.map(s => s.studentId);
+        const fixedStudents = await Student.findAll({
+          where: { id: { [Op.in]: fixedStudentIds } },
+          attributes: ['id', 'counselorId']
+        });
+        fixedStudents.forEach(fixed => {
+          const original = leads.find(s => s.id === fixed.id);
+          if (original) {
+            original.counselorId = fixed.counselorId;
+          }
+        });
+      }
+    }
 
-    const data = leads.map((s) => ({
-      id: s.id,
-      name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unnamed Lead',
-      email: s.email,
-      phone: s.phone,
-      status: s.status,
-      currentPhase: s.currentPhase,
-      assigned: Boolean(s.counselorId),
-      sharingStatus: pendingShareMap[s.id] ? 'pending' : (s.counselorId ? 'accepted' : null),
-      sharedLeadId: pendingShareMap[s.id]?.id,
-      documentCount: documentCountMap[s.id] || 0,
-      createdAt: s.createdAt,
-      isPaused: s.isPaused || false,
-      pauseReason: s.pauseReason || null,
-      pausedAt: s.pausedAt || null,
-      pausedBy: s.pausedBy || null
-    }));
+    const data = leads.map((s) => {
+      // Determine sharing status:
+      // Priority: If student has counselorId, they've been assigned, so show 'accepted'
+      // Only show 'pending' if there's a pending share AND no counselorId
+      const hasPendingShare = pendingShareMap[s.id] ? true : false;
+      const hasCounselor = Boolean(s.counselorId);
+      
+      // If student has counselorId, they're assigned - show 'accepted' even if there's a stale pending share
+      // If there's a pending share but no counselorId, show 'pending'
+      // Otherwise, show null
+      let sharingStatus;
+      if (hasCounselor) {
+        sharingStatus = 'accepted';
+        // If there's a stale pending share, clean it up
+        if (hasPendingShare) {
+          console.warn(`Fixing stale pending share: Student ${s.id} has counselorId (${s.counselorId}) but also has pending SharedLead. Rejecting stale share.`);
+          // Reject the stale pending share in the background (don't await to avoid blocking)
+          SharedLead.update(
+            { status: 'rejected' },
+            { where: { studentId: s.id, status: 'pending' } }
+          ).catch(err => console.error(`Error rejecting stale share for student ${s.id}:`, err));
+        }
+      } else if (hasPendingShare) {
+        sharingStatus = 'pending';
+      } else {
+        sharingStatus = null;
+      }
+      
+      return {
+        id: s.id,
+        name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unnamed Lead',
+        email: s.email,
+        phone: s.phone,
+        status: s.status,
+        currentPhase: s.currentPhase,
+        assigned: hasCounselor,
+        sharingStatus: sharingStatus,
+        sharedLeadId: pendingShareMap[s.id]?.id,
+        documentCount: documentCountMap[s.id] || 0,
+        createdAt: s.createdAt,
+        isPaused: s.isPaused || false,
+        pauseReason: s.pauseReason || null,
+        pausedAt: s.pausedAt || null,
+        pausedBy: s.pausedBy || null
+      };
+    });
 
     res.json({
       success: true,

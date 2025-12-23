@@ -46,12 +46,23 @@ class DatabaseTransport extends Transport {
   constructor(opts) {
     super(opts);
     this.type = opts.type || 'system';
+    this.pendingWrites = 0;
+    this.maxPendingWrites = 100; // Limit concurrent database writes to prevent memory buildup
   }
 
   log(info, callback) {
     setImmediate(() => {
       this.emit('logged', info);
     });
+
+    // Skip database write if too many pending writes (prevents memory buildup)
+    if (this.pendingWrites >= this.maxPendingWrites) {
+      // Silently skip to prevent memory issues
+      callback();
+      return;
+    }
+
+    this.pendingWrites++;
 
     const meta = { ...info };
     delete meta.level;
@@ -69,7 +80,7 @@ class DatabaseTransport extends Transport {
       }
     }
 
-    // Create log entry in database
+    // Create log entry in database (non-blocking, fire and forget to prevent memory buildup)
     SystemLog.create({
       level: info.level,
       type: this.type,
@@ -77,7 +88,13 @@ class DatabaseTransport extends Transport {
       meta: Object.keys(meta).length > 0 ? meta : null,
       timestamp: timestamp
     }).catch(err => {
-      console.error('Error saving log to database:', err);
+      // Silently handle errors to prevent logging loops and memory issues
+      // Only log critical database errors, not all of them
+      if (err.name !== 'SequelizeConnectionError' && err.name !== 'SequelizeTimeoutError') {
+        console.error('Error saving log to database:', err.message);
+      }
+    }).finally(() => {
+      this.pendingWrites = Math.max(0, this.pendingWrites - 1);
     });
 
     callback();
@@ -147,21 +164,21 @@ const performanceLogger = {
   },
 
   logDatabaseQuery: (query, duration, params = {}) => {
-    // Handle different query types (string, object, etc.)
-    let queryString = '';
-    if (typeof query === 'string') {
-      queryString = query;
-    } else if (query && typeof query === 'object') {
-      queryString = query.sql || query.query || JSON.stringify(query);
-    } else {
-      queryString = String(query);
-    }
-
-    logger.info('Database Query', {
-      query: queryString.substring(0, 200) + (queryString.length > 200 ? '...' : ''),
-      duration: `${duration.toFixed(2)}ms`,
-      params: Object.keys(params).length > 0 ? params : undefined
-    });
+    // Database query logging disabled to reduce console noise
+    // Uncomment below if you need to debug database queries
+    // let queryString = '';
+    // if (typeof query === 'string') {
+    //   queryString = query;
+    // } else if (query && typeof query === 'object') {
+    //   queryString = query.sql || query.query || JSON.stringify(query);
+    // } else {
+    //   queryString = String(query);
+    // }
+    // logger.info('Database Query', {
+    //   query: queryString.substring(0, 200) + (queryString.length > 200 ? '...' : ''),
+    //   duration: `${duration.toFixed(2)}ms`,
+    //   params: Object.keys(params).length > 0 ? params : undefined
+    // });
   },
 
   logApiRequest: (method, url, duration, statusCode, userId = null) => {
@@ -176,20 +193,24 @@ const performanceLogger = {
   },
 
   logCacheOperation: (operation, key, hit, duration = null) => {
-    logger.info('Cache Operation', {
-      operation,
-      key,
-      hit,
-      duration: duration ? `${duration.toFixed(2)}ms` : undefined
-    });
+    // Only log cache operations in debug mode to reduce console noise
+    // Uncomment the line below if you need to debug cache operations
+    // logger.debug('Cache Operation', {
+    //   operation,
+    //   key,
+    //   hit,
+    //   duration: duration ? `${duration.toFixed(2)}ms` : undefined
+    // });
   },
 
   logWebSocketEvent: (event, userId, data = {}) => {
-    logger.info('WebSocket Event', {
-      event,
-      userId,
-      dataSize: JSON.stringify(data).length
-    });
+    // Only log WebSocket events in debug mode to reduce console noise
+    // Uncomment the line below if you need to debug WebSocket events
+    // logger.debug('WebSocket Event', {
+    //   event,
+    //   userId,
+    //   dataSize: JSON.stringify(data).length
+    // });
   },
 
   logRealTimeUpdate: (type, entityId, userId, changes = {}) => {
