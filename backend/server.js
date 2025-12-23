@@ -231,14 +231,9 @@ function startServer() {
     queryMonitor(sequelize);
     dbConnectionMonitor(sequelize);
 
-    // Global request logger for debugging
-    app.use('/api', (req, res, next) => {
-      // Also log to file for debugging
-      const fs = require('fs');
-      const logEntry = `${new Date().toISOString()} - ${req.method} ${req.url} ${req.path}\n`;
-      fs.appendFileSync('debug-requests.log', logEntry);
-      next();
-    });
+    // Global request logger for debugging - REMOVED to prevent memory issues
+    // File logging can grow unbounded and cause memory leaks
+    // Use proper logging mechanisms (winston) instead if needed
 
     // Routes
     app.use('/api/auth', authRoutes);
@@ -463,6 +458,19 @@ function startServer() {
     }
 
     // Start server immediately without waiting for Redis
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${PORT} is already in use. Please stop the other process or change the PORT environment variable.`);
+        logger.error('To find the process using the port, run:');
+        logger.error(`  Windows: netstat -ano | findstr :${PORT}`);
+        logger.error(`  Linux/Mac: lsof -i :${PORT} or netstat -tulpn | grep :${PORT}`);
+        process.exit(1);
+      } else {
+        logger.error('Server error:', error);
+        throw error;
+      }
+    });
+
     server.listen(PORT, () => {
       logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
       logger.info(`Worker ${process.pid} started`);
