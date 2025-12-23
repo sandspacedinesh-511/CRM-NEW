@@ -15,7 +15,6 @@ import {
   CircularProgress,
   Alert,
   Button,
-  Chip,
   Avatar,
   IconButton,
   Tooltip,
@@ -30,11 +29,7 @@ import {
   CardActions,
   CardHeader,
   Switch,
-  FormControlLabel,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  FormControlLabel
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -125,10 +120,6 @@ function AdminDashboard() {
     thisMonthApplications: 0,
     pendingApprovals: 0
   });
-  const [selectedCountry, setSelectedCountry] = useState('ALL');
-  const [countryWisePhaseData, setCountryWisePhaseData] = useState([]);
-  const [loadingCountryData, setLoadingCountryData] = useState(false);
-  const [availableCountries, setAvailableCountries] = useState([]);
 
   // WebSocket integration for real-time updates
   const { isConnected, onEvent, joinRoom } = useWebSocket();
@@ -154,48 +145,6 @@ function AdminDashboard() {
         pendingApprovals: dashboardResponse.data.stats.pendingApprovals || 0
       });
 
-      // Extract unique countries from university distribution and students
-      const countries = new Set();
-      
-      // From university distribution
-      if (analyticsResponse.data.data?.universityDistribution || analyticsResponse.data?.universityDistribution) {
-        const universityData = analyticsResponse.data.data?.universityDistribution || analyticsResponse.data?.universityDistribution;
-        universityData.forEach((uni) => {
-          if (uni.country) {
-            countries.add(uni.country);
-          }
-        });
-      }
-      
-      // Also fetch countries from students' country profiles
-      try {
-        const studentsResponse = await axiosInstance.get('/admin/students', {
-          params: { limit: 1000 }
-        });
-        const students = studentsResponse.data.data?.students || studentsResponse.data.students || [];
-        students.forEach((student) => {
-          if (student.countryProfiles && student.countryProfiles.length > 0) {
-            student.countryProfiles.forEach((profile) => {
-              if (profile.country) {
-                countries.add(profile.country);
-              }
-            });
-          }
-          // Also check applications' universities
-          if (student.applications && student.applications.length > 0) {
-            student.applications.forEach((app) => {
-              if (app.university && app.university.country) {
-                countries.add(app.university.country);
-              }
-            });
-          }
-        });
-      } catch (err) {
-        console.error('Error fetching countries from students:', err);
-      }
-      
-      setAvailableCountries(Array.from(countries).sort());
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -203,102 +152,6 @@ function AdminDashboard() {
       setLoading(false);
     }
   };
-
-  const fetchCountryWisePhaseData = async (country) => {
-    if (country === 'ALL') {
-      setCountryWisePhaseData([]);
-      return;
-    }
-
-    try {
-      setLoadingCountryData(true);
-      // Fetch all students with their country profiles and applications
-      const response = await axiosInstance.get('/admin/students', {
-        params: {
-          limit: 10000 // Get all students
-        }
-      });
-
-      const students = response.data.data?.students || response.data.students || [];
-      
-      // Normalize country name for comparison
-      const normalizeCountry = (countryName) => {
-        if (!countryName) return '';
-        const normalized = countryName.trim().toUpperCase();
-        // Handle common variations
-        if (normalized === 'UK' || normalized === 'U.K.' || normalized === 'U.K' || normalized === 'UNITED KINGDOM') {
-          return 'UNITED KINGDOM';
-        }
-        if (normalized === 'USA' || normalized === 'U.S.A.' || normalized === 'US' || normalized === 'U.S.' || normalized === 'UNITED STATES' || normalized === 'UNITED STATES OF AMERICA') {
-          return 'UNITED STATES';
-        }
-        return normalized;
-      };
-
-      const normalizedSelectedCountry = normalizeCountry(country);
-      
-      // Filter students by country (check countryProfiles first, then applications' universities)
-      const countryStudents = students.filter((student) => {
-        // Check country profiles
-        if (student.countryProfiles && student.countryProfiles.length > 0) {
-          const hasCountry = student.countryProfiles.some((profile) => 
-            normalizeCountry(profile.country) === normalizedSelectedCountry
-          );
-          if (hasCountry) return true;
-        }
-        
-        // Check applications' universities
-        if (student.applications && student.applications.length > 0) {
-          const hasCountry = student.applications.some((app) => 
-            app.university && normalizeCountry(app.university.country) === normalizedSelectedCountry
-          );
-          if (hasCountry) return true;
-        }
-        
-        return false;
-      });
-      
-      // Group by phase from country profiles for this country, or use student's currentPhase
-      const phaseMap = {};
-      countryStudents.forEach((student) => {
-        let phase = null;
-        
-        // Try to get phase from country profile for this specific country
-        if (student.countryProfiles && student.countryProfiles.length > 0) {
-          const countryProfile = student.countryProfiles.find((profile) => 
-            normalizeCountry(profile.country) === normalizedSelectedCountry
-          );
-          if (countryProfile && countryProfile.currentPhase) {
-            phase = countryProfile.currentPhase;
-          }
-        }
-        
-        // Fallback to student's currentPhase
-        if (!phase) {
-          phase = student.currentPhase || 'NOT_STARTED';
-        }
-        
-        phaseMap[phase] = (phaseMap[phase] || 0) + 1;
-      });
-
-      // Convert to array format matching phaseDistribution
-      const countryPhases = Object.entries(phaseMap).map(([currentPhase, count]) => ({
-        currentPhase,
-        count: parseInt(count)
-      }));
-
-      setCountryWisePhaseData(countryPhases);
-    } catch (error) {
-      console.error('Error fetching country-wise phase data:', error);
-      setCountryWisePhaseData([]);
-    } finally {
-      setLoadingCountryData(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCountryWisePhaseData(selectedCountry);
-  }, [selectedCountry]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -682,120 +535,50 @@ function AdminDashboard() {
     </Card>
   );
 
-  const PhaseDistributionChart = () => {
-    const displayData = selectedCountry === 'ALL' ? analytics.phaseDistribution : countryWisePhaseData;
-    const totalCount = displayData.reduce((sum, item) => sum + (item.count || 0), 0);
-
-    return (
-      <Card sx={{ height: '100%', borderRadius: 3, boxShadow: theme.shadows[4] }}>
-        <CardHeader
-          title={
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Application Phases
-            </Typography>
-          }
-          avatar={
-            <Avatar sx={{ backgroundColor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main }}>
-              <PieChartIcon />
-            </Avatar>
-          }
-          action={
-            <FormControl size="small" sx={{ minWidth: 150, mr: 1 }}>
-              <InputLabel>Country</InputLabel>
-              <Select
-                value={selectedCountry}
-                label="Country"
-                onChange={(e) => setSelectedCountry(e.target.value)}
-              >
-                <MenuItem value="ALL">All Countries</MenuItem>
-                {availableCountries.map((country) => (
-                  <MenuItem key={country} value={country}>
-                    {country}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          }
-        />
-        <CardContent>
-          {loadingCountryData ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 250 }}>
-              <CircularProgress />
-            </Box>
-          ) : selectedCountry !== 'ALL' && displayData.length === 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 250, textAlign: 'center' }}>
-              <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 600 }}>
-                No data available for {selectedCountry}
-              </Typography>
-            </Box>
-          ) : selectedCountry !== 'ALL' ? (
-            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-              <Stack spacing={2}>
-                {displayData
-                  .sort((a, b) => (b.count || 0) - (a.count || 0))
-                  .map((entry, index) => {
-                    const percentage = totalCount > 0 ? ((entry.count || 0) / totalCount * 100).toFixed(1) : 0;
-                    return (
-                      <Box key={entry.currentPhase || index}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {entry.currentPhase || 'Unknown'}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {entry.count || 0} ({percentage}%)
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={parseFloat(percentage)}
-                          sx={{
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                            '& .MuiLinearProgress-bar': {
-                              borderRadius: 4,
-                              backgroundColor: COLORS[index % COLORS.length]
-                            }
-                          }}
-                        />
-                      </Box>
-                    );
-                  })}
-              </Stack>
-            </Box>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={displayData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ currentPhase, percent }) => `${currentPhase} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {displayData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: theme.palette.background.paper,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 8,
-                    boxShadow: theme.shadows[8]
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
+  const PhaseDistributionChart = () => (
+    <Card sx={{ height: '100%', borderRadius: 3, boxShadow: theme.shadows[4] }}>
+      <CardHeader
+        title={
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Application Phases
+          </Typography>
+        }
+        avatar={
+          <Avatar sx={{ backgroundColor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main }}>
+            <PieChartIcon />
+          </Avatar>
+        }
+      />
+      <CardContent>
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie
+              data={analytics.phaseDistribution}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ currentPhase, percent }) => `${currentPhase} ${(percent * 100).toFixed(0)}%`}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="count"
+            >
+              {analytics.phaseDistribution.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <RechartsTooltip
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 8,
+                boxShadow: theme.shadows[8]
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
 
   const UniversityDistributionChart = () => (
     <Card sx={{ height: '100%', borderRadius: 3, boxShadow: theme.shadows[4] }}>
