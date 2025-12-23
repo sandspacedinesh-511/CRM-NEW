@@ -458,7 +458,12 @@ function MarketingLeads() {
                         fullWidth
                         required
                         value={leadForm.mobile}
-                        onChange={(e) => setLeadForm({ ...leadForm, mobile: e.target.value })}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 10) {
+                            setLeadForm({ ...leadForm, mobile: value });
+                          }
+                        }}
                         error={!!leadFormErrors.mobile}
                         helperText={leadFormErrors.mobile}
                       />
@@ -471,7 +476,12 @@ function MarketingLeads() {
                         placeholder="Enter contact number (Optional)"
                         fullWidth
                         value={leadForm.mobile}
-                        onChange={(e) => setLeadForm({ ...leadForm, mobile: e.target.value })}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 10) {
+                            setLeadForm({ ...leadForm, mobile: value });
+                          }
+                        }}
                         error={!!leadFormErrors.mobile}
                         helperText={leadFormErrors.mobile}
                       />
@@ -498,9 +508,11 @@ function MarketingLeads() {
                         label="Parents Annual Income"
                         placeholder="e.g., 800000 (Optional)"
                         fullWidth
-                        type="number"
                         value={leadForm.parentsAnnualIncome}
-                        onChange={(e) => setLeadForm({ ...leadForm, parentsAnnualIncome: e.target.value })}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          setLeadForm({ ...leadForm, parentsAnnualIncome: value });
+                        }}
                         error={!!leadFormErrors.parentsAnnualIncome}
                         helperText={leadFormErrors.parentsAnnualIncome}
                       />
@@ -535,7 +547,15 @@ function MarketingLeads() {
                       if (!leadForm.countries.length) errors.countries = 'Select at least one country';
                       if (!leadForm.universityName.trim()) errors.universityName = 'University name is required';
                       // Mobile number is required for regular marketing, optional for B2B marketing
-                      if (!isB2B && (!leadForm.mobile || !leadForm.mobile.trim())) errors.mobile = 'Mobile number is required';
+                      if (!isB2B) {
+                        if (!leadForm.mobile || !leadForm.mobile.trim()) {
+                          errors.mobile = 'Mobile number is required';
+                        } else if (leadForm.mobile.length !== 10) {
+                          errors.mobile = 'Mobile number must be exactly 10 digits';
+                        }
+                      } else if (leadForm.mobile && leadForm.mobile.length !== 10) {
+                        errors.mobile = 'Mobile number must be exactly 10 digits';
+                      }
 
                       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                       if (leadForm.email && !emailRegex.test(leadForm.email)) {

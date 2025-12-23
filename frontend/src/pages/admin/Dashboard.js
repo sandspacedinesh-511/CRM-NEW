@@ -29,7 +29,8 @@ import {
   CardActions,
   CardHeader,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Chip
 } from '@mui/material';
 import {
   People as PeopleIcon,
