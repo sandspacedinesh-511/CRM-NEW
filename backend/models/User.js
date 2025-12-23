@@ -24,23 +24,12 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
     validate: {
-      len: [8, 128],
-      isStrongPassword(value) {
-        // Password must contain at least 8 characters with:
-        // - At least one lowercase letter
-        // - At least one uppercase letter  
-        // - At least one number
-        // - At least one special character
-        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!strongPasswordRegex.test(value)) {
-          throw new Error('Password must contain at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)');
-        }
-      }
+      len: [8, 128]
     }
   },
   role: {
-  type: DataTypes.ENUM('admin', 'counselor', 'telecaller', 'marketing', 'b2b_marketing'),
-  allowNull: false
+    type: DataTypes.ENUM('admin', 'counselor', 'telecaller', 'marketing', 'b2b_marketing'),
+    allowNull: false
   },
   active: {
     type: DataTypes.BOOLEAN,
@@ -116,11 +105,11 @@ const User = sequelize.define('User', {
         // Validate password strength before hashing
         const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
         const passwordValue = user.password;
-        
+
         // Log for debugging
         console.log('beforeUpdate hook - validating password:', passwordValue?.substring(0, 5) + '...', 'Length:', passwordValue?.length);
         console.log('Regex test result:', strongPasswordRegex.test(passwordValue));
-        
+
         if (!strongPasswordRegex.test(passwordValue)) {
           // Provide more detailed error
           const reqs = {
@@ -140,37 +129,37 @@ const User = sequelize.define('User', {
   }
 });
 
-User.prototype.validatePassword = async function(password) {
+User.prototype.validatePassword = async function (password) {
   return bcrypt.compare(password, this.password);
 };
 
 // Static method to generate secure random password
-User.generateSecurePassword = function(length = 16) {
+User.generateSecurePassword = function (length = 16) {
   const lowercase = 'abcdefghijklmnopqrstuvwxyz';
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const numbers = '0123456789';
   const special = '@$!%*?&';
   const allChars = lowercase + uppercase + numbers + special;
-  
+
   let password = '';
-  
+
   // Ensure at least one character from each category
   password += lowercase[Math.floor(Math.random() * lowercase.length)];
   password += uppercase[Math.floor(Math.random() * uppercase.length)];
   password += numbers[Math.floor(Math.random() * numbers.length)];
   password += special[Math.floor(Math.random() * special.length)];
-  
+
   // Fill the rest randomly
   for (let i = 4; i < length; i++) {
     password += allChars[Math.floor(Math.random() * allChars.length)];
   }
-  
+
   // Shuffle the password
   return password.split('').sort(() => Math.random() - 0.5).join('');
 };
 
 // Static method to validate password strength
-User.validatePasswordStrength = function(password) {
+User.validatePasswordStrength = function (password) {
   const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   return {
     isValid: strongPasswordRegex.test(password),

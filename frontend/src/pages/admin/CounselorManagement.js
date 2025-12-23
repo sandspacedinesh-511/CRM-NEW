@@ -36,7 +36,11 @@ import {
   Star as StarIcon,
   Assessment as AssessmentIcon,
   Group as GroupIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Person as PersonIcon,
+  Badge as BadgeIcon,
+  Work as WorkIcon,
+  Lock as LockIcon
 } from '@mui/icons-material';
 import axiosInstance from '../../utils/axios';
 import useWebSocket from '../../hooks/useWebSocket';
@@ -78,11 +82,13 @@ function CounselorManagement() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phone: '',
     specialization: '',
     experience: '',
     bio: ''
   });
+  const [formErrors, setFormErrors] = useState({});
 
   const SPECIALIZATION_OPTIONS = [
     'Engineering & Technology',
@@ -173,6 +179,58 @@ function CounselorManagement() {
     };
   }, [isConnected, onEvent]);
 
+  const validateForm = () => {
+    const errors = {};
+
+    // Name validation
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Name is required';
+    } else if (formData.name.length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email || !formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!emailRegex.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    // Phone validation
+    const phoneRegex = /^\d{10}$/;
+    if (formData.phone && !phoneRegex.test(formData.phone)) {
+      errors.phone = 'Phone number must be exactly 10 digits';
+    }
+
+    // Password validation logic
+    if (selectedCounselor) {
+      // In edit mode - only validate if password field is touched/filled
+      if (formData.password) {
+        if (formData.password.length < 8) {
+          errors.password = 'Password must be at least 8 characters';
+        }
+        if (formData.password !== formData.confirmPassword) {
+          errors.confirmPassword = 'Passwords do not match';
+        }
+      }
+    } else {
+      // Create mode - password is mandatory
+      if (!formData.password) {
+        errors.password = 'Password is required for new counselors';
+      } else if (formData.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters';
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -181,27 +239,9 @@ function CounselorManagement() {
       return;
     }
 
-    // Client-side validation
-    if (!formData.name || !formData.name.trim()) {
-      showSnackbar('Name is required', 'error');
-      return;
-    }
-
-    if (!formData.email || !formData.email.trim()) {
-      showSnackbar('Email is required', 'error');
-      return;
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      showSnackbar('Please enter a valid email address', 'error');
-      return;
-    }
-
-    // Password is required only for new counselors
-    if (!selectedCounselor && (!formData.password || !formData.password.trim())) {
-      showSnackbar('Password is required for new counselors', 'error');
+    // Run full validation
+    if (!validateForm()) {
+      showSnackbar('Please fix the errors in the form', 'error');
       return;
     }
 
@@ -219,19 +259,22 @@ function CounselorManagement() {
         bio: formData.bio?.trim() || ''
       };
 
+      // Only include password if it was provided
+      if (formData.password) {
+        submitData.password = formData.password.trim();
+      }
+
       if (selectedCounselor) {
         await axiosInstance.put(`/admin/counselors/${selectedCounselor.id}`, submitData);
         showSnackbar('Counselor updated successfully!', 'success');
       } else {
-        await axiosInstance.post('/admin/counselors', {
-          ...submitData,
-          password: formData.password.trim()
-        });
+        await axiosInstance.post('/admin/counselors', submitData);
         showSnackbar('Counselor added successfully!', 'success');
       }
 
       setOpenModal(false);
-      setFormData({ name: '', email: '', password: '', phone: '', specialization: '', experience: '', bio: '' });
+      setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '', specialization: '', experience: '', bio: '' });
+      setFormErrors({});
       setSelectedCounselor(null);
       fetchCounselors();
     } catch (error) {
@@ -509,7 +552,7 @@ function CounselorManagement() {
           startIcon={<AddIcon />}
           onClick={() => {
             setSelectedCounselor(null);
-            setFormData({ name: '', email: '', password: '', phone: '', specialization: '', experience: '', bio: '' });
+            setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '', specialization: '', experience: '', bio: '' });
             setOpenModal(true);
           }}
           disabled={actionLoading}
@@ -952,11 +995,13 @@ function CounselorManagement() {
                                     name: counselor.name,
                                     email: counselor.email,
                                     password: '',
+                                    confirmPassword: '',
                                     phone: counselor.phone || '',
                                     specialization: counselor.specialization || '',
                                     experience: counselor.experience || '',
                                     bio: counselor.bio || ''
                                   });
+                                  setFormErrors({});
                                   setOpenModal(true);
                                 }}
                               >
@@ -1005,15 +1050,15 @@ function CounselorManagement() {
         maxWidth="md"
         fullWidth
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <DialogTitle sx={{
             background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
             color: 'white'
           }}>
             {selectedCounselor ? 'Edit Counselor' : 'Add New Counselor'}
           </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            <Grid container spacing={2}>
+          <DialogContent sx={{ pt: 5 }}>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} md={6}>
                 <TextField
                   autoFocus
@@ -1021,30 +1066,66 @@ function CounselorManagement() {
                   type="text"
                   fullWidth
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: null });
+                  }}
                   required
+                  error={!!formErrors.name}
+                  helperText={formErrors.name}
                   disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Email"
+                  label="Email Address"
                   type="email"
                   fullWidth
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: null });
+                  }}
                   required
+                  error={!!formErrors.email}
+                  helperText={formErrors.email}
                   disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Phone"
+                  label="Phone Number"
                   type="tel"
                   fullWidth
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    if (formErrors.phone) setFormErrors({ ...formErrors, phone: null });
+                  }}
+                  error={!!formErrors.phone}
+                  helperText={formErrors.phone}
                   disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -1055,6 +1136,11 @@ function CounselorManagement() {
                     label="Specialization"
                     value={formData.specialization}
                     onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <SchoolIcon color="action" sx={{ ml: 1 }} />
+                      </InputAdornment>
+                    }
                   >
                     {SPECIALIZATION_OPTIONS.map(option => (
                       <MenuItem key={option} value={option}>{option}</MenuItem>
@@ -1064,36 +1150,94 @@ function CounselorManagement() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Experience"
+                  label="Experience (e.g., 2 years)"
                   type="text"
                   fullWidth
                   value={formData.experience}
                   onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
                   disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <WorkIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
-              {!selectedCounselor && (
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Password"
-                    type="password"
-                    fullWidth
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                    disabled={actionLoading}
-                  />
-                </Grid>
-              )}
+
+              {/* Password Fields */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }}>
+                  <Chip label="Security" size="small" />
+                </Divider>
+                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>
+                  {selectedCounselor ? 'Change Password (leave empty to keep current)' : 'Set Password'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label={selectedCounselor ? "New Password" : "Password"}
+                  type="password"
+                  fullWidth
+                  value={formData.password}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    if (formErrors.password) setFormErrors({ ...formErrors, password: null });
+                  }}
+                  required={!selectedCounselor}
+                  error={!!formErrors.password}
+                  helperText={formErrors.password || "Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number, 1 Special"}
+                  disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Confirm Password"
+                  type="password"
+                  fullWidth
+                  value={formData.confirmPassword}
+                  onChange={(e) => {
+                    setFormData({ ...formData, confirmPassword: e.target.value });
+                    if (formErrors.confirmPassword) setFormErrors({ ...formErrors, confirmPassword: null });
+                  }}
+                  required={!selectedCounselor || !!formData.password}
+                  error={!!formErrors.confirmPassword}
+                  helperText={formErrors.confirmPassword}
+                  disabled={actionLoading || (!formData.password && !!selectedCounselor)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+
               <Grid item xs={12}>
                 <TextField
-                  label="Bio"
+                  label="Bio / Description"
                   multiline
-                  rows={4}
+                  rows={3}
                   fullWidth
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                   disabled={actionLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ mt: 1.5, alignSelf: 'flex-start' }}>
+                        <BadgeIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>
@@ -1302,11 +1446,13 @@ function CounselorManagement() {
                     name: selectedCounselor.name,
                     email: selectedCounselor.email,
                     password: '',
+                    confirmPassword: '',
                     phone: selectedCounselor.phone || '',
                     specialization: selectedCounselor.specialization || '',
                     experience: selectedCounselor.experience || '',
                     bio: selectedCounselor.bio || ''
                   });
+                  setFormErrors({});
                   setOpenModal(true);
                 }}
               >

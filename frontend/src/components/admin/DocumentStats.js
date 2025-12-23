@@ -5,7 +5,7 @@ import {
   Typography,
   Box,
   Grid,
-  Chip,
+
   useTheme,
   alpha,
   Fade,
@@ -24,7 +24,6 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
 
 const DocumentStats = ({ data }) => {
   const theme = useTheme();
-  const [selectedType, setSelectedType] = useState(null);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -52,9 +51,6 @@ const DocumentStats = ({ data }) => {
     }
   };
 
-  const formatDocumentType = (type) => {
-    return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
 
   const totalDocuments = data.reduce((sum, doc) => sum + doc.total, 0);
   const pendingDocuments = data.reduce((sum, doc) => sum + doc.pending, 0);
@@ -67,7 +63,7 @@ const DocumentStats = ({ data }) => {
     { name: 'Rejected', value: rejectedDocuments, color: theme.palette.error.main }
   ];
 
-  const selectedDocData = selectedType ? data.find(doc => doc.type === selectedType) : null;
+
 
   return (
     <Box>
@@ -245,103 +241,6 @@ const DocumentStats = ({ data }) => {
           </Grow>
         </Grid>
       </Grid>
-
-      {/* Document Type Breakdown */}
-      <Grow in={true} timeout={1800}>
-        <Card sx={{ mt: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Document Type Breakdown
-            </Typography>
-            <Grid container spacing={2}>
-              {data.map((docType, index) => (
-                <Grid item xs={12} md={6} lg={4} key={docType.type}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease-in-out',
-                      border: selectedType === docType.type ? `2px solid ${theme.palette.primary.main}` : '1px solid transparent',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: theme.shadows[4],
-                        border: `2px solid ${theme.palette.primary.main}`
-                      }
-                    }}
-                    onClick={() => setSelectedType(selectedType === docType.type ? null : docType.type)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, gap: 1 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          {formatDocumentType(docType.type)}
-                        </Typography>
-                        <Chip
-                          label={docType.total}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </Box>
-
-                      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                        <Chip
-                          icon={<CheckCircleIcon />}
-                          label={`${docType.approved} Approved`}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                        <Chip
-                          icon={<PendingIcon />}
-                          label={`${docType.pending} Pending`}
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                        />
-                        <Chip
-                          icon={<ErrorIcon />}
-                          label={`${docType.rejected} Rejected`}
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                        />
-                      </Box>
-
-                      <Box sx={{ width: '100%' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Approval Rate
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {docType.total > 0 ? Math.round((docType.approved / docType.total) * 100) : 0}%
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 4,
-                            backgroundColor: alpha(theme.palette.grey[300], 0.5),
-                            borderRadius: 2,
-                            overflow: 'hidden'
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${docType.total > 0 ? (docType.approved / docType.total) * 100 : 0}%`,
-                              height: '100%',
-                              backgroundColor: theme.palette.success.main,
-                              transition: 'width 0.3s ease-in-out'
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </CardContent>
-        </Card>
-      </Grow>
     </Box>
   );
 };

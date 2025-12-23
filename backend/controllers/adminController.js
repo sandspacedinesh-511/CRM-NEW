@@ -911,7 +911,7 @@ exports.updateCounselorStatus = async (req, res) => {
 exports.updateCounselor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, specialization, experience, bio } = req.body;
+    const { name, email, phone, specialization, experience, bio, password } = req.body;
 
     const counselor = await User.findOne({
       where: { id, role: 'counselor' }
@@ -934,14 +934,21 @@ exports.updateCounselor = async (req, res) => {
       }
     }
 
-    await counselor.update({
+    const updates = {
       name,
       email,
       phone,
       specialization,
       experience,
       bio
-    });
+    };
+
+    // Only update password if provided
+    if (password && password.trim()) {
+      updates.password = password.trim();
+    }
+
+    await counselor.update(updates);
 
     res.json({
       success: true,
@@ -959,6 +966,26 @@ exports.updateCounselor = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating counselor:', error);
+
+    // Handle validation errors (e.g., password policy)
+    if (error.name === 'SequelizeValidationError') {
+      const validationMessages = error.errors.map(e => e.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationMessages,
+        details: process.env.NODE_ENV === 'development' ? validationMessages : undefined
+      });
+    }
+
+    // Handle unique constraint errors (e.g., duplicate email)
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error updating counselor',
@@ -1203,6 +1230,17 @@ const createRoleControllers = (role) => {
       });
     } catch (error) {
       console.error(`Error updating ${roleLabel.toLowerCase()}:`, error);
+
+      if (error.name === 'SequelizeValidationError') {
+        const validationMessages = error.errors.map(e => e.message);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: validationMessages,
+          details: process.env.NODE_ENV === 'development' ? validationMessages : undefined
+        });
+      }
+
       res.status(500).json({
         success: false,
         message: `Error updating ${roleLabel.toLowerCase()}`,
@@ -1833,7 +1871,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
     pendingSharedLeads.forEach(share => {
       pendingShareMap[share.studentId] = share;
     });
-    
+
     // Fix any inconsistencies: if a SharedLead was accepted but student doesn't have counselorId
     const studentsToFix = [];
     if (acceptedSharedLeads && acceptedSharedLeads.length > 0) {
@@ -1844,7 +1882,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
           studentsToFix.push({ studentId: student.id, counselorId: acceptedShare.receiverId });
         }
       });
-      
+
       // Update students that have accepted SharedLeads but no counselorId
       if (studentsToFix.length > 0) {
         await Promise.all(
@@ -1873,7 +1911,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       // Only show 'pending' if there's a pending share AND no counselorId
       const hasPendingShare = pendingShareMap[s.id] ? true : false;
       const hasCounselor = Boolean(s.counselorId);
-      
+
       // If student has counselorId, they're assigned - show 'accepted' even if there's a stale pending share
       // If there's a pending share but no counselorId, show 'pending'
       // Otherwise, show null
@@ -1894,7 +1932,7 @@ exports.getB2BMarketingMemberLeadsAdmin = async (req, res) => {
       } else {
         sharingStatus = null;
       }
-      
+
       return {
         id: s.id,
         name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unnamed Lead',

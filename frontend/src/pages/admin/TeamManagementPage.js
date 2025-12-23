@@ -50,14 +50,25 @@ const defaultFormValues = {
   name: '',
   email: '',
   phone: '',
-  password: ''
+  name: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: ''
 };
 
 const roleIconMap = {
   telecaller: <PhoneIcon fontSize="small" />,
   marketing: <CampaignIcon fontSize="small" />,
-  b2b_marketing: <CampaignIcon fontSize="small" />
 };
+
+import {
+  Lock as LockIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Badge as BadgeIcon
+} from '@mui/icons-material';
+import { InputAdornment, Chip } from '@mui/material';
 
 const TeamManagementPage = ({
   role,
@@ -123,7 +134,8 @@ const TeamManagementPage = ({
       name: member.name || '',
       email: member.email || '',
       phone: member.phone || '',
-      password: ''
+      password: '',
+      confirmPassword: ''
     });
     setFormError(null);
     setDialogOpen(true);
@@ -159,9 +171,31 @@ const TeamManagementPage = ({
       return;
     }
 
-    if (dialogMode === 'add' && !trimmedPassword) {
-      setFormError('Password is required for new accounts.');
-      return;
+    if (dialogMode === 'add') {
+      if (!trimmedPassword) {
+        setFormError('Password is required for new accounts.');
+        return;
+      }
+      if (trimmedPassword.length < 8) {
+        setFormError('Password must be at least 8 characters.');
+        return;
+      }
+      if (trimmedPassword !== formValues.confirmPassword) {
+        setFormError('Passwords do not match.');
+        return;
+      }
+    } else {
+      // Edit mode validation
+      if (trimmedPassword) {
+        if (trimmedPassword.length < 8) {
+          setFormError('Password must be at least 8 characters.');
+          return;
+        }
+        if (trimmedPassword !== formValues.confirmPassword) {
+          setFormError('Passwords do not match.');
+          return;
+        }
+      }
     }
 
     const payload = {
@@ -425,6 +459,13 @@ const TeamManagementPage = ({
               onChange={(event) => setFormValues((prev) => ({ ...prev, name: event.target.value }))}
               required
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
             <TextField
               label="Email"
@@ -433,21 +474,63 @@ const TeamManagementPage = ({
               onChange={(event) => setFormValues((prev) => ({ ...prev, email: event.target.value }))}
               required
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EmailIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
             <TextField
               label="Phone"
               value={formValues.phone}
               onChange={(event) => setFormValues((prev) => ({ ...prev, phone: event.target.value }))}
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PhoneIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
+
+            <Divider sx={{ my: 1 }}>
+              <Chip label="Security" size="small" />
+            </Divider>
+
             <TextField
-              label="Password"
+              label={dialogMode === 'add' ? "Password" : "New Password"}
               type="password"
               value={formValues.password}
               onChange={(event) => setFormValues((prev) => ({ ...prev, password: event.target.value }))}
               required={dialogMode === 'add'}
-              helperText={dialogMode === 'edit' ? 'Leave blank to keep the current password.' : ''}
+              helperText={dialogMode === 'edit' ? 'Leave blank to keep the current password.' : 'Min 8 chars'}
               fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              label="Confirm Password"
+              type="password"
+              value={formValues.confirmPassword}
+              onChange={(event) => setFormValues((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+              required={dialogMode === 'add' || !!formValues.password}
+              disabled={dialogMode === 'edit' && !formValues.password}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
           </Stack>
         </DialogContent>
