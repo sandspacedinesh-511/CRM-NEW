@@ -180,6 +180,20 @@ function StudentList() {
   };
 
   const handleOpenShareDialog = (student) => {
+    // Check if sharing is already pending for this student
+    const isSharePending = pendingSharedLeads.some(
+      (share) => share.studentId === student.id && share.senderId === user.id
+    );
+
+    if (isSharePending) {
+      setError(
+        `Sharing is already pending for ${student.firstName} ${student.lastName}. You cannot share this lead again until the request is accepted or rejected.`
+      );
+      // Also scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setShareStudent(student);
     setShareTargetCounselorId('');
     setShareDialogOpen(true);
@@ -254,10 +268,15 @@ function StudentList() {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error('Error sharing lead:', error);
+      console.error('Error response:', error.response?.data);
       const msg =
         error.response?.data?.message ||
         'Failed to share lead. Please try again.';
       setShareError(msg);
+      // If the error is about pending share, we should probably close and refresh
+      if (msg.includes('already has a pending share')) {
+        await fetchPendingSharedLeads();
+      }
     } finally {
       setShareLoading(false);
     }
@@ -1119,8 +1138,8 @@ Need help? Contact your counselor for assistance.`;
                                 </Box>
                                 {student.unreadMessageCount > 0 && (
                                   <Tooltip title={`${student.unreadMessageCount} unread message${student.unreadMessageCount > 1 ? 's' : ''} from marketing`}>
-                                    <Badge 
-                                      badgeContent={student.unreadMessageCount} 
+                                    <Badge
+                                      badgeContent={student.unreadMessageCount}
                                       color="error"
                                       sx={{
                                         '& .MuiBadge-badge': {
@@ -1131,11 +1150,11 @@ Need help? Contact your counselor for assistance.`;
                                         }
                                       }}
                                     >
-                                      <MessageIcon 
-                                        sx={{ 
+                                      <MessageIcon
+                                        sx={{
                                           color: theme.palette.primary.main,
                                           fontSize: '1.1rem'
-                                        }} 
+                                        }}
                                       />
                                     </Badge>
                                   </Tooltip>
@@ -1174,8 +1193,8 @@ Need help? Contact your counselor for assistance.`;
                             <Box sx={{ display: 'flex', gap: 1 }}>
                               {student.unreadMessageCount > 0 && (
                                 <Tooltip title={`${student.unreadMessageCount} unread message${student.unreadMessageCount > 1 ? 's' : ''} from marketing`}>
-                                  <Badge 
-                                    badgeContent={student.unreadMessageCount} 
+                                  <Badge
+                                    badgeContent={student.unreadMessageCount}
                                     color="error"
                                     sx={{
                                       '& .MuiBadge-badge': {
@@ -1355,7 +1374,7 @@ Need help? Contact your counselor for assistance.`;
               border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
             }}>
               <Typography variant="body2" color="error" sx={{ fontWeight: 600, mb: 1 }}>
-                  Warning: This will delete:
+                Warning: This will delete:
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 • Student profiles and personal information<br />
