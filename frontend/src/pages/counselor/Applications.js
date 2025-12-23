@@ -36,14 +36,11 @@ import {
   CardContent,
   Avatar,
   Tooltip,
-  Badge,
-  LinearProgress,
   Tabs,
   Tab,
   InputAdornment,
   Divider
 } from '@mui/material';
-import MultiCountryApplicationManager from '../../components/counselor/MultiCountryApplicationManager';
 import MultiCountryDashboard from '../../components/counselor/MultiCountryDashboard';
 import SingleCountryAlert from '../../components/counselor/SingleCountryAlert';
 import ApplicationCardView from '../../components/counselor/ApplicationCardView';
@@ -52,50 +49,34 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Sort as SortIcon,
   Refresh as RefreshIcon,
   Clear as ClearIcon,
   School as SchoolIcon,
   Person as PersonIcon,
   CalendarToday as CalendarIcon,
-  TrendingUp as TrendingUpIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
   Schedule as ScheduleIcon,
   Visibility as ViewIcon,
-  Download as DownloadIcon,
-  MoreVert as MoreIcon,
   Assignment as AssignmentIcon,
-  Book as BookIcon,
   LocationOn as LocationIcon,
   Analytics as AnalyticsIcon,
   Timeline as TimelineIcon,
-  Assessment as AssessmentIcon,
-  Notifications as NotificationsIcon,
-  Star as StarIcon,
   Flag as FlagIcon,
-  Speed as SpeedIcon,
-  TrendingDown as TrendingDownIcon,
   CheckBox as CheckBoxIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   FilterAlt as FilterAltIcon,
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
-  GetApp as GetAppIcon,
-  Print as PrintIcon,
-  Share as ShareIcon,
-  Archive as ArchiveIcon,
-  RestoreFromTrash as RestoreFromTrashIcon,
   PriorityHigh as PriorityHighIcon,
   LowPriority as LowPriorityIcon,
   ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
-import { format, isAfter, isBefore, addDays, differenceInDays } from 'date-fns';
+import { format, isBefore, addDays, differenceInDays } from 'date-fns';
 import axiosInstance from '../../utils/axios';
 import useWebSocket from '../../hooks/useWebSocket';
 import { useAuth } from '../../context/AuthContext';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const APPLICATION_STATUS = [
   { value: 'PENDING', label: 'Pending', color: 'warning' },
@@ -197,11 +178,9 @@ function Applications() {
   const [bulkActionDialog, setBulkActionDialog] = useState(false);
   const [bulkAction, setBulkAction] = useState('');
   const [tabValue, setTabValue] = useState(0);
-  const [selectedStudentForMultiCountry, setSelectedStudentForMultiCountry] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedCountryForDetails, setSelectedCountryForDetails] = useState(null);
-  const [countryStudentsData, setCountryStudentsData] = useState([]);
   const [loadingCountryStudents, setLoadingCountryStudents] = useState(false);
   const [allApplicationsForCountry, setAllApplicationsForCountry] = useState([]);
   const [applicationStats, setApplicationStats] = useState({
@@ -213,7 +192,6 @@ function Applications() {
     underReview: 0
   });
   const [recentActivities, setRecentActivities] = useState([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [countryFilter, setCountryFilter] = useState('ALL');
   const [intakeFilter, setIntakeFilter] = useState('ALL');
@@ -391,19 +369,6 @@ function Applications() {
     setApplicationStats(stats);
   };
 
-  const getUpcomingDeadlines = (apps) => {
-    const now = new Date();
-    const thirtyDaysFromNow = addDays(now, 30);
-
-    return apps
-      .filter(app => {
-        const deadline = new Date(app.deadline);
-        return deadline >= now && deadline <= thirtyDaysFromNow;
-      })
-      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-      .slice(0, 5);
-  };
-
   const getRecentActivities = (apps) => {
     return apps
       .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
@@ -455,6 +420,7 @@ function Applications() {
   useEffect(() => {
     fetchApplications();
     fetchStudentsAndUniversities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, statusFilter, studentFilter, universityFilter, countryFilter, sortBy, page, rowsPerPage]);
 
   // Fetch All Students by Country data on initial mount (shown in All Applications tab)
@@ -469,12 +435,12 @@ function Applications() {
     if (tabValue === 2 && allStudentsData.length === 0) {
       fetchAllStudentsWithCountries();
     }
-  }, [tabValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabValue, allStudentsData.length]);
 
   useEffect(() => {
     if (applications.length > 0) {
       calculateApplicationStats(applications);
-      setUpcomingDeadlines(getUpcomingDeadlines(applications));
       setRecentActivities(getRecentActivities(applications));
     }
   }, [applications]);
@@ -658,14 +624,6 @@ function Applications() {
     // You can navigate to a detailed view or open a dialog
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('ALL');
-    setStudentFilter('ALL');
-    setUniversityFilter('ALL');
-    setSortBy('deadline_asc');
-    setPage(0);
-  };
 
   const getStatusColor = (status) => {
     const statusObj = APPLICATION_STATUS.find(s => s.value === status);
@@ -697,15 +655,6 @@ function Applications() {
   const stats = getApplicationStats();
 
   const getStatus = (app) => app.status || app.applicationStatus;
-  const groupedApplications = {
-    overdue: applications.filter(app => isOverdue(app.applicationDeadline) && getStatus(app) === 'PENDING'),
-    dueSoon: applications.filter(app => isDueSoon(app.applicationDeadline) && getStatus(app) === 'PENDING'),
-    pending: applications.filter(app => getStatus(app) === 'PENDING' && !isOverdue(app.applicationDeadline) && !isDueSoon(app.applicationDeadline)),
-    submitted: applications.filter(app => getStatus(app) === 'SUBMITTED'),
-    underReview: applications.filter(app => getStatus(app) === 'UNDER_REVIEW'),
-    accepted: applications.filter(app => getStatus(app) === 'ACCEPTED'),
-    rejected: applications.filter(app => getStatus(app) === 'REJECTED')
-  };
 
   const LoadingSkeleton = () => (
     <Grid container spacing={3}>
@@ -1743,9 +1692,6 @@ function Applications() {
                       const countryStudents = allStudentsData.filter(student =>
                         student.countries && student.countries.some(c => normalizeCountryName(c) === normalizedCountry)
                       );
-                      const countryProfile = allStudentsData
-                        .flatMap(s => s.countryProfiles || [])
-                        .find(p => normalizeCountryName(p.country) === normalizedCountry);
 
                       return (
                         <Grid item xs={12} sm={6} md={4} lg={3} key={country}>
