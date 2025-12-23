@@ -40,7 +40,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider
+  Divider,
+  Badge,
+  Zoom,
+  Grow,
+  Slide
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -177,6 +181,7 @@ function CounselorMonitoring() {
   const [realTimeActivities, setRealTimeActivities] = useState([]);
   const [realTimeLoading, setRealTimeLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [pulseAnimation, setPulseAnimation] = useState(0);
 
   const fetchMonitoringData = async () => {
     try {
@@ -309,6 +314,14 @@ function CounselorMonitoring() {
     return () => clearInterval(timeInterval);
   }, []);
 
+  // Pulse animation for real-time indicators
+  useEffect(() => {
+    const pulseInterval = setInterval(() => {
+      setPulseAnimation(prev => (prev + 1) % 2);
+    }, 2000); // Pulse every 2 seconds
+    return () => clearInterval(pulseInterval);
+  }, []);
+
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
@@ -341,78 +354,188 @@ function CounselorMonitoring() {
   }
 
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ py: 4 }}>
-        {/* Header */}
-        <Fade in={true} timeout={600}>
-          <Box sx={{ mb: 4 }}>
-            <Breadcrumbs sx={{ mb: 2 }}>
-              <Link
-                color="inherit"
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/admin/dashboard');
-                }}
-                sx={{ display: 'flex', alignItems: 'center' }}
-              >
-                <DashboardIcon sx={{ mr: 0.5, fontSize: 20 }} />
-                Dashboard
-              </Link>
-              <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-                <AdminIcon sx={{ mr: 0.5, fontSize: 20 }} />
-                Counselor Monitoring
-              </Typography>
-            </Breadcrumbs>
-
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 2
-            }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                Counselor Monitoring
-              </Typography>
-
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  startIcon={<DownloadIcon />}
-                  onClick={exportData}
-                  variant="outlined"
-                  sx={{ borderRadius: 2 }}
+    <Box sx={{
+      minHeight: '100vh',
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+      position: 'relative',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `radial-gradient(circle at 20% 50%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 50%),
+                     radial-gradient(circle at 80% 80%, ${alpha(theme.palette.secondary.main, 0.1)} 0%, transparent 50%)`,
+        pointerEvents: 'none',
+        zIndex: 0
+      }
+    }}>
+      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box sx={{ py: 4 }}>
+          {/* Header */}
+          <Fade in={true} timeout={600}>
+            <Box sx={{ mb: 4 }}>
+              <Breadcrumbs sx={{ mb: 2 }}>
+                <Link
+                  color="inherit"
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/admin/dashboard');
+                  }}
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateX(4px)',
+                      color: 'primary.main'
+                    }
+                  }}
                 >
-                  Export Data
-                </Button>
-                <Button
-                  startIcon={<RefreshIcon />}
-                  onClick={fetchMonitoringData}
-                  variant="contained"
-                  sx={{ borderRadius: 2 }}
-                >
-                  Refresh
-                </Button>
+                  <DashboardIcon sx={{ mr: 0.5, fontSize: 20 }} />
+                  Dashboard
+                </Link>
+                <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+                  <AdminIcon sx={{ mr: 0.5, fontSize: 20 }} />
+                  Counselor Monitoring
+                </Typography>
+              </Breadcrumbs>
+
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 2,
+                p: 3,
+                borderRadius: 4,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)} 0%, ${alpha(theme.palette.background.paper, 0.7)} 100%)`,
+                backdropFilter: 'blur(10px)',
+                boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 3,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                    animation: pulseAnimation === 0 ? 'pulse 2s ease-in-out infinite' : 'none',
+                    '@keyframes pulse': {
+                      '0%, 100%': { transform: 'scale(1)', boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}` },
+                      '50%': { transform: 'scale(1.05)', boxShadow: `0 6px 30px ${alpha(theme.palette.primary.main, 0.5)}` }
+                    }
+                  }}>
+                    <AdminIcon sx={{ color: 'white', fontSize: 28 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ 
+                      fontWeight: 700,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}>
+                      Counselor Monitoring
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Real-time activity tracking & analytics
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Button
+                    startIcon={<DownloadIcon />}
+                    onClick={exportData}
+                    variant="outlined"
+                    sx={{ 
+                      borderRadius: 3,
+                      px: 3,
+                      py: 1.5,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`
+                      }
+                    }}
+                  >
+                    Export Data
+                  </Button>
+                  <Button
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchMonitoringData}
+                    variant="contained"
+                    sx={{ 
+                      borderRadius: 3,
+                      px: 3,
+                      py: 1.5,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                      boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.4)}`,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                      }
+                    }}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
               </Box>
             </Box>
-          </Box>
-        </Fade>
+          </Fade>
 
         {error && (
-          <Fade in={true} timeout={800}>
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Slide direction="down" in={true} timeout={800}>
+            <Alert severity="error" sx={{ 
+              mb: 3, 
+              borderRadius: 3,
+              boxShadow: `0 4px 20px ${alpha(theme.palette.error.main, 0.2)}`,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`
+            }}>
               {error}
             </Alert>
-          </Fade>
+          </Slide>
         )}
 
         {/* Filters */}
-        <Card sx={{ mb: 3, borderRadius: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-              <FilterIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Filters
-            </Typography>
+        <Grow in={true} timeout={800}>
+          <Card sx={{ 
+            mb: 3, 
+            borderRadius: 4,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+            backdropFilter: 'blur(10px)',
+            boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
+              transform: 'translateY(-2px)'
+            }
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Box sx={{
+                  p: 1,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  mr: 1.5
+                }}>
+                  <FilterIcon sx={{ color: 'primary.main' }} />
+                </Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Filters
+                </Typography>
+              </Box>
 
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} sm={6} md={3}>
@@ -474,65 +597,167 @@ function CounselorMonitoring() {
             </Grid>
           </CardContent>
         </Card>
+        </Grow>
 
         {/* Summary Statistics */}
         {monitoringData && (
-          <Card sx={{ mb: 3, borderRadius: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                <AnalyticsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Summary Statistics
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                      {monitoringData.summary?.totalActivities || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Activities
-                    </Typography>
+          <Grow in={true} timeout={1000}>
+            <Card sx={{ 
+              mb: 3, 
+              borderRadius: 4,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+              backdropFilter: 'blur(10px)',
+              boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                    mr: 1.5
+                  }}>
+                    <AnalyticsIcon sx={{ color: 'primary.main' }} />
                   </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Summary Statistics
+                  </Typography>
+                </Box>
+                <Grid container spacing={3}>
+                  {[
+                    { value: monitoringData.summary?.totalActivities || 0, label: 'Total Activities', color: 'primary', icon: <TimelineIcon /> },
+                    { value: monitoringData.summary?.uniqueCounselors || 0, label: 'Active Counselors', color: 'success', icon: <PeopleIcon /> },
+                    { value: monitoringData.summary?.activeSessions || 0, label: 'Active Sessions', color: 'warning', icon: <AccessTimeIcon /> },
+                    { value: monitoringData.counselors?.length || 0, label: 'Total Counselors', color: 'info', icon: <PersonIcon /> }
+                  ].map((stat, index) => (
+                    <Grid item xs={12} sm={6} md={3} key={index}>
+                      <Zoom in={true} timeout={1200 + (index * 100)}>
+                        <Card sx={{
+                          height: '100%',
+                          background: `linear-gradient(135deg, ${alpha(theme.palette[stat.color].main, 0.1)} 0%, ${alpha(theme.palette[stat.color].main, 0.05)} 100%)`,
+                          border: `2px solid ${alpha(theme.palette[stat.color].main, 0.2)}`,
+                          borderRadius: 3,
+                          p: 2.5,
+                          transition: 'all 0.3s ease',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: `linear-gradient(90deg, transparent, ${alpha(theme.palette[stat.color].main, 0.1)}, transparent)`,
+                            transition: 'left 0.5s ease',
+                          },
+                          '&:hover': {
+                            transform: 'translateY(-8px) scale(1.02)',
+                            boxShadow: `0 12px 40px ${alpha(theme.palette[stat.color].main, 0.3)}`,
+                            borderColor: alpha(theme.palette[stat.color].main, 0.4),
+                            '&::before': {
+                              left: '100%'
+                            }
+                          }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                            <Box sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${theme.palette[stat.color].main} 0%, ${alpha(theme.palette[stat.color].main, 0.8)} 100%)`,
+                              color: 'white',
+                              boxShadow: `0 4px 15px ${alpha(theme.palette[stat.color].main, 0.4)}`,
+                              animation: pulseAnimation === 0 && stat.color === 'warning' ? 'pulse 2s ease-in-out infinite' : 'none',
+                              '@keyframes pulse': {
+                                '0%, 100%': { transform: 'scale(1)', boxShadow: `0 4px 15px ${alpha(theme.palette[stat.color].main, 0.4)}` },
+                                '50%': { transform: 'scale(1.1)', boxShadow: `0 6px 25px ${alpha(theme.palette[stat.color].main, 0.6)}` }
+                              }
+                            }}>
+                              {stat.icon}
+                            </Box>
+                            <Badge 
+                              badgeContent={stat.value} 
+                              color={stat.color}
+                              sx={{
+                                '& .MuiBadge-badge': {
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  animation: pulseAnimation === 0 && stat.color === 'warning' ? 'pulse 2s ease-in-out infinite' : 'none'
+                                }
+                              }}
+                            />
+                          </Box>
+                          <Typography variant="h4" sx={{ 
+                            fontWeight: 700, 
+                            color: `${stat.color}.main`,
+                            mb: 1,
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              transform: 'scale(1.1)'
+                            }
+                          }}>
+                            {stat.value}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                            {stat.label}
+                          </Typography>
+                        </Card>
+                      </Zoom>
+                    </Grid>
+                  ))}
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                      {monitoringData.summary?.uniqueCounselors || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Active Counselors
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                      {monitoringData.summary?.activeSessions || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Active Sessions
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main' }}>
-                      {monitoringData.counselors?.length || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Counselors
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Grow>
         )}
 
         {/* Tabs */}
-        <Card sx={{ mb: 3 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="monitoring tabs">
+        <Card sx={{ 
+          mb: 3,
+          borderRadius: 4,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+          backdropFilter: 'blur(10px)',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+          overflow: 'hidden'
+        }}>
+          <Box sx={{ 
+            borderBottom: 1, 
+            borderColor: 'divider',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`
+          }}>
+            <Tabs 
+              value={tabValue} 
+              onChange={handleTabChange} 
+              aria-label="monitoring tabs"
+              sx={{
+                '& .MuiTab-root': {
+                  minHeight: 72,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: alpha(theme.palette.primary.main, 0.1),
+                    transform: 'translateY(-2px)'
+                  },
+                  '&.Mui-selected': {
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)} 0%, ${alpha(theme.palette.secondary.main, 0.15)} 100%)`,
+                    color: 'primary.main',
+                    fontWeight: 600
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                }
+              }}
+            >
               <Tab
                 label="Overview"
                 icon={<DashboardIcon />}
@@ -573,43 +798,143 @@ function CounselorMonitoring() {
                 </Typography>
                 <Grid container spacing={3}>
                   {/* Counselor Cards */}
-                  {monitoringData.counselors?.map((counselor) => (
+                  {monitoringData.counselors?.map((counselor, index) => (
                     <Grid item xs={12} sm={6} md={4} key={counselor.id}>
-                      <Card sx={{ height: '100%' }}>
-                        <CardContent>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
-                              <PersonIcon />
-                            </Avatar>
-                            <Box>
-                              <Typography variant="h6">{counselor.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {counselor.email}
+                      <Zoom in={true} timeout={800 + (index * 100)}>
+                        <Card sx={{ 
+                          height: '100%',
+                          borderRadius: 4,
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+                          backdropFilter: 'blur(10px)',
+                          border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                          boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+                            transition: 'left 0.6s ease',
+                          },
+                          '&:hover': {
+                            transform: 'translateY(-12px) scale(1.02)',
+                            boxShadow: `0 16px 48px ${alpha(theme.palette.primary.main, 0.25)}`,
+                            borderColor: alpha(theme.palette.primary.main, 0.3),
+                            '&::before': {
+                              left: '100%'
+                            }
+                          }
+                        }}>
+                          <CardContent sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                              <Badge
+                                overlap="circular"
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                badgeContent={
+                                  counselor.active ? (
+                                    <Box
+                                      sx={{
+                                        width: 12,
+                                        height: 12,
+                                        borderRadius: '50%',
+                                        background: theme.palette.success.main,
+                                        border: `2px solid ${theme.palette.background.paper}`,
+                                        animation: 'pulse 2s ease-in-out infinite',
+                                        '@keyframes pulse': {
+                                          '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                                          '50%': { transform: 'scale(1.3)', opacity: 0.7 }
+                                        }
+                                      }}
+                                    />
+                                  ) : null
+                                }
+                              >
+                                <Avatar sx={{ 
+                                  mr: 2, 
+                                  width: 56,
+                                  height: 56,
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                                  boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                  transition: 'all 0.3s ease',
+                                  '&:hover': {
+                                    transform: 'scale(1.1) rotate(5deg)',
+                                    boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                                  }
+                                }}>
+                                  <PersonIcon />
+                                </Avatar>
+                              </Badge>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="h6" sx={{ 
+                                  fontWeight: 600,
+                                  mb: 0.5,
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                                  backgroundClip: 'text',
+                                  WebkitBackgroundClip: 'text',
+                                  WebkitTextFillColor: 'transparent'
+                                }}>
+                                  {counselor.name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {counselor.email}
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ mb: 2 }}>
+                              <Chip
+                                label={counselor.active ? 'Active' : 'Inactive'}
+                                color={counselor.active ? 'success' : 'default'}
+                                size="small"
+                                sx={{
+                                  fontWeight: 600,
+                                  boxShadow: counselor.active ? `0 2px 8px ${alpha(theme.palette.success.main, 0.3)}` : 'none',
+                                  transition: 'all 0.3s ease',
+                                  '&:hover': {
+                                    transform: 'scale(1.1)'
+                                  }
+                                }}
+                              />
+                            </Box>
+
+                            <Box sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+                              mb: 2,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                            }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                Activities: <Box component="span" sx={{ fontSize: '1.2em', fontWeight: 700 }}>{counselor.activities?.length || 0}</Box>
                               </Typography>
                             </Box>
-                          </Box>
 
-                          <Box sx={{ mb: 2 }}>
-                            <Chip
-                              label={counselor.active ? 'Active' : 'Inactive'}
-                              color={counselor.active ? 'success' : 'default'}
-                              size="small"
-                            />
-                          </Box>
-
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Activities: {counselor.activities?.length || 0}
-                          </Typography>
-
-                          <Button
-                            size="small"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => handleViewCounselorDetails(counselor)}
-                          >
-                            View Details
-                          </Button>
-                        </CardContent>
-                      </Card>
+                            <Button
+                              size="medium"
+                              fullWidth
+                              startIcon={<VisibilityIcon />}
+                              onClick={() => handleViewCounselorDetails(counselor)}
+                              sx={{
+                                borderRadius: 2,
+                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                                boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                                }
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Zoom>
                     </Grid>
                   ))}
                 </Grid>
@@ -623,129 +948,332 @@ function CounselorMonitoring() {
 
           <TabPanel value={tabValue} index={1}>
             {/* Activity Feed Tab */}
-            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6">Real-time Activity Feed</Typography>
+            <Box sx={{ 
+              mb: 3, 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              p: 2,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{
+                  p: 1,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                }}>
+                  <TimelineIcon sx={{ color: 'primary.main' }} />
+                </Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Real-time Activity Feed
+                </Typography>
+                <Box sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: theme.palette.success.main,
+                  animation: 'pulse 2s ease-in-out infinite',
+                  '@keyframes pulse': {
+                    '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                    '50%': { transform: 'scale(1.5)', opacity: 0.5 }
+                  }
+                }} />
+              </Box>
               <Button
                 startIcon={<RefreshIcon />}
                 onClick={fetchRealTimeActivities}
                 disabled={realTimeLoading}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px) rotate(180deg)',
+                    boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                  },
+                  '&:disabled': {
+                    background: theme.palette.action.disabledBackground
+                  }
+                }}
               >
                 Refresh
               </Button>
             </Box>
 
             {realTimeActivities.length > 0 ? (
-              <List>
+              <List sx={{ 
+                p: 0,
+                '& .MuiListItem-root': {
+                  borderRadius: 3,
+                  mb: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+                  backdropFilter: 'blur(10px)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateX(8px)',
+                    boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.15)}`,
+                    borderColor: alpha(theme.palette.primary.main, 0.3)
+                  }
+                }
+              }}>
                 {realTimeActivities.map((activity, index) => (
-                  <ListItem key={activity.id || index} divider>
-                    <ListItemIcon>
-                      <Avatar sx={{ bgcolor: theme.palette.primary.light }}>
-                        {activity.activityType === 'LOGIN' && <LoginIcon />}
-                        {activity.activityType === 'LOGOUT' && <LogoutIcon />}
-                        {activity.activityType === 'DOCUMENT_UPLOAD' && <UploadIcon />}
-                        {!['LOGIN', 'LOGOUT', 'DOCUMENT_UPLOAD'].includes(activity.activityType) && <TimelineIcon />}
-                      </Avatar>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body1">
-                            {activity.counselor?.name || 'Unknown Counselor'}
+                  <Slide direction="left" in={true} timeout={500 + (index * 50)} key={activity.id || index}>
+                    <ListItem divider={false} sx={{ p: 2.5 }}>
+                      <ListItemIcon>
+                        <Avatar sx={{ 
+                          bgcolor: `${getActivityColor(activity.activityType)}.main`,
+                          background: `linear-gradient(135deg, ${theme.palette[getActivityColor(activity.activityType)].main} 0%, ${alpha(theme.palette[getActivityColor(activity.activityType)].main, 0.8)} 100%)`,
+                          boxShadow: `0 4px 15px ${alpha(theme.palette[getActivityColor(activity.activityType)].main, 0.4)}`,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'scale(1.2) rotate(10deg)',
+                            boxShadow: `0 6px 25px ${alpha(theme.palette[getActivityColor(activity.activityType)].main, 0.6)}`
+                          }
+                        }}>
+                          {getActivityIcon(activity.activityType)}
+                        </Avatar>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {activity.counselor?.name || 'Unknown Counselor'}
+                            </Typography>
+                            <Chip
+                              label={activity.activityType?.replace(/_/g, ' ')}
+                              size="small"
+                              color={getActivityColor(activity.activityType)}
+                              sx={{
+                                fontWeight: 600,
+                                boxShadow: `0 2px 8px ${alpha(theme.palette[getActivityColor(activity.activityType)].main, 0.3)}`,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  transform: 'scale(1.1)'
+                                }
+                              }}
+                            />
+                          </Box>
+                        }
+                        secondary={
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {activity.description || (
+                              activity.activityType === 'LOGIN' ? 'User logged in' :
+                                activity.activityType === 'LOGOUT' ? 'User logged out' :
+                                  activity.activityType === 'DOCUMENT_UPLOAD' ? 'Uploaded a document' :
+                                    activity.activityType === 'STUDENT_CREATE' ? 'Added a new student' :
+                                      activity.activityType?.replace(/_/g, ' ').toLowerCase()
+                            )} • <Box component="span" sx={{ fontWeight: 600, color: 'primary.main' }}>{formatTimeAgo(activity.createdAt)}</Box>
                           </Typography>
-                          <Chip
-                            label={activity.activityType?.replace(/_/g, ' ')}
-                            size="small"
-                            color="primary"
-                          />
-                        </Box>
-                      }
-                      secondary={
-                        <Typography variant="body2" color="text.secondary">
-                          {activity.description || (
-                            activity.activityType === 'LOGIN' ? 'User logged in' :
-                              activity.activityType === 'LOGOUT' ? 'User logged out' :
-                                activity.activityType === 'DOCUMENT_UPLOAD' ? 'Uploaded a document' :
-                                  activity.activityType === 'STUDENT_CREATE' ? 'Added a new student' :
-                                    activity.activityType?.replace(/_/g, ' ').toLowerCase()
-                          )} • {formatTimeAgo(activity.createdAt)}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
+                        }
+                      />
+                    </ListItem>
+                  </Slide>
                 ))}
               </List>
             ) : (
-              <Alert severity="info">No recent activities found.</Alert>
+              <Alert severity="info" sx={{ 
+                borderRadius: 3,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+                border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+              }}>
+                No recent activities found.
+              </Alert>
             )}
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
             {/* Performance Tab */}
-            <Typography variant="h6" sx={{ mb: 2 }}>Performance Analytics</Typography>
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                <Box sx={{
+                  p: 1,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                }}>
+                  <AssessmentIcon sx={{ color: 'primary.main' }} />
+                </Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Performance Analytics
+                </Typography>
+              </Box>
+            </Box>
             {monitoringData?.sessionStats && (
               <Grid container spacing={3}>
-                {monitoringData.sessionStats.map((stat) => (
+                {monitoringData.sessionStats.map((stat, index) => (
                   <Grid item xs={12} sm={6} md={4} key={stat.counselorId}>
-                    <Card>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                          <Avatar sx={{ mr: 2, bgcolor: theme.palette.primary.main }}>
-                            <PersonIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="h6">{stat.counselor?.name}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {stat.counselor?.email}
-                            </Typography>
+                    <Grow in={true} timeout={800 + (index * 100)}>
+                      <Card sx={{
+                        height: '100%',
+                        borderRadius: 4,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+                        backdropFilter: 'blur(10px)',
+                        border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                        boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+                          transition: 'left 0.6s ease',
+                        },
+                        '&:hover': {
+                          transform: 'translateY(-12px) scale(1.02)',
+                          boxShadow: `0 16px 48px ${alpha(theme.palette.primary.main, 0.25)}`,
+                          borderColor: alpha(theme.palette.primary.main, 0.3),
+                          '&::before': {
+                            left: '100%'
+                          }
+                        }
+                      }}>
+                        <CardContent sx={{ p: 3 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                            <Avatar sx={{ 
+                              mr: 2, 
+                              width: 56,
+                              height: 56,
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                              boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                transform: 'scale(1.1) rotate(5deg)',
+                                boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                              }
+                            }}>
+                              <PersonIcon />
+                            </Avatar>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="h6" sx={{ 
+                                fontWeight: 600,
+                                mb: 0.5,
+                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                                backgroundClip: 'text',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent'
+                              }}>
+                                {stat.counselor?.name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {stat.counselor?.email}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Box>
 
-                        <Grid container spacing={1}>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              Login Count: {stat.loginCount || 0}
-                            </Typography>
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <Box sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.75rem' }}>
+                                  Login Count
+                                </Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 700, color: 'info.main' }}>
+                                  {stat.loginCount || 0}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Box sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.75rem' }}>
+                                  Total Time
+                                </Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 700, color: 'warning.main' }}>
+                                  {stat.totalSessionDuration ?
+                                    `${Math.round(stat.totalSessionDuration / 60)} min` : 'N/A'}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                Avg Session: <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                  {stat.avgSessionDuration ?
+                                    `${Math.round(stat.avgSessionDuration / 60)} min` : 'N/A'}
+                                </Box>
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                Last Login: <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                  {stat.lastLogin ?
+                                    new Date(stat.lastLogin).toLocaleDateString() : 'N/A'}
+                                </Box>
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Box sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.75rem' }}>
+                                  Students Completed
+                                </Typography>
+                                <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>
+                                  {stat.completedStudents || 0}
+                                </Typography>
+                              </Box>
+                            </Grid>
                           </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              Total Time: {stat.totalSessionDuration ?
-                                `${Math.round(stat.totalSessionDuration / 60)} min` : 'N/A'}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary">
-                              Avg Session: {stat.avgSessionDuration ?
-                                `${Math.round(stat.avgSessionDuration / 60)} min` : 'N/A'}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary">
-                              Last Login: {stat.lastLogin ?
-                                new Date(stat.lastLogin).toLocaleDateString() : 'N/A'}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                              Students Completed: {stat.completedStudents || 0}
-                            </Typography>
-                          </Grid>
-                        </Grid>
 
-                        <Button
-                          size="small"
-                          startIcon={<VisibilityIcon />}
-                          onClick={() => {
-                            const counselor = monitoringData.counselors?.find(c => c.id === stat.counselorId);
-                            if (counselor) {
-                              handleViewCounselorDetails(counselor);
-                            }
-                          }}
-                          sx={{ mt: 2 }}
-                        >
-                          View Details
-                        </Button>
-                      </CardContent>
-                    </Card>
+                          <Button
+                            size="medium"
+                            fullWidth
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => {
+                              const counselor = monitoringData.counselors?.find(c => c.id === stat.counselorId);
+                              if (counselor) {
+                                handleViewCounselorDetails(counselor);
+                              }
+                            }}
+                            sx={{ 
+                              mt: 3,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                              boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                              }
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </Grow>
                   </Grid>
                 ))}
               </Grid>
@@ -754,27 +1282,77 @@ function CounselorMonitoring() {
         </Card>
 
         {/* Export Actions */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2 }}>Export Data</Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                startIcon={<DownloadIcon />}
-                variant="outlined"
-                onClick={exportData}
-              >
-                Export CSV
-              </Button>
-              <Button
-                startIcon={<GetAppIcon />}
-                variant="outlined"
-                onClick={() => exportData('json')}
-              >
-                Export JSON
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+        <Grow in={true} timeout={1200}>
+          <Card sx={{
+            borderRadius: 4,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+            backdropFilter: 'blur(10px)',
+            boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Box sx={{
+                  p: 1,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  mr: 1.5
+                }}>
+                  <DownloadIcon sx={{ color: 'primary.main' }} />
+                </Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Export Data
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  variant="outlined"
+                  onClick={exportData}
+                  sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    borderWidth: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      borderWidth: 2
+                    }
+                  }}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  startIcon={<GetAppIcon />}
+                  variant="outlined"
+                  onClick={() => exportData('json')}
+                  sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    borderWidth: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      borderWidth: 2
+                    }
+                  }}
+                >
+                  Export JSON
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grow>
 
         {/* Counselor Details Dialog */}
         <Dialog
@@ -782,13 +1360,56 @@ function CounselorMonitoring() {
           onClose={() => setDetailsDialogOpen(false)}
           maxWidth="lg"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 4,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.98)} 0%, ${alpha(theme.palette.background.paper, 0.95)} 100%)`,
+              backdropFilter: 'blur(20px)',
+              boxShadow: `0 20px 60px ${alpha(theme.palette.primary.main, 0.2)}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+            }
+          }}
         >
-          <DialogTitle>
+          <DialogTitle sx={{
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            pb: 2
+          }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography variant="h6">
-                Counselor Details: {selectedCounselor?.name}
-              </Typography>
-              <IconButton onClick={() => setDetailsDialogOpen(false)}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`
+                }}>
+                  <PersonIcon sx={{ color: 'white' }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Counselor Details
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedCounselor?.name}
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton 
+                onClick={() => setDetailsDialogOpen(false)}
+                sx={{
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'rotate(90deg) scale(1.1)',
+                    background: alpha(theme.palette.error.main, 0.1)
+                  }
+                }}
+              >
                 <CloseIcon />
               </IconButton>
             </Box>
@@ -800,8 +1421,24 @@ function CounselorMonitoring() {
               </Box>
             ) : counselorDetails ? (
               <Box>
-
-                <Typography variant="h6" sx={{ mb: 2 }}>Counselor Performance</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <Box sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                  }}>
+                    <AnalyticsIcon sx={{ color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Counselor Performance
+                  </Typography>
+                </Box>
                 <Grid container spacing={3} sx={{ mb: 4 }}>
                   {[
                     { title: 'Total Students', value: counselorDetails.dashboardStats?.totalStudents || 0, color: theme.palette.primary.main, icon: <PeopleIcon /> },
@@ -812,87 +1449,258 @@ function CounselorMonitoring() {
                     { title: 'Current Students', value: counselorDetails.dashboardStats?.currentStudents || 0, color: theme.palette.secondary.main, icon: <PeopleIcon /> }
                   ].map((stat, index) => (
                     <Grid item xs={12} sm={6} md={4} key={index}>
-                      <Card sx={{
-                        height: '100%',
-                        background: `linear-gradient(135deg, ${alpha(stat.color, 0.1)} 0%, ${alpha(stat.color, 0.05)} 100%)`,
-                        border: `1px solid ${alpha(stat.color, 0.2)}`
-                      }}>
-                        <CardContent>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                            <Box sx={{
-                              p: 1,
-                              borderRadius: 2,
-                              bgcolor: alpha(stat.color, 0.1),
-                              color: stat.color,
-                              display: 'flex'
-                            }}>
-                              {stat.icon}
+                      <Zoom in={true} timeout={600 + (index * 100)}>
+                        <Card sx={{
+                          height: '100%',
+                          borderRadius: 3,
+                          background: `linear-gradient(135deg, ${alpha(stat.color, 0.1)} 0%, ${alpha(stat.color, 0.05)} 100%)`,
+                          border: `2px solid ${alpha(stat.color, 0.2)}`,
+                          boxShadow: `0 4px 20px ${alpha(stat.color, 0.1)}`,
+                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: `linear-gradient(90deg, transparent, ${alpha(stat.color, 0.1)}, transparent)`,
+                            transition: 'left 0.6s ease',
+                          },
+                          '&:hover': {
+                            transform: 'translateY(-8px) scale(1.03)',
+                            boxShadow: `0 12px 40px ${alpha(stat.color, 0.25)}`,
+                            borderColor: alpha(stat.color, 0.4),
+                            '&::before': {
+                              left: '100%'
+                            }
+                          }
+                        }}>
+                          <CardContent sx={{ p: 2.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                              <Box sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                background: `linear-gradient(135deg, ${stat.color} 0%, ${alpha(stat.color, 0.8)} 100%)`,
+                                color: 'white',
+                                boxShadow: `0 4px 15px ${alpha(stat.color, 0.4)}`,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  transform: 'scale(1.1) rotate(5deg)',
+                                  boxShadow: `0 6px 25px ${alpha(stat.color, 0.6)}`
+                                }
+                              }}>
+                                {stat.icon}
+                              </Box>
+                              <Typography variant="h4" sx={{ 
+                                fontWeight: 700, 
+                                color: stat.color,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  transform: 'scale(1.1)'
+                                }
+                              }}>
+                                {stat.value}
+                              </Typography>
                             </Box>
-                            <Typography variant="h4" sx={{ fontWeight: 700, color: stat.color }}>
-                              {stat.value}
+                            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                              {stat.title}
                             </Typography>
-                          </Box>
-                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                            {stat.title}
-                          </Typography>
-                        </CardContent>
-                      </Card>
+                          </CardContent>
+                        </Card>
+                      </Zoom>
                     </Grid>
                   ))}
                 </Grid>
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ 
+                  my: 3,
+                  borderColor: alpha(theme.palette.primary.main, 0.1),
+                  borderWidth: 2
+                }} />
 
-                <Typography variant="h6" sx={{ mb: 2 }}>Session Statistics</Typography>
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <Box sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                  }}>
+                    <AccessTimeIcon sx={{ color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Session Statistics
+                  </Typography>
+                </Box>
+                <Grid container spacing={3} sx={{ mb: 3 }}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Total Sessions: {counselorDetails.sessionStats?.totalSessions || 0}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Active Sessions: {counselorDetails.sessionStats?.activeSessions || 0}
-                    </Typography>
+                    <Card sx={{
+                      p: 2.5,
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+                      border: `2px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: `0 8px 30px ${alpha(theme.palette.info.main, 0.2)}`
+                      }
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.75rem' }}>
+                        Total Sessions
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main', mb: 1 }}>
+                        {counselorDetails.sessionStats?.totalSessions || 0}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                        Active Sessions: <Box component="span" sx={{ fontWeight: 600, color: 'success.main' }}>
+                          {counselorDetails.sessionStats?.activeSessions || 0}
+                        </Box>
+                      </Typography>
+                    </Card>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Total Duration: {counselorDetails.sessionStats?.totalDuration !== undefined ?
-                        `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60)} minutes` : 'N/A'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Avg: {counselorDetails.sessionStats?.avgDuration !== undefined ?
-                        `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60 / (Math.max(counselorDetails.sessionStats.totalSessions || 0, 1) + (counselorDetails.sessionStats.currentSessionDuration === 0 && counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? 1 : 0)))} min/session` : 'N/A'}
-                    </Typography>
+                    <Card sx={{
+                      p: 2.5,
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+                      border: `2px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: `0 8px 30px ${alpha(theme.palette.warning.main, 0.2)}`
+                      }
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.75rem' }}>
+                        Total Duration
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'warning.main', mb: 1 }}>
+                        {counselorDetails.sessionStats?.totalDuration !== undefined ?
+                          `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60)} min` : 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                        Avg: <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                          {counselorDetails.sessionStats?.avgDuration !== undefined ?
+                            `${Math.round((counselorDetails.sessionStats.totalDuration + (counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? (currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 1000 : 0)) / 60 / (Math.max(counselorDetails.sessionStats.totalSessions || 0, 1) + (counselorDetails.sessionStats.currentSessionDuration === 0 && counselorDetails.sessionStats.lastLogin && ((new Date() - new Date(counselorDetails.sessionStats.lastLogin)) / 1000) < 43200 ? 1 : 0)))} min/session` : 'N/A'}
+                        </Box>
+                      </Typography>
+                    </Card>
                   </Grid>
                 </Grid>
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ 
+                  my: 3,
+                  borderColor: alpha(theme.palette.primary.main, 0.1),
+                  borderWidth: 2
+                }} />
 
-                <Typography variant="h6" sx={{ mb: 2 }}>Timing Information</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">
-                      Last Login: {counselorDetails.sessionStats?.lastLogin ?
-                        format(new Date(counselorDetails.sessionStats.lastLogin), 'PPpp') : 'N/A'}
-                    </Typography>
-                  </Grid>
-                  {counselorDetails.sessionStats?.currentSessionDuration > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <Box sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                  }}>
+                    <AccessTimeIcon sx={{ color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Timing Information
+                  </Typography>
+                </Box>
+                <Card sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  mb: 3
+                }}>
+                  <Grid container spacing={2}>
                     <Grid item xs={12}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                        Current Session: {Math.round(counselorDetails.sessionStats.currentSessionDuration / 60)} minutes
-                        <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                          (Real-time: {Math.round((currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 60000)} min)
-                        </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.75rem' }}>
+                        Last Login
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {counselorDetails.sessionStats?.lastLogin ?
+                          format(new Date(counselorDetails.sessionStats.lastLogin), 'PPpp') : 'N/A'}
                       </Typography>
                     </Grid>
-                  )}
-                </Grid>
+                    {counselorDetails.sessionStats?.currentSessionDuration > 0 && (
+                      <Grid item xs={12}>
+                        <Box sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: theme.palette.success.main,
+                            animation: 'pulse 2s ease-in-out infinite',
+                            '@keyframes pulse': {
+                              '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                              '50%': { transform: 'scale(1.5)', opacity: 0.5 }
+                            }
+                          }} />
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                              Current Session
+                            </Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
+                              {Math.round(counselorDetails.sessionStats.currentSessionDuration / 60)} minutes
+                              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                (Real-time: {Math.round((currentTime - new Date(counselorDetails.sessionStats.lastLogin)) / 60000)} min)
+                              </Typography>
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Card>
 
                 <Divider sx={{ my: 2 }} />
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ 
+                  my: 3,
+                  borderColor: alpha(theme.palette.primary.main, 0.1),
+                  borderWidth: 2
+                }} />
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                  <Typography variant="h6">Students</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{
+                      p: 1,
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                    }}>
+                      <PeopleIcon sx={{ color: 'primary.main' }} />
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}>
+                      Students
+                    </Typography>
+                  </Box>
                   <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     <TextField
                       type="date"
@@ -916,15 +1724,46 @@ function CounselorMonitoring() {
                 </Box>
 
                 {/* Filter Summary */}
-                <Card sx={{ mb: 3, bgcolor: alpha(theme.palette.primary.main, 0.05), border: '1px dashed ' + alpha(theme.palette.primary.main, 0.3) }} variant="outlined">
-                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        Students in range: <Box component="span" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '1.1em' }}>{students.length}</Box>
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        Total Applications in range: <Box component="span" sx={{ fontWeight: 700, color: 'primary.main', fontSize: '1.1em' }}>{students.reduce((acc, curr) => acc + (curr.applications?.length || 0), 0)}</Box>
-                      </Typography>
+                <Card sx={{ 
+                  mb: 3, 
+                  borderRadius: 3,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.15)}`
+                  }
+                }} variant="outlined">
+                  <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                    <Box sx={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <Box sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        background: alpha(theme.palette.background.paper, 0.5),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                          Students in range
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                          {students.length}
+                        </Typography>
+                      </Box>
+                      <Box sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        background: alpha(theme.palette.background.paper, 0.5),
+                        border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                          Total Applications
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: 'secondary.main' }}>
+                          {students.reduce((acc, curr) => acc + (curr.applications?.length || 0), 0)}
+                        </Typography>
+                      </Box>
                     </Box>
                   </CardContent>
                 </Card>
@@ -939,10 +1778,31 @@ function CounselorMonitoring() {
                         <Card
                           sx={{
                             cursor: 'pointer',
-                            transition: 'all 0.3s ease',
+                            borderRadius: 3,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+                            backdropFilter: 'blur(10px)',
+                            border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                            boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              top: 0,
+                              left: '-100%',
+                              width: '100%',
+                              height: '100%',
+                              background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+                              transition: 'left 0.6s ease',
+                            },
                             '&:hover': {
-                              boxShadow: 4,
-                              transform: 'translateY(-2px)'
+                              transform: 'translateY(-8px) scale(1.02)',
+                              boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.25)}`,
+                              borderColor: alpha(theme.palette.primary.main, 0.3),
+                              '&::before': {
+                                left: '100%'
+                              }
                             }
                           }}
                           onClick={() => {
@@ -994,23 +1854,63 @@ function CounselorMonitoring() {
                   </Typography>
                 )}
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ 
+                  my: 3,
+                  borderColor: alpha(theme.palette.primary.main, 0.1),
+                  borderWidth: 2
+                }} />
 
-                <Typography variant="h6" sx={{ mb: 2 }}>Session Details</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <Box sx={{
+                    p: 1,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                  }}>
+                    <TimelineIcon sx={{ color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Session Details
+                  </Typography>
+                </Box>
                 {counselorDetails.sessions && counselorDetails.sessions.length > 0 ? (
-                  <TableContainer component={Paper} sx={{ mb: 2 }}>
+                  <TableContainer component={Paper} sx={{ 
+                    mb: 2,
+                    borderRadius: 3,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.85)} 100%)`,
+                    backdropFilter: 'blur(10px)',
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+                    overflow: 'hidden'
+                  }}>
                     <Table size="small">
                       <TableHead>
-                        <TableRow>
-                          <TableCell>Login Time</TableCell>
-                          <TableCell>Logout Time</TableCell>
-                          <TableCell>Duration</TableCell>
-                          <TableCell>Status</TableCell>
+                        <TableRow sx={{
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+                        }}>
+                          <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>Login Time</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>Logout Time</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>Duration</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>Status</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {counselorDetails.sessions.slice(0, 10).map((session) => (
-                          <TableRow key={session.id}>
+                        {counselorDetails.sessions.slice(0, 10).map((session, index) => (
+                          <TableRow 
+                            key={session.id}
+                            sx={{
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                background: alpha(theme.palette.primary.main, 0.05),
+                                transform: 'scale(1.01)'
+                              }
+                            }}
+                          >
                             <TableCell>
                               {session.loginTime ?
                                 new Date(session.loginTime).toLocaleString() :
@@ -1054,12 +1954,33 @@ function CounselorMonitoring() {
               <Alert severity="error">Failed to load counselor details.</Alert>
             )}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+          <DialogActions sx={{
+            p: 3,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+          }}>
+            <Button 
+              onClick={() => setDetailsDialogOpen(false)}
+              sx={{
+                borderRadius: 2,
+                px: 4,
+                py: 1.5,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                boxShadow: `0 4px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`
+                }
+              }}
+            >
+              Close
+            </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-    </Container >
+        </Box>
+      </Container>
+    </Box>
   );
 }
 
