@@ -195,10 +195,12 @@ const ProgressOverview = ({ students = [], countryProgress = [] }) => {
       const studentsInPhase = countryPhaseCounts[phase.key] || 0;
       
       // Count students who have completed this phase (are in a later phase)
+      // Only count phases that are actually in the PHASES array (known phases)
       const studentsCompleted = countryData.phaseDistribution
         .filter(phaseData => {
           const phaseDataIndex = PHASES.findIndex(p => p.key === phaseData.phase);
-          return phaseDataIndex > index;
+          // Only count if phase is found in PHASES array and is after current phase
+          return phaseDataIndex >= 0 && phaseDataIndex > index;
         })
         .reduce((sum, phaseData) => sum + phaseData.count, 0);
 

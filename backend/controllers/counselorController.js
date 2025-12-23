@@ -403,18 +403,18 @@ exports.getDashboardStats = async (req, res) => {
           model: Student,
           as: 'student',
           where: { counselorId },
-          attributes: ['id', 'currentPhase']
+          attributes: ['id']
         }],
-        attributes: ['id', 'country']
+        attributes: ['id', 'country', 'currentPhase']
       });
 
-      // Group by country and then by student's currentPhase
+      // Group by country and then by ApplicationCountry's currentPhase
       const countryMap = {};
       countryData.forEach(item => {
         const country = item.country;
-        const studentPhase = item.student?.currentPhase;
+        const countryPhase = item.currentPhase; // Use ApplicationCountry's currentPhase, not Student's
         
-        if (!country || !studentPhase) return; // Skip invalid entries
+        if (!country || !countryPhase) return; // Skip invalid entries
 
         if (!countryMap[country]) {
           countryMap[country] = {
@@ -426,11 +426,11 @@ exports.getDashboardStats = async (req, res) => {
 
         countryMap[country].totalStudents += 1;
         
-        // Count phases for this country
-        if (!countryMap[country].phaseDistribution[studentPhase]) {
-          countryMap[country].phaseDistribution[studentPhase] = 0;
+        // Count phases for this country using ApplicationCountry's currentPhase
+        if (!countryMap[country].phaseDistribution[countryPhase]) {
+          countryMap[country].phaseDistribution[countryPhase] = 0;
         }
-        countryMap[country].phaseDistribution[studentPhase] += 1;
+        countryMap[country].phaseDistribution[countryPhase] += 1;
       });
 
       // Convert phaseDistribution object to array format
@@ -455,6 +455,7 @@ exports.getDashboardStats = async (req, res) => {
         };
       });
     } catch (error) {
+      console.error('Error fetching country progress:', error);
     }
 
     // Get university distribution
