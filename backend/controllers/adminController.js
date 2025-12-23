@@ -362,11 +362,41 @@ exports.getAnalytics = async (req, res) => {
         }]
       });
 
+      // Calculate completed students for each counselor using the same logic as counselor dashboard
+      // A student is considered "completed" if ANY country profile has reached ENROLLMENT
+      // or has an enrollmentUniversity saved in notes
+      const counselorCompletedCounts = await Promise.all(
+        counselors.map(async (counselor) => {
+          const completedEnrollments = await ApplicationCountry.count({
+            distinct: true,
+            col: 'studentId',
+            include: [{
+              model: Student,
+              as: 'student',
+              where: { counselorId: counselor.id },
+              attributes: []
+            }],
+            where: {
+              [Op.or]: [
+                { currentPhase: 'ENROLLMENT' },
+                { notes: { [Op.like]: '%\"enrollmentUniversity\"%' } }
+              ]
+            }
+          });
+          return { counselorId: counselor.id, completedCount: completedEnrollments || 0 };
+        })
+      );
+
+      // Create a map for quick lookup
+      const completedCountMap = {};
+      counselorCompletedCounts.forEach(item => {
+        completedCountMap[item.counselorId] = item.completedCount;
+      });
+
       analytics.counselorPerformance = counselors.map(counselor => {
         const totalStudents = counselor.students.length;
-        const completedStudents = counselor.students.filter(
-          student => student.status === 'COMPLETED'
-        ).length;
+        // Use ApplicationCountry-based calculation (same as counselor dashboard)
+        const completedStudents = completedCountMap[counselor.id] || 0;
         const activeApplications = counselor.students.filter(
           student => student.status === 'ACTIVE' && student.currentPhase !== 'DOCUMENT_COLLECTION'
         ).length;
@@ -576,11 +606,39 @@ exports.exportAnalytics = async (req, res) => {
       }]
     });
 
+    // Calculate completed students for each counselor using the same logic as counselor dashboard
+    const counselorCompletedCountsExport = await Promise.all(
+      counselors.map(async (counselor) => {
+        const completedEnrollments = await ApplicationCountry.count({
+          distinct: true,
+          col: 'studentId',
+          include: [{
+            model: Student,
+            as: 'student',
+            where: { counselorId: counselor.id },
+            attributes: []
+          }],
+          where: {
+            [Op.or]: [
+              { currentPhase: 'ENROLLMENT' },
+              { notes: { [Op.like]: '%\"enrollmentUniversity\"%' } }
+            ]
+          }
+        });
+        return { counselorId: counselor.id, completedCount: completedEnrollments || 0 };
+      })
+    );
+
+    // Create a map for quick lookup
+    const completedCountMapExport = {};
+    counselorCompletedCountsExport.forEach(item => {
+      completedCountMapExport[item.counselorId] = item.completedCount;
+    });
+
     analytics.counselorPerformance = counselors.map(counselor => {
       const totalStudents = counselor.students.length;
-      const completedStudents = counselor.students.filter(
-        student => student.status === 'COMPLETED'
-      ).length;
+      // Use ApplicationCountry-based calculation (same as counselor dashboard)
+      const completedStudents = completedCountMapExport[counselor.id] || 0;
       const activeApplications = counselor.students.filter(
         student => student.status === 'ACTIVE' && student.currentPhase !== 'DOCUMENT_COLLECTION'
       ).length;
@@ -674,13 +732,41 @@ exports.getCounselors = async (req, res) => {
         required: false  // LEFT JOIN instead of INNER JOIN to avoid errors
       }]
     });
+    // Calculate completed students for each counselor using the same logic as counselor dashboard
+    const counselorCompletedCounts = await Promise.all(
+      counselors.map(async (counselor) => {
+        const completedEnrollments = await ApplicationCountry.count({
+          distinct: true,
+          col: 'studentId',
+          include: [{
+            model: Student,
+            as: 'student',
+            where: { counselorId: counselor.id },
+            attributes: []
+          }],
+          where: {
+            [Op.or]: [
+              { currentPhase: 'ENROLLMENT' },
+              { notes: { [Op.like]: '%\"enrollmentUniversity\"%' } }
+            ]
+          }
+        });
+        return { counselorId: counselor.id, completedCount: completedEnrollments || 0 };
+      })
+    );
+
+    // Create a map for quick lookup
+    const completedCountMap = {};
+    counselorCompletedCounts.forEach(item => {
+      completedCountMap[item.counselorId] = item.completedCount;
+    });
+
     const counselorStats = counselors.map(counselor => {
       // Safely handle students array that might be undefined or null
       const students = Array.isArray(counselor.students) ? counselor.students : [];
       const totalStudents = students.length;
-      const completedStudents = students.filter(
-        student => student.status === 'COMPLETED'
-      ).length;
+      // Use ApplicationCountry-based calculation (same as counselor dashboard)
+      const completedStudents = completedCountMap[counselor.id] || 0;
       // Pending applications = students that are still active (not completed, rejected, or deferred)
       const pendingApplications = students.filter(
         student => student.status === 'ACTIVE'

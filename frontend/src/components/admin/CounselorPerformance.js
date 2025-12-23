@@ -26,7 +26,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const CounselorPerformance = ({ data }) => {
   const theme = useTheme();
@@ -46,11 +46,14 @@ const CounselorPerformance = ({ data }) => {
     );
   };
 
-  const chartData = data.map(counselor => ({
-    name: counselor.name.split(' ')[0],
-    totalStudents: counselor.totalStudents,
-    successfulApplications: counselor.successfulApplications,
-    successRate: counselor.successRate
+  // Ensure data is an array and handle edge cases
+  const safeData = Array.isArray(data) ? data : [];
+  
+  const chartData = safeData.map(counselor => ({
+    name: counselor.name ? counselor.name.split(' ')[0] : 'Unknown',
+    totalStudents: counselor.totalStudents || 0,
+    successfulApplications: counselor.successfulApplications || 0,
+    successRate: counselor.successRate || 0
   }));
 
   return (
@@ -61,37 +64,61 @@ const CounselorPerformance = ({ data }) => {
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Counselor Performance Overview
             </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
-                <XAxis
-                  dataKey="name"
-                  stroke={theme.palette.text.secondary}
-                  fontSize={12}
-                />
-                <YAxis
-                  stroke={theme.palette.text.secondary}
-                  fontSize={12}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: theme.palette.background.paper,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 8
-                  }}
-                />
-                <Bar
-                  dataKey="totalStudents"
-                  fill={theme.palette.primary.main}
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="successfulApplications"
-                  fill={theme.palette.success.main}
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />
+                  <XAxis
+                    dataKey="name"
+                    stroke={theme.palette.text.secondary}
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    stroke={theme.palette.text.secondary}
+                    fontSize={12}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 8
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="rect"
+                  />
+                  <Bar
+                    dataKey="totalStudents"
+                    fill={theme.palette.primary.main}
+                    radius={[4, 4, 0, 0]}
+                    name="Total Students"
+                  />
+                  <Bar
+                    dataKey="successfulApplications"
+                    fill={theme.palette.success.main}
+                    radius={[4, 4, 0, 0]}
+                    name="Successful Applications"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Box sx={{ 
+                height: 300, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                backgroundColor: alpha(theme.palette.divider, 0.05),
+                borderRadius: 2
+              }}>
+                <Typography variant="body2" color="text.secondary">
+                  No counselor performance data available
+                </Typography>
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Fade>
@@ -115,7 +142,8 @@ const CounselorPerformance = ({ data }) => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data.map((counselor, index) => (
+                  {safeData.length > 0 ? (
+                    safeData.map((counselor, index) => (
                     <Grow in={true} timeout={1200 + (index * 100)} key={counselor.id}>
                       <TableRow
                         sx={{
@@ -200,7 +228,16 @@ const CounselorPerformance = ({ data }) => {
                         </TableCell>
                       </TableRow>
                     </Grow>
-                  ))}
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No counselor data available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
